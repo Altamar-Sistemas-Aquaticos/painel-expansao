@@ -157,56 +157,151 @@
       </button>`;
   }
 
-  // Próximos 5 dias úteis a partir de hoje (numa sexta, a "semana" já seria quase toda passado).
-  function nextWorkdays(n = 5) {
+
+  /* ---------- Agenda (calendário de 2 semanas + exportação) ---------- */
+  // Eventos com data exata: prazos de atividades, entregas de projetos e a reunião de quinta.
+  function agendaEvents(S, from, to, { reuniao = true } = {}) {
     const out = [];
-    for (let d = today(); out.length < n; d = new Date(d.getTime() + DAY)) {
-      if (d.getDay() !== 0 && d.getDay() !== 6) out.push(d);
+    S.state.data.initiatives.forEach((it) => {
+      if (!isOpen(it.status)) return; // rascunhos entram: seus prazos já são compromissos planejados
+      it.atividades.forEach((a, i) => {
+        if (!isOpen(a.status)) return;
+        const p = period(a.prazo);
+        if (p?.exact && p.end >= from && p.end <= to) {
+          const r = S.raciPeople(a.raci, "R")[0];
+          out.push({ date: p.end, kind: "prazo", cls: "accent", id: `${it.id}-${a.id}`, ini: it.id,
+            short: `${it.id} · ${a.nome}`, title: `${it.id} · ${a.nome}`, detail: `Prazo da atividade ${i + 1} de ${it.nome}${r ? ` · R: ${r}` : ""}${a.entregavel ? ` · Entregável: ${a.entregavel}` : ""}` });
+        }
+      });
+      const pp = period(it.prazo);
+      if (pp?.exact && pp.end >= from && pp.end <= to) {
+        out.push({ date: pp.end, kind: "entrega", cls: "alert", id: it.id, ini: it.id,
+          short: `${it.id} entrega`, title: `Entrega: ${it.id} · ${it.nome}`, detail: `Prazo final do projeto${it.responsavel ? ` · Responsável: ${it.responsavel}` : ""}` });
+      }
+    });
+    if (reuniao) {
+      for (let d = new Date(from); d <= to; d = new Date(d.getTime() + DAY)) {
+        if (d.getDay() === 4) out.push({ date: new Date(d), kind: "reuniao", cls: "warn", id: `reuniao-${d.toISOString().slice(0, 10)}`,
+          short: "Reunião diretoria", title: "Reunião de gestão com a diretoria", detail: "Quinta-feira: status, prazos, impedimentos e decisões" });
+      }
     }
-    return out;
+    const order = { reuniao: 0, entrega: 1, prazo: 2 };
+    return out.sort((a, b) => a.date - b.date || order[a.kind] - order[b.kind]);
   }
 
-  function weekStrip(S, soon) {
-    const days = nextWorkdays();
+  function calendar(S) {
+    const start = mondayOf(new Date());
+    const end = new Date(start.getTime() + 13 * DAY);
     const t = today().getTime();
-    const label = (d) => d.toLocaleDateString("pt-BR", { weekday: "short" }).replace(".", "") + " " + String(d.getDate()).padStart(2, "0");
-    const events = (d) => {
-      const out = [];
-      if (d.getDay() === 4) out.push({ cls: "warn", text: "Reunião" }); // quinta = reunião com a diretoria
-      S.state.data.initiatives.forEach((it) => {
-        if (!isOpen(it.status)) return;
-        it.atividades.forEach((a) => {
-          const p = period(a.prazo);
-          if (p?.exact && isOpen(a.status) && p.end.getTime() === d.getTime()) out.push({ cls: "accent", text: `${it.id} prazo`, go: `projeto/${it.id}` });
-        });
-        const pp = period(it.prazo);
-        if (pp?.exact && pp.end.getTime() === d.getTime()) out.push({ cls: "alert", text: `${it.id} entrega`, go: `projeto/${it.id}` });
-      });
-      return out;
-    };
-    const cells = days.map((d) => {
-      const ev = events(d);
+    const evs = agendaEvents(S, start, end);
+    const byDay = {};
+    evs.forEach((e) => { (byDay[e.date.getTime()] ||= []).push(e); });
+    const dow = ["Seg", "Ter", "Qua", "Qui", "Sex", "Sáb", "Dom"];
+    const cells = Array.from({ length: 14 }, (_, i) => {
+      const d = new Date(start.getTime() + i * DAY);
+      const list = byDay[d.getTime()] || [];
+      const weekend = d.getDay() === 0 || d.getDay() === 6;
       const isToday = d.getTime() === t;
+      const firstOfMonth = d.getDate() === 1 || i === 0;
       return `
-        <div class="wk-day ${isToday ? "today" : ""} ${d.getTime() < t ? "past" : ""}">
-          <span class="wk-label">${isToday ? "hoje" : label(d)}</span>
-          <div class="wk-cell">${ev.slice(0, 3).map((e) => `<span class="wk-ev ${e.cls}" ${e.go ? `data-action="go-tab" data-tab="${esc(e.go)}" role="button" tabindex="0"` : ""}>${esc(e.text)}</span>`).join("")}${ev.length > 3 ? `<span class="wk-more">+${ev.length - 3}</span>` : ""}</div>
+        <div class="cal-day ${isToday ? "today" : ""} ${d.getTime() < t ? "past" : ""} ${weekend ? "weekend" : ""}">
+          <span class="cal-num">${isToday ? `<span class="cal-today">${d.getDate()}</span>` : d.getDate()}${firstOfMonth ? ` <span class="cal-month">${d.toLocaleDateString("pt-BR", { month: "short" }).replace(".", "")}</span>` : ""}</span>
+          ${list.slice(0, 3).map((e) => `<button class="cal-ev ${e.cls}" data-cal-ev="${esc(e.id)}" title="${esc(e.title)}">${esc(e.short)}</button>`).join("")}
+          ${list.length > 3 ? `<button class="cal-more" data-cal-day="${d.getTime()}">+${list.length - 3} mais</button>` : ""}
         </div>`;
     }).join("");
-    const nPrazos = days.reduce((n, d) => n + events(d).filter((e) => e.cls !== "warn").length, 0);
-    const next = nextMilestone(S, new Date(days[days.length - 1].getTime() + DAY));
+    const count = evs.filter((e) => e.kind !== "reuniao").length;
+    const depois = agendaEvents(S, new Date(end.getTime() + DAY), new Date(end.getTime() + 120 * DAY), { reuniao: false }).slice(0, 3);
+    A.agenda._last = evs; // usados pelo popover
     return `
-      <div class="wk-grid">${cells}</div>
-      <p class="wk-foot">${nPrazos ? `${nPrazos} prazo(s) nos próximos 5 dias úteis` : "Nenhum prazo nos próximos 5 dias úteis"}${next ? ` · próximo marco: <strong>${esc(next.id)}</strong> em ${esc(next.data)}` : ""}</p>`;
+      <div class="cal-head">${dow.map((x, i) => `<span class="${i > 4 ? "weekend" : ""}">${x}</span>`).join("")}</div>
+      <div class="cal-grid">${cells}</div>
+      <div class="cal-foot">
+        <span>${count ? `${count} prazo(s) nestas 2 semanas` : "Nenhum prazo nestas 2 semanas"}</span>
+        ${depois.length ? `<span>Depois: ${depois.map((e) => `<button class="link-btn" data-action="go-tab" data-tab="projeto/${esc(e.ini)}" title="${esc(e.title)}">${esc(e.ini)} ${e.date.toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit" })}</button>`).join(" · ")}</span>` : ""}
+      </div>
+      <div class="cal-legend"><span class="cal-ev warn">Reunião</span><span class="cal-ev alert">Entrega de projeto</span><span class="cal-ev accent">Prazo de atividade</span></div>
+      <div class="cal-pop hidden" id="cal-pop" role="dialog" aria-label="Detalhes do evento"></div>`;
   }
 
+  /* Google Agenda: link "adicionar evento" (um clique por evento) e arquivo .ics com todos os prazos. */
+  const ymd = (d) => `${d.getFullYear()}${String(d.getMonth() + 1).padStart(2, "0")}${String(d.getDate()).padStart(2, "0")}`;
+  function googleLink(e) {
+    const next = new Date(e.date.getTime() + DAY);
+    const q = new URLSearchParams({ action: "TEMPLATE", text: e.title, dates: `${ymd(e.date)}/${ymd(next)}`, details: `${e.detail}\n\nPainel de Expansão Altamar` });
+    return `https://calendar.google.com/calendar/render?${q.toString()}`;
+  }
+
+  function exportIcs(S) {
+    const from = today(), to = new Date(from.getTime() + 365 * DAY);
+    const evs = agendaEvents(S, from, to, { reuniao: false });
+    if (!evs.length) return A.util.toast("Nenhum prazo com data exata para exportar.", "warn");
+    const escIcs = (s) => String(s).replace(/\\/g, "\\\\").replace(/;/g, "\\;").replace(/,/g, "\\,").replace(/\n/g, "\\n");
+    const stamp = new Date().toISOString().replace(/[-:]/g, "").replace(/\.\d+/, "");
+    const lines = ["BEGIN:VCALENDAR", "VERSION:2.0", "PRODID:-//Altamar//Painel de Expansao//PT", "CALSCALE:GREGORIAN", "X-WR-CALNAME:Painel Altamar — prazos"];
+    evs.forEach((e) => {
+      lines.push("BEGIN:VEVENT", `UID:${e.id}@painel-altamar`, `DTSTAMP:${stamp}`,
+        `DTSTART;VALUE=DATE:${ymd(e.date)}`, `DTEND;VALUE=DATE:${ymd(new Date(e.date.getTime() + DAY))}`,
+        `SUMMARY:${escIcs(e.title)}`, `DESCRIPTION:${escIcs(e.detail)}`, "TRANSP:TRANSPARENT", "END:VEVENT");
+    });
+    lines.push("END:VCALENDAR");
+    A.util.downloadBlob(new Blob([lines.join("\r\n")], { type: "text/calendar;charset=utf-8" }), "prazos_painel_altamar.ics");
+    A.util.toast(`${evs.length} prazo(s) exportado(s). Importe o arquivo no Google Agenda.`);
+  }
+
+  function showPopover(btn, ev) {
+    const pop = document.getElementById("cal-pop");
+    if (!pop) return;
+    const panel = pop.parentElement.getBoundingClientRect();
+    const r = btn.getBoundingClientRect();
+    pop.innerHTML = `
+      <div class="cal-pop-date">${ev.date.toLocaleDateString("pt-BR", { weekday: "long", day: "2-digit", month: "long" })}</div>
+      <div class="cal-pop-title">${esc(ev.title)}</div>
+      <div class="cal-pop-detail">${esc(ev.detail)}</div>
+      <div class="cal-pop-actions">
+        ${ev.kind !== "reuniao" ? `<button class="btn btn-xs btn-outline" data-action="go-tab" data-tab="projeto/${esc(ev.ini)}">Abrir projeto</button>` : ""}
+        <a class="btn btn-xs btn-primary" href="${esc(googleLink(ev))}" target="_blank" rel="noopener">Adicionar ao Google Agenda ↗</a>
+      </div>`;
+    pop.style.left = `${Math.min(Math.max(0, r.left - panel.left), panel.width - 280)}px`;
+    pop.style.top = `${r.bottom - panel.top + 6}px`;
+    pop.classList.remove("hidden");
+  }
+
+  document.addEventListener("click", (e) => {
+    const b = e.target.closest?.("[data-cal-ev]");
+    const more = e.target.closest?.("[data-cal-day]");
+    const pop = document.getElementById("cal-pop");
+    if (b) {
+      const ev = (A.agenda._last || []).find((x) => x.id === b.dataset.calEv);
+      if (ev) showPopover(b, ev);
+      return;
+    }
+    if (more) {
+      // "+N mais": mostra os eventos do dia num popover em lista.
+      const day = Number(more.dataset.calDay);
+      const list = (A.agenda._last || []).filter((x) => x.date.getTime() === day);
+      if (pop) {
+        const panel = pop.parentElement.getBoundingClientRect(), r = more.getBoundingClientRect();
+        pop.innerHTML = `<div class="cal-pop-date">${new Date(day).toLocaleDateString("pt-BR", { weekday: "long", day: "2-digit", month: "long" })}</div>` +
+          list.map((x) => `<button class="cal-ev ${x.cls} full" data-cal-ev="${esc(x.id)}">${esc(x.title)}</button>`).join("");
+        pop.style.left = `${Math.min(Math.max(0, r.left - panel.left), panel.width - 280)}px`;
+        pop.style.top = `${r.bottom - panel.top + 6}px`;
+        pop.classList.remove("hidden");
+      }
+      return;
+    }
+    if (e.target.closest?.("[data-ics-export]")) return exportIcs(A.store);
+    if (pop && !e.target.closest?.("#cal-pop")) pop.classList.add("hidden");
+  });
+
+  A.agenda = { agendaEvents, exportIcs, googleLink };
+
   function nextMilestone(S, after) {
-    const sexta = after;
     let best = null;
     S.state.data.initiatives.forEach((it) => {
       if (!isOpen(it.status) || it.situacao === "Rascunho") return;
       const p = period(it.prazo);
-      if (p?.exact && p.end >= sexta && (!best || p.end < best.d)) best = { id: it.id, d: p.end, data: p.end.toLocaleDateString("pt-BR") };
+      if (p?.exact && p.end >= after && (!best || p.end < best.d)) best = { id: it.id, d: p.end, data: p.end.toLocaleDateString("pt-BR") };
     });
     return best;
   }
@@ -309,9 +404,12 @@
             </li>`).join("")}</ol>`
             : `<div class="todo-clear"><span aria-hidden="true">✓</span> Nada pendente. Bom momento para revisar o Portfólio.</div>`}
         </section>
-        <section class="panel">
-          <div class="panel-head"><h3 class="panel-title">Próximos dias</h3><span class="muted small">5 dias úteis</span></div>
-          ${weekStrip(S, soon)}
+        <section class="panel cal-panel">
+          <div class="panel-head">
+            <h3 class="panel-title">Agenda · 2 semanas</h3>
+            <button class="btn btn-xs btn-outline no-print" data-ics-export title="Baixa um arquivo .ics com todos os prazos para importar no Google Agenda">Exportar prazos (.ics)</button>
+          </div>
+          ${calendar(S)}
         </section>
       </div>`;
   }
