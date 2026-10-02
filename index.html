@@ -1,0 +1,489 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="Painel de gestão do Projeto de Expansão da Altamar Sistemas Aquáticos">
+  <meta name="theme-color" content="#026488">
+  <title>Painel de Expansão · Altamar</title>
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%23026488'/%3E%3Ctext x='32' y='44' font-family='Segoe UI,Arial' font-size='36' font-weight='800' fill='white' text-anchor='middle'%3EA%3C/text%3E%3C/svg%3E">
+  <link rel="stylesheet" href="assets/css/app.css">
+  <script>
+    // Aplica o tema antes da pintura para evitar "piscar" claro → escuro.
+    (function () {
+      try {
+        var s = JSON.parse(localStorage.getItem("altamar_painel_settings_v2") || "{}");
+        var t = s.theme || "auto";
+        if (t === "auto") t = matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
+        document.documentElement.dataset.theme = t;
+      } catch (e) {}
+    })();
+  </script>
+</head>
+<body>
+
+  <!-- ================= Cabeçalho ================= -->
+  <header class="app-header">
+    <div class="header-bar">
+      <div class="brand">
+        <div class="brand-logo" aria-hidden="true">A</div>
+        <div>
+          <div class="brand-name">Altamar Sistemas Aquáticos</div>
+          <div class="brand-sub">Painel de Gestão — Projeto de Expansão</div>
+        </div>
+      </div>
+
+      <div class="header-actions">
+        <div id="wip-pill" class="wip-pill ok" title="Regra do método: 4 a 5 iniciativas simultâneas"></div>
+        <button class="btn btn-sm btn-outline no-print" id="btn-presentation" title="Fontes maiores para projetar na reunião">📺 Modo reunião</button>
+        <button class="btn btn-sm btn-primary no-print" data-action="meeting-summary">📋 Resumo da reunião</button>
+        <div class="menu no-print">
+          <button class="btn btn-sm btn-outline" id="btn-data" aria-haspopup="true" aria-expanded="false">
+            ⚙️ Dados <span id="backup-dot" class="notify-dot hidden" title="Faça um backup: há alterações recentes sem backup"></span>
+          </button>
+          <div id="data-menu" class="menu-panel hidden" role="menu">
+            <button id="menu-import-excel" role="menuitem">📥 Importar da planilha Excel…</button>
+            <button id="menu-export-excel" role="menuitem">📤 Exportar para Excel</button>
+            <hr>
+            <button id="menu-export-json" role="menuitem">💾 Exportar backup (JSON)</button>
+            <button id="menu-import-json" role="menuitem">📂 Restaurar backup (JSON)…</button>
+            <hr>
+            <button id="btn-theme" role="menuitem">🌓 Tema</button>
+            <hr>
+            <button id="menu-clear-history" class="danger" role="menuitem">🧹 Limpar histórico</button>
+            <button id="menu-reset" class="danger" role="menuitem">🔄 Restaurar dados padrão</button>
+            <div class="menu-note" id="backup-note"></div>
+          </div>
+          <input type="file" id="file-excel" accept=".xlsx,.xlsm,.xls" class="hidden">
+          <input type="file" id="file-json" accept=".json,application/json" class="hidden">
+        </div>
+        <button class="user-chip no-print" data-action="change-user" title="Trocar de pessoa">
+          <span class="avatar" id="user-chip-avatar">?</span><span id="user-chip-name">Identificar-se</span>
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <!-- ================= Abas ================= -->
+  <nav class="tabs-wrap no-print" aria-label="Seções">
+    <div class="tabs" role="tablist">
+      <button class="tab-btn" data-tab="executivo" role="tab">📊 Painel executivo</button>
+      <button class="tab-btn" data-tab="matriz" role="tab">🎯 Matriz valor × esforço</button>
+      <button class="tab-btn" data-tab="ranking" role="tab">🔢 Ranking <span class="tab-count" id="tab-count-ranking">0</span></button>
+      <button class="tab-btn" data-tab="kanban" role="tab">📋 Kanban da sprint</button>
+      <button class="tab-btn" data-tab="ondas" role="tab">🌊 Ondas trimestrais</button>
+      <button class="tab-btn" data-tab="decisoes" role="tab">⚖️ Decisões <span class="tab-count" id="tab-count-decisoes">0</span></button>
+      <button class="tab-btn" data-tab="historico" role="tab">🕘 Histórico</button>
+    </div>
+  </nav>
+
+  <main class="main">
+
+    <!-- Filtros globais -->
+    <div class="filter-bar no-print">
+      <input type="search" id="filter-search" class="input input-sm search" placeholder="Buscar por ID, nome, responsável…" aria-label="Buscar iniciativas">
+      <div class="filter-group">
+        <span class="filter-label">Área</span>
+        <div id="filter-areas" class="filter-group"></div>
+      </div>
+      <div class="filter-group">
+        <span class="filter-label">Status</span>
+        <select id="filter-status" class="input input-sm" aria-label="Filtrar por status"></select>
+      </div>
+      <div class="filter-group">
+        <span class="filter-label">Onda</span>
+        <select id="filter-onda" class="input input-sm" aria-label="Filtrar por onda"></select>
+      </div>
+      <button class="btn btn-xs btn-ghost hidden" id="filter-clear">✕ Limpar filtros</button>
+      <div class="spacer"></div>
+      <button class="btn btn-sm btn-primary" data-action="new-initiative" title="Atalho: tecla N">+ Nova iniciativa</button>
+    </div>
+
+    <!-- 1. Painel executivo -->
+    <section id="view-executivo" class="view" aria-label="Painel executivo">
+      <div class="kpi-grid" id="kpi-grid"></div>
+
+      <div class="exec-grid">
+        <div class="panel">
+          <div class="panel-head">
+            <div>
+              <h2 class="panel-title">Iniciativas em andamento</h2>
+              <div class="muted small">Foco das quintas-feiras: status, prazos e impedimentos</div>
+            </div>
+            <button class="btn btn-sm btn-outline no-print" data-action="go-tab" data-tab="kanban">Ver no Kanban →</button>
+          </div>
+          <div id="exec-in-progress" class="stack"></div>
+        </div>
+
+        <div class="exec-side">
+          <div class="panel">
+            <div class="panel-head">
+              <h3 class="panel-title">🚨 Semáforo de riscos</h3>
+              <span class="badge">Revisão semanal</span>
+            </div>
+            <div id="exec-risks" class="stack"></div>
+          </div>
+          <div class="panel">
+            <div class="panel-head">
+              <h3 class="panel-title">⚖️ Pauta com a diretoria</h3>
+              <button class="btn btn-xs btn-outline no-print" data-action="go-tab" data-tab="decisoes">Ver todas</button>
+            </div>
+            <div id="exec-decisions" class="stack"></div>
+          </div>
+          <div class="panel">
+            <div class="panel-head">
+              <h3 class="panel-title">🌊 Progresso por onda</h3>
+            </div>
+            <div id="exec-waves" class="stack"></div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- 2. Matriz -->
+    <section id="view-matriz" class="view" aria-label="Matriz valor × esforço">
+      <div class="panel">
+        <div class="panel-head">
+          <div>
+            <h2 class="panel-title">Matriz Valor × Esforço (Fibonacci 1 a 8)</h2>
+            <div class="muted small" id="matrix-cutoff-text"></div>
+          </div>
+          <div class="row">
+            <span class="area-badge p">Projetos</span>
+            <span class="area-badge v">Vendas</span>
+            <span class="area-badge m">Marketing</span>
+            <span class="area-badge e">Estratégia</span>
+          </div>
+        </div>
+        <div class="matrix-wrap">
+          <svg id="matrix-svg" class="matrix-svg" viewBox="0 0 860 500" preserveAspectRatio="xMidYMid meet" role="img" aria-label="Gráfico de dispersão valor por esforço"></svg>
+        </div>
+        <div class="matrix-legend">
+          <span><span class="legend-ring"></span> Contorno laranja = em andamento · bolhas apagadas = fora do filtro</span>
+          <span>Clique em uma bolha para editar status, valor, esforço ou prazo</span>
+        </div>
+      </div>
+    </section>
+
+    <!-- 3. Ranking -->
+    <section id="view-ranking" class="view" aria-label="Ranking priorizado">
+      <div class="page-head">
+        <div>
+          <h2 id="ranking-title">Ranking das iniciativas</h2>
+          <div class="muted">Ordenado pelo índice <strong>Valor ÷ Esforço</strong>. <span id="ranking-filter-note"></span></div>
+        </div>
+        <span class="badge ok" id="ranking-cut-badge"></span>
+      </div>
+      <div class="table-wrap">
+        <table class="data">
+          <thead>
+            <tr>
+              <th>Pos.</th><th>ID</th><th>Iniciativa</th><th>Área</th>
+              <th class="num">Valor</th><th class="num">Esforço</th><th class="num">V ÷ E</th>
+              <th>Tempo est.</th><th>Onda</th><th>Status</th><th class="center">Semáforo</th><th class="center no-print">Ações</th>
+            </tr>
+          </thead>
+          <tbody id="ranking-tbody"></tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- 4. Kanban -->
+    <section id="view-kanban" class="view" aria-label="Kanban da sprint">
+      <div class="page-head">
+        <div>
+          <h2>Quadro da sprint (ciclos de 2 semanas)</h2>
+          <div class="muted">Arraste os cards entre colunas. Mover para “Fazendo” ou “Esperando” marca como <em>Em andamento</em>; para “Feito”, como <em>Concluído</em>.</div>
+        </div>
+        <div id="kanban-wip-note" class="wip-pill ok"></div>
+      </div>
+      <div class="kanban" id="kanban"></div>
+    </section>
+
+    <!-- 5. Ondas -->
+    <section id="view-ondas" class="view" aria-label="Ondas trimestrais">
+      <div class="page-head">
+        <div>
+          <h2>Linha do tempo das ondas de expansão</h2>
+          <div class="muted">Sequenciamento em ciclos trimestrais para proteger o caixa e a capacidade de entrega. Arraste iniciativas entre ondas para replanejar.</div>
+        </div>
+      </div>
+      <div id="waves"></div>
+    </section>
+
+    <!-- 6. Decisões -->
+    <section id="view-decisoes" class="view" aria-label="Decisões e pendências">
+      <div class="page-head">
+        <div>
+          <h2>Livro de decisões e pendências da diretoria</h2>
+          <div class="muted">Alinhamentos com Pedro, Maíra e Shei para evitar bloqueios nas quintas-feiras</div>
+        </div>
+        <div class="row no-print">
+          <button class="btn btn-xs btn-outline" data-dec-filter="ALL">Todas <span class="n"></span></button>
+          <button class="btn btn-xs btn-outline" data-dec-filter="Pendente">Pendentes <span class="n"></span></button>
+          <button class="btn btn-xs btn-outline" data-dec-filter="Decidido">Decididas <span class="n"></span></button>
+          <button class="btn btn-sm btn-primary" data-action="new-decision">+ Registrar decisão</button>
+        </div>
+      </div>
+      <div class="table-wrap">
+        <table class="data">
+          <thead>
+            <tr><th>Data</th><th>Quem decide</th><th>Iniciativa</th><th>Pauta / decisão necessária</th><th>Status</th><th>O que foi decidido / próximo passo</th><th class="center no-print">Ações</th></tr>
+          </thead>
+          <tbody id="decisoes-tbody"></tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- 7. Histórico -->
+    <section id="view-historico" class="view" aria-label="Histórico de alterações">
+      <div class="page-head">
+        <div>
+          <h2>Histórico de alterações</h2>
+          <div class="muted">Quem mudou o quê e quando — útil para abrir a reunião de quinta com o que avançou na semana.</div>
+        </div>
+        <div class="row no-print">
+          <input type="search" id="history-search" class="input input-sm" placeholder="Buscar no histórico…" aria-label="Buscar no histórico">
+          <select id="history-entity" class="input input-sm" aria-label="Tipo de registro">
+            <option value="ALL">Tudo</option>
+            <option value="iniciativa">Iniciativas</option>
+            <option value="decisao">Decisões</option>
+            <option value="sistema">Sistema</option>
+          </select>
+          <span class="muted small" id="history-count"></span>
+        </div>
+      </div>
+      <div class="panel" id="history-list"></div>
+    </section>
+  </main>
+
+  <footer class="app-footer">
+    <div class="footer-bar">
+      <span><strong>Altamar Sistemas Aquáticos</strong> · Gestão de Expansão · <span id="footer-cutoff"></span></span>
+      <span><span id="save-status"></span> · A planilha Excel continua sendo a fonte oficial.</span>
+    </div>
+  </footer>
+
+  <!-- ================= Modais ================= -->
+
+  <!-- Iniciativa -->
+  <div class="modal-backdrop" id="modal-initiative" role="dialog" aria-modal="true" aria-labelledby="ini-modal-title">
+    <div class="modal">
+      <div class="modal-head">
+        <h3 id="ini-modal-title">Iniciativa</h3>
+        <button class="btn btn-xs btn-ghost" data-action="close-modal" data-target="modal-initiative" aria-label="Fechar">✕</button>
+      </div>
+      <form id="initiative-form" novalidate>
+        <div class="form-grid cols-3">
+          <div class="field">
+            <label for="ini-id">ID</label>
+            <input id="ini-id" class="input" maxlength="12" autocomplete="off" required>
+          </div>
+          <div class="field span-2">
+            <label for="ini-area">Área</label>
+            <select id="ini-area" class="input"></select>
+          </div>
+          <div class="field span-all" style="grid-column:1/-1">
+            <label for="ini-nome">Nome da iniciativa</label>
+            <input id="ini-nome" class="input" required autocomplete="off">
+          </div>
+        </div>
+
+        <div class="form-grid cols-3">
+          <div class="field">
+            <label for="ini-valor">Valor estratégico</label>
+            <select id="ini-valor" class="input"></select>
+          </div>
+          <div class="field">
+            <label for="ini-esforco">Esforço</label>
+            <select id="ini-esforco" class="input"></select>
+          </div>
+          <div class="field">
+            <label for="ini-onda">Onda</label>
+            <select id="ini-onda" class="input"></select>
+          </div>
+        </div>
+        <div class="calc-box" id="ini-calc" aria-live="polite"></div>
+
+        <div class="form-grid">
+          <div class="field">
+            <label for="ini-status">Status</label>
+            <select id="ini-status" class="input"></select>
+          </div>
+          <div class="field">
+            <label for="ini-semaforo">Semáforo</label>
+            <select id="ini-semaforo" class="input"></select>
+          </div>
+          <div class="field">
+            <label for="ini-responsavel">Responsável</label>
+            <input id="ini-responsavel" class="input" list="people-list" placeholder="ex.: Pedro, Maíra…" autocomplete="off">
+          </div>
+          <div class="field">
+            <label for="ini-prazo">Prazo / sprint</label>
+            <input id="ini-prazo" class="input" placeholder="ex.: 15/Nov/2026" autocomplete="off">
+          </div>
+        </div>
+
+        <div class="field" style="margin-bottom:0.85rem">
+          <label for="ini-obs">Observações / entregáveis / bloqueios</label>
+          <textarea id="ini-obs" class="input"></textarea>
+        </div>
+        <label class="checkbox"><input type="checkbox" id="ini-enabler"> Habilitadora técnica (destrava outras iniciativas)</label>
+
+        <div id="ini-related" style="margin-top:0.85rem"></div>
+        <div class="field-error" id="ini-error" role="alert"></div>
+
+        <div class="modal-foot">
+          <div class="row">
+            <button type="button" class="btn btn-sm btn-danger-ghost" id="ini-delete">Excluir</button>
+            <button type="button" class="btn btn-sm btn-ghost" id="ini-add-decision">+ Decisão vinculada</button>
+            <span class="muted small" id="ini-meta"></span>
+          </div>
+          <div class="right">
+            <button type="button" class="btn btn-outline" data-action="close-modal" data-target="modal-initiative">Cancelar</button>
+            <button type="submit" class="btn btn-primary">Salvar</button>
+          </div>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Decisão -->
+  <div class="modal-backdrop" id="modal-decision" role="dialog" aria-modal="true" aria-labelledby="dec-modal-title">
+    <div class="modal">
+      <div class="modal-head">
+        <h3 id="dec-modal-title">Decisão / pendência</h3>
+        <button class="btn btn-xs btn-ghost" data-action="close-modal" data-target="modal-decision" aria-label="Fechar">✕</button>
+      </div>
+      <form id="decision-form" novalidate>
+        <div class="form-grid">
+          <div class="field">
+            <label for="dec-data">Data de registro</label>
+            <input id="dec-data" class="input" placeholder="dd/mm/aaaa" autocomplete="off">
+          </div>
+          <div class="field">
+            <label for="dec-quem">Quem decide</label>
+            <input id="dec-quem" class="input" list="people-list" placeholder="ex.: Maíra / Shei" autocomplete="off">
+          </div>
+          <div class="field" style="grid-column:1/-1">
+            <label for="dec-grupo">Iniciativa relacionada</label>
+            <select id="dec-grupo" class="input"></select>
+          </div>
+          <div class="field" style="grid-column:1/-1">
+            <label for="dec-pauta">Pauta / decisão necessária</label>
+            <input id="dec-pauta" class="input" required autocomplete="off">
+          </div>
+          <div class="field">
+            <label for="dec-status">Status</label>
+            <select id="dec-status" class="input">
+              <option value="Pendente">Pendente</option>
+              <option value="Decidido">Decidido</option>
+            </select>
+          </div>
+        </div>
+        <div class="field">
+          <label for="dec-resultado">O que foi decidido / encaminhamento</label>
+          <textarea id="dec-resultado" class="input" placeholder="Preencha quando a decisão for tomada"></textarea>
+        </div>
+        <div class="field-error" id="dec-error" role="alert"></div>
+        <div class="modal-foot">
+          <button type="button" class="btn btn-sm btn-danger-ghost" id="dec-delete">Excluir</button>
+          <div class="right">
+            <button type="button" class="btn btn-outline" data-action="close-modal" data-target="modal-decision">Cancelar</button>
+            <button type="submit" class="btn btn-primary">Salvar decisão</button>
+          </div>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Resumo da reunião -->
+  <div class="modal-backdrop" id="modal-summary" role="dialog" aria-modal="true" aria-labelledby="summary-title">
+    <div class="modal lg">
+      <div class="modal-head">
+        <h3 id="summary-title">📄 Resumo executivo para a reunião</h3>
+        <button class="btn btn-xs btn-ghost" data-action="close-modal" data-target="modal-summary" aria-label="Fechar">✕</button>
+      </div>
+      <p class="muted small" style="margin-top:0">Texto pronto para copiar e enviar por e-mail ou WhatsApp para Pedro, Maíra e Shei.</p>
+      <textarea id="summary-text" class="input summary-text" readonly></textarea>
+      <div class="modal-foot">
+        <div class="right">
+          <button class="btn btn-outline" id="summary-copy">📋 Copiar texto</button>
+          <button class="btn btn-primary" data-action="print">🖨️ Imprimir painel / PDF</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Prévia da importação -->
+  <div class="modal-backdrop" id="modal-import" role="dialog" aria-modal="true" aria-labelledby="import-title">
+    <div class="modal lg">
+      <div class="modal-head">
+        <h3 id="import-title">📥 Importar da planilha</h3>
+        <button class="btn btn-xs btn-ghost" data-action="close-modal" data-target="modal-import" aria-label="Fechar">✕</button>
+      </div>
+      <p class="muted small" style="margin-top:0" id="import-file"></p>
+      <p class="small" style="margin-top:0">Confira as alterações antes de aplicar. Iniciativas são casadas pelo ID (coluna <em>Grupo</em>); decisões, pelo texto da pauta. Nada é apagado — campos que só existem no painel (semáforo, coluna do Kanban…) são preservados.</p>
+      <div class="import-stats" id="import-stats"></div>
+      <div class="import-list" id="import-list"></div>
+      <div class="modal-foot">
+        <div class="right">
+          <button class="btn btn-outline" data-action="close-modal" data-target="modal-import">Cancelar</button>
+          <button class="btn btn-primary" id="import-apply">Aplicar</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Identificação -->
+  <div class="modal-backdrop" id="modal-user" role="dialog" aria-modal="true" aria-labelledby="user-title">
+    <div class="modal sm">
+      <div class="modal-head">
+        <h3 id="user-title">Quem está usando o painel?</h3>
+      </div>
+      <p class="muted small" style="margin-top:0">Seu nome aparece no histórico ao lado de cada alteração. Fica salvo só neste navegador.</p>
+      <form id="user-form">
+        <div class="user-options" id="user-options"></div>
+        <div class="field">
+          <label for="user-name">Ou digite seu nome</label>
+          <input id="user-name" class="input" autocomplete="name" required>
+        </div>
+        <div class="modal-foot">
+          <div class="right">
+            <button type="button" class="btn btn-outline" id="user-cancel" data-action="close-modal" data-target="modal-user">Cancelar</button>
+            <button type="submit" class="btn btn-primary">Continuar</button>
+          </div>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Confirmação -->
+  <div class="modal-backdrop" id="modal-confirm" role="alertdialog" aria-modal="true" aria-labelledby="confirm-title">
+    <div class="modal sm">
+      <div class="modal-head"><h3 id="confirm-title">Confirmar</h3></div>
+      <p id="confirm-message" style="margin-top:0"></p>
+      <div class="modal-foot">
+        <div class="right">
+          <button class="btn btn-outline" id="confirm-cancel">Cancelar</button>
+          <button class="btn btn-primary" id="confirm-ok">Confirmar</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <datalist id="people-list"></datalist>
+  <div class="toasts" id="toasts" aria-live="polite"></div>
+
+  <script src="assets/js/utils.js"></script>
+  <script src="assets/js/data.js"></script>
+  <script src="assets/js/store.js"></script>
+  <script src="assets/js/excel.js"></script>
+  <script src="assets/js/views/executive.js"></script>
+  <script src="assets/js/views/matrix.js"></script>
+  <script src="assets/js/views/tables.js"></script>
+  <script src="assets/js/views/board.js"></script>
+  <script src="assets/js/forms.js"></script>
+  <script src="assets/js/app.js"></script>
+</body>
+</html>
