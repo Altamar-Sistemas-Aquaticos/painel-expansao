@@ -7,6 +7,8 @@
 
   const TABS = ["executivo", "matriz", "ranking", "kanban", "ondas", "decisoes", "historico"];
   const TAB_KEY = "altamar_painel_tab";
+  // Rota atual. Telas de detalhamento: "setor/<área>" e "projeto/<id>" (pertencem à aba Kanban).
+  let route = { view: "executivo", param: null };
 
   /* ---------- Renderização ---------- */
   function renderAll() {
@@ -17,6 +19,8 @@
     A.views.waves(S);
     A.views.decisions(S);
     A.views.history(S);
+    if (route.view === "setor") A.views.sector(S, route.param);
+    if (route.view === "projeto") A.views.project(S, route.param);
     renderChrome();
   }
 
@@ -49,16 +53,30 @@
   media.addEventListener?.("change", () => S.state.settings.theme === "auto" && renderChrome());
 
   /* ---------- Abas ---------- */
+  function parseRoute(hash) {
+    const [view, ...rest] = String(hash || "").split("/");
+    const param = rest.length ? decodeURIComponent(rest.join("/")) : null;
+    if (view === "setor" && A.meta.AREAS.some((a) => a.key === param)) return { view, param };
+    if (view === "projeto" && param) return { view, param };
+    return { view: TABS.includes(view) ? view : "executivo", param: null };
+  }
+
   function switchTab(name, push = true) {
-    if (!TABS.includes(name)) name = "executivo";
+    const prev = route;
+    route = parseRoute(name);
+    const full = route.param ? `${route.view}/${encodeURIComponent(route.param)}` : route.view;
+    const tab = route.view === "setor" || route.view === "projeto" ? "kanban" : route.view;
     document.querySelectorAll(".tab-btn").forEach((b) => {
-      const on = b.dataset.tab === name;
+      const on = b.dataset.tab === tab;
       b.classList.toggle("active", on);
       b.setAttribute("aria-selected", on);
     });
-    document.querySelectorAll(".view").forEach((v) => v.classList.toggle("active", v.id === `view-${name}`));
-    try { sessionStorage.setItem(TAB_KEY, name); } catch {}
-    if (push && location.hash !== `#${name}`) history.replaceState(null, "", `#${name}`);
+    document.querySelectorAll(".view").forEach((v) => v.classList.toggle("active", v.id === `view-${route.view}`));
+    if (route.view === "setor") A.views.sector(S, route.param);
+    if (route.view === "projeto") A.views.project(S, route.param);
+    if (route.view !== prev.view || route.param !== prev.param) window.scrollTo(0, 0);
+    try { sessionStorage.setItem(TAB_KEY, full); } catch {}
+    if (push && location.hash !== `#${full}`) history.replaceState(null, "", `#${full}`);
   }
 
   /* ---------- Ações delegadas ---------- */
@@ -71,6 +89,12 @@
       A.forms.openDecisionForm(id);
     },
     "new-decision": () => A.forms.openDecisionForm(null),
+    "new-decision-for": (id) => A.forms.openDecisionForm(null, id),
+    "open-sector": (id) => {
+      const it = S.findInitiative(id);
+      if (it) location.hash = A.drill.sectorHref(it.area);
+    },
+    "finish-project": (id) => A.board.moveCard(id, "done"),
     "delete-decision": (id) => A.forms.deleteDecision(id),
     "go-tab": (tab) => switchTab(tab),
     "close-modal": (id) => {
@@ -262,6 +286,7 @@
     const origin = S.load();
     A.forms.init();
     A.board.initDragAndDrop();
+    A.drill.initActivityEvents();
     initFilters();
     initDataMenu();
 

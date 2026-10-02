@@ -1,0 +1,48 @@
+/* Atividades iniciais extraídas da aba 2_Atividades da planilha Ferramentas_Gestao_Altamar.xlsx.
+   Formato: [ID da iniciativa, atividade, observações]. Usado só quando ainda não há atividades salvas. */
+(function () {
+  const A = (window.Altamar = window.Altamar || {});
+  A.seedActivities = [
+  ["M1","Extrair dados clientes / Estratégia de divulgação - Propaganda",""],
+  ["M1","Divulgação de novos projetos - Tendência da piscicultura hoje",""],
+  ["M1","Empresas parceiras. Com quem trabalhamos?",""],
+  ["M3","Estruturas verticalizadas de reprodução, incubação, larvicultura, alevinagem, produção de juvenis e engorda",""],
+  ["M3","Laboratórios e fazendas de reprodução de camarão","KPI e próxima ação copiados da atividade Nº 4: ajustar."],
+  ["M4","Esquentar informações de projetos já realizados","Data de início posterior ao prazo na planilha original: corrigir."],
+  ["V1","Realizar outbound.",""],
+  ["M4","Aumentar divulgação de resultados, sucesso de projetos realizados","Escrita como tema (espécies): reescrever como entrega."],
+  ["M2","Desenvolver um método de parceria para fornecimento e solução da dor de construtores, engenheiros, arquitetos que não entendem sobre tratamento de água de lagos. Como eles vão contratar a Altamar? Como estabelecer uma parceria Ganha x Ganha",""],
+  ["M2","Oferecer a solução de retirada de sólidos mais eficiente para lagos do brasil. Inserir tambores rotativos para projetos mais sofisticados. Comparar escovas x tambores rotativos",""],
+  ["M7","Montar roteiro padrão para vídeo de tambores ja instalados em: Pisciculturas, Lagos Ornamentais, Zoológicos",""],
+  ["M7","Montar roteiro padrão para vídeo de tambores ja instalados em: Pisciculturas, Lagos Ornamentais, Zoológicos","Texto repete o roteiro de tambores: ajustar para UV-C."],
+  ["M6","Manuais Iscas - Dar fatias do bolo embaralhadas que façam clientes entrarem no funil de vendas",""],
+  ["M7","Roteiro de vídeos por 1 ano. 1 video por mês.",""],
+  ["M5","Publicação padrão do projeto. Foto, objetivos, capacidades, desafios e valores agregados ao cliente",""],
+  ["P5","Compilar o máximo de informações possíveis. Criar um modelo para RAS outro para SSVs. Criar uma curva de crescimento para Tilápia.",""],
+  ["P6","Reformular planilha atual. Executar uma automação para seleção bombas. Incluir uma planilha de perda de carga localizada, com banco de dados de todas as peças. Incluir problemas hoje desconsiderados, calculos de carga hidráulica, vertedouros, perdas de carga em UVs.",""],
+  ["P1","Mapear e executar um requerimento do usuário padrão que deverá ser preenchido para evitar retrabalho e dependencia de informações dos vendedores",""],
+  ["P4","Estruturar um Termo de Abertura do Projeto TAP",""],
+  ["P5","Executar um relatório de dimensionamento RAS/SSV",""],
+  ["P4","Estruturar um protocolo de validação de etapas do projeto conforme projetista for executando desenho 3D",""],
+  ["P9","Todas etapas devem contar relatórios auditáveis",""],
+  ["P9","Cronogramas de Execução de cada etapa para gestão da equipe",""],
+  ["P4","Revisão de Entregáveis",""],
+  ["P7","Levantar preço por complexidade de cada projeto. Levantar o que é feito hoje, como vamos precificar cada solução escolhida pelo cliente.",""],
+  ["P8","Como vamos dobrar o faturamento do setor de projetos em 2 anos?",""],
+  ["P10","Chile, Angola, Asia, paises tropicais que produzem tilápia. Hatcheries que procuram RAS sem precisar utilizar produtos europeus caros, nem tranqueiras da china que so vendem o equipamento.",""],
+  ["P7","Organizar, ter clareza e documentação com a precificação dos projetos.",""],
+  ["P2","Cada etapa entrará em um Kanban onde será possivel fazer a gestão.",""],
+  ["P8","Contruir dashboard setor de projetos, estipular metas de produtividade e receita",""],
+  ["P3","Estipular processos com o time, conversar com Matheus, dinâmica de trabalho.",""],
+  ["V4","Levantar consultorias para PJ parceiras",""],
+  ["V4","Consultoria empresa + nova cultura + novo vendedor especializado em CRM",""],
+  ["V5","Puxar novelo com os atores envolvidos",""],
+  ["V6","Achar onde está esse banco de dados, se existe. Usar IA para acelerar o processo. Verificar se precisamos tercerizar designer para manter alto padrão",""],
+  ["V7","Conectar pontos",""],
+  ["V8","Onde os produtos da Altamar podem permear",""],
+  ["V1","Pesquisa por CNAE, zoológicos, lista de pisciculturas, larviculturas de camarão, ONGs.",""],
+  ["V2","Montar skids padrões de filtragem para lagos ornamentais e piscinas naturais",""],
+  ["V3","Montar skids padrões de filtragem para piscinas comerciais",""],
+  ["E1","Contratar empresa com capacidade técnica para tal",""]
+  ];
+})();

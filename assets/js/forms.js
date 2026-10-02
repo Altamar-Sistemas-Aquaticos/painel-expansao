@@ -234,7 +234,8 @@
     t += `2. EM ANDAMENTO NESTA SPRINT\n`;
     if (!inProgress.length) t += `• Nenhuma iniciativa em andamento.\n`;
     inProgress.forEach((it) => {
-      t += `• ${it.id} - ${it.nome} | Resp.: ${it.responsavel || "A definir"} | Prazo: ${it.prazo || "—"} ${mark[it.semaforo]}${it.coluna === "waiting" ? " [ESPERANDO]" : ""}\n`;
+      const pct = S.calc.progress(it);
+      t += `• ${it.id} - ${it.nome} | ${pct == null ? "sem atividades" : pct + "% concluído"} | Resp.: ${it.responsavel || "A definir"} | Prazo: ${it.prazo || "—"} ${mark[it.semaforo]}${it.coluna === "waiting" ? " [ESPERANDO]" : ""}\n`;
       if (it.observacoes) t += `   Nota: ${it.observacoes}\n`;
     });
     t += `\n`;
@@ -288,12 +289,15 @@
     const updI = plan.initiatives.filter((p) => !p.isNew);
     const newD = plan.decisions.filter((p) => p.isNew);
     const updD = plan.decisions.filter((p) => !p.isNew);
-    const total = plan.initiatives.length + plan.decisions.length;
+    const newA = plan.activities.filter((p) => p.isNew);
+    const updA = plan.activities.filter((p) => !p.isNew);
+    const total = plan.initiatives.length + plan.decisions.length + plan.activities.length;
 
     $("import-file").textContent = `${plan.fileName} · abas lidas: ${plan.sheets.join(", ")}`;
     $("import-stats").innerHTML = [
       ["Iniciativas novas", newI.length], ["Iniciativas alteradas", updI.length],
       ["Decisões novas", newD.length], ["Decisões alteradas", updD.length],
+      ["Atividades novas", newA.length], ["Atividades alteradas", updA.length],
     ].map(([l, n]) => `<div class="panel"><div class="kpi-label">${l}</div><div class="kpi-value" style="font-size:1.5rem">${n}</div></div>`).join("");
 
     const rows = [
@@ -303,6 +307,10 @@
       ...newD.map((p) => `<div class="import-row"><span class="badge ok">Nova decisão</span> ${esc(p.data.pauta)}</div>`),
       ...updD.map((p) => `<div class="import-row"><span class="badge accent">Alterar decisão</span> ${esc(p.pauta)}
           <ul class="h-changes">${p.changes.map((c) => `<li>${renderChange(c)}</li>`).join("")}</ul></div>`),
+      ...newA.map((p) => `<div class="import-row"><span class="badge ok">Nova atividade</span> <strong>${esc(p.iniId)}</strong> · ${esc(p.data.nome)}</div>`),
+      ...updA.map((p) => `<div class="import-row"><span class="badge accent">Alterar atividade</span> <strong>${esc(p.iniId)}</strong> · ${esc(p.nome)}
+          <ul class="h-changes">${p.changes.map((c) => `<li>${renderChange(c)}</li>`).join("")}</ul></div>`),
+      ...(plan.skipped.length ? [`<div class="import-row muted">Ignoradas (iniciativa não encontrada): ${esc(plan.skipped.join(" · "))}</div>`] : []),
     ];
     $("import-list").innerHTML = rows.length ? rows.join("") : `<div class="import-row muted">O painel já está igual à planilha. Nada a importar.</div>`;
     $("import-apply").disabled = total === 0;

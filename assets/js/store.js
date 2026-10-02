@@ -22,6 +22,9 @@
     status: "Status", semaforo: "Semáforo", responsavel: "Responsável", prazo: "Prazo",
     observacoes: "Observações", enabler: "Habilitadora", coluna: "Coluna do Kanban",
   };
+  const ACTIVITY_FIELDS = {
+    nome: "Atividade", pct: "% concluído", status: "Status", responsavel: "Responsável", prazo: "Prazo", observacoes: "Observações",
+  };
   const DECISION_FIELDS = {
     data: "Data", quem: "Quem decide", grupo: "Iniciativa", pauta: "Pauta", status: "Status", resultado: "Decisão / encaminhamento",
   };
@@ -43,6 +46,12 @@
     return { value: se ? sv / se : 0, sumValor: sv, sumEsforco: se };
   }
   const isAboveCut = (it, cut = cutoff().value) => ve(it) >= cut - 1e-9;
+  // % do projeto = média das % das atividades não canceladas (nunca digitado). null = sem atividades.
+  function progress(it) {
+    const acts = (it.atividades || []).filter((a) => a.status !== "Cancelado");
+    if (!acts.length) return null;
+    return Math.round(acts.reduce((s, a) => s + a.pct, 0) / acts.length);
+  }
   const wipCount = () => store.data.initiatives.filter((i) => i.status === "Em andamento").length;
 
   function snapFib(v) {
@@ -70,6 +79,31 @@
     return it;
   }
 
+  function clampPct(v) {
+    const n = Math.round(Number(v));
+    return isFinite(n) ? Math.min(100, Math.max(0, n)) : 0;
+  }
+
+  function normalizeActivity(raw) {
+    const status = STATUS.includes(raw.status) ? raw.status : "A fazer";
+    return {
+      id: raw.id || uid("atv"),
+      nome: String(raw.nome ?? "").trim(),
+      pct: clampPct(raw.pct ?? (status === "Concluído" ? 100 : 0)),
+      status,
+      responsavel: String(raw.responsavel ?? "").trim(),
+      prazo: String(raw.prazo ?? "").trim(),
+      observacoes: String(raw.observacoes ?? "").trim(),
+    };
+  }
+
+  // Atividades iniciais da planilha (activities-seed.js), usadas quando a iniciativa ainda não tem o campo.
+  function seedActivities(id) {
+    return (A.seedActivities || [])
+      .filter(([g]) => g === id)
+      .map(([, nome, obs], i) => normalizeActivity({ id: `atv_${id}_${i + 1}`, nome, observacoes: obs }));
+  }
+
   function normalizeInitiative(raw) {
     const it = {
       id: String(raw.id ?? "").trim().toUpperCase(),
@@ -85,6 +119,9 @@
       observacoes: String(raw.observacoes ?? "").trim(),
       enabler: !!raw.enabler,
       coluna: COLUNA_KEYS.includes(raw.coluna) ? raw.coluna : null,
+      atividades: Array.isArray(raw.atividades)
+        ? raw.atividades.map(normalizeActivity).filter((a) => a.nome)
+        : seedActivities(String(raw.id ?? "").trim().toUpperCase()),
       criadoEm: raw.criadoEm || new Date().toISOString(),
       atualizadoEm: raw.atualizadoEm || raw.criadoEm || new Date().toISOString(),
     };
@@ -219,7 +256,7 @@
     if (error) return { ok: false, error };
 
     if (!originalId) {
-      const item = normalizeInitiative({ ...input, criadoEm: new Date().toISOString() });
+      const item = normalizeInitiative({ atividades: [], ...input, criadoEm: new Date().toISOString() });
       store.data.initiatives.push(item);
       const e = entry("iniciativa", item.id, "criou", `${item.id} · ${item.nome}`, [], source);
       if (!silent) commit([e]);
@@ -267,6 +304,41 @@
 
   const setOnda = (id, onda) => saveInitiative({ onda }, id, { source: "Ondas" });
   const setStatus = (id, status) => saveInitiative({ status }, id);
+
+  /* ---------- Atividades ---------- */
+  /**
+   * Cria (actId = null) ou atualiza uma atividade da iniciativa `iniId`.
+   * Atividades nunca são apagadas: para tirar do cálculo, use o status "Cancelado".
+   */
+  function saveActivity(iniId, actId, input, { source = "Projeto", silent = false } = {}) {
+    const it = findInitiative(iniId);
+    if (!it) return { ok: false, error: "Iniciativa não encontrada." };
+    const idx = actId ? it.atividades.findIndex((a) => a.id === actId) : -1;
+    if (actId && idx < 0) return { ok: false, error: "Atividade não encontrada." };
+    const before = idx >= 0 ? it.atividades[idx] : null;
+    const patch = { ...input };
+    // Marcar como concluída sem informar o % leva a atividade a 100%.
+    if (patch.status === "Concluído" && !("pct" in patch)) patch.pct = 100;
+    const after = normalizeActivity({ ...(before || {}), ...patch });
+    if (!after.nome) return { ok: false, error: "Informe o nome da atividade." };
+
+    const label = `${it.id} · ${after.nome}`;
+    let e;
+    if (!before) {
+      it.atividades.push(after);
+      e = entry("atividade", it.id, "criou", label, [], source);
+    } else {
+      const changes = diff(before, after, ACTIVITY_FIELDS);
+      if (!changes.length) return { ok: true, item: before, unchanged: true };
+      it.atividades[idx] = after;
+      e = entry("atividade", it.id, "editou", label, changes, source);
+    }
+    it.atualizadoEm = new Date().toISOString();
+    if (!silent) commit([e]);
+    return { ok: true, item: after, entry: e };
+  }
+
+  const findActivity = (iniId, actId) => findInitiative(iniId)?.atividades.find((a) => a.id === actId) || null;
 
   /* ---------- Decisões ---------- */
   const findDecision = (id) => store.data.decisions.find((d) => d.id === id);
@@ -322,6 +394,10 @@
       const r = saveDecision(p.data, { source: "Excel", silent: true });
       if (r.entry) entries.push(r.entry);
     });
+    (plan.activities || []).forEach((p) => {
+      const r = saveActivity(p.iniId, p.actId || null, p.data, { source: "Excel", silent: true });
+      if (r.entry) entries.push(r.entry);
+    });
     const changed = entries.length;
     entries.push(entry("sistema", null, "importou", `Planilha "${plan.fileName}" importada (${changed} alterações)`, [], "Excel"));
     commit(entries.reverse()); // histórico é armazenado do mais recente para o mais antigo
@@ -369,11 +445,12 @@
 
   A.store = {
     state: store, load, persist, subscribe, emit, saveSettings,
-    calc: { ve, cutoff, isAboveCut, wipCount, snapFib },
+    calc: { ve, cutoff, isAboveCut, wipCount, snapFib, progress },
     findInitiative, nextId, saveInitiative, deleteInitiative, moveToColumn, setOnda, setStatus,
+    saveActivity, findActivity,
     findDecision, saveDecision, deleteDecision,
     replaceAll, applyImportPlan, resetToDefaults, clearHistory, markBackup, backupOverdue,
     matchesFilters, filtered, hasActiveFilters,
-    FIELDS: { INITIATIVE_FIELDS, DECISION_FIELDS },
+    FIELDS: { INITIATIVE_FIELDS, DECISION_FIELDS, ACTIVITY_FIELDS },
   };
 })();

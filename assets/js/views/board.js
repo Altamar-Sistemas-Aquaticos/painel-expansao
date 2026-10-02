@@ -10,14 +10,19 @@
   /* ---------- Kanban ---------- */
   function card(it, S, compact) {
     const colOptions = A.meta.COLUNAS.map((c) => `<option value="${c.key}" ${c.key === it.coluna ? "selected" : ""}>${esc(c.label)}</option>`).join("");
+    const pct = S.calc.progress(it);
+    const ready = pct === 100 && it.coluna !== "done";
     return `
       <div class="k-card ${it.enabler ? "enabler" : ""}" draggable="true" data-drag="initiative" data-id="${esc(it.id)}"
-           data-action="edit-initiative" tabindex="0" role="button" aria-label="${esc(it.id + " " + it.nome)}">
+           data-action="open-sector" tabindex="0" role="button" aria-label="${esc(it.id + " " + it.nome)} — abrir setor ${esc(it.area)}"
+           title="Abrir o setor ${esc(it.area)}">
         <div class="k-card-top">
           ${ui.areaBadge(it.area)}
           <span class="row" style="gap:0.35rem">${ui.dot(it.semaforo)}<span class="small muted" style="font-weight:700">${esc(it.onda)}</span></span>
         </div>
         <div class="k-card-title"><span class="id">${esc(it.id)}</span> · ${esc(it.nome)}</div>
+        <div class="k-card-progress">${ui.progressBar(pct)}</div>
+        ${ready ? `<div class="k-ready">✓ 100% — pronto para “Feito”</div>` : ""}
         ${compact ? "" : `
         <div class="k-card-foot">
           <span>👤 ${esc(it.responsavel || "A definir")}</span>

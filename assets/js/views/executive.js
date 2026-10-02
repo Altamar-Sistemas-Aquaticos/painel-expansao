@@ -24,6 +24,8 @@
     const { WIP_MIN, WIP_MAX } = A.meta;
     const wipOver = inProgress.length > WIP_MAX;
     const pct = active.length ? Math.round((done.length / active.length) * 100) : 0;
+    const flowPcts = inProgress.map(S.calc.progress).filter((p) => p != null);
+    const flowAvg = flowPcts.length ? Math.round(flowPcts.reduce((s, p) => s + p, 0) / flowPcts.length) : null;
 
     document.getElementById("kpi-grid").innerHTML = `
       <div class="panel kpi">
@@ -35,7 +37,7 @@
         <div class="kpi-label">Progresso geral (${active.length} iniciativas ativas)</div>
         <div class="kpi-value">${pct}%</div>
         <div class="progress"><span style="width:${pct}%"></span></div>
-        <div class="kpi-sub">${done.length} concluídas · ${inProgress.length} em curso</div>
+        <div class="kpi-sub">${done.length} concluídas · ${inProgress.length} em curso${flowAvg != null ? ` · avanço médio das em curso: <strong>${flowAvg}%</strong>` : ""}</div>
       </div>
       <div class="panel kpi">
         <div class="kpi-label">Semáforo de atenção / risco</div>
@@ -73,9 +75,13 @@
               <span>Prazo: <strong>${esc(it.prazo || "—")}</strong></span>
               ${it.observacoes ? `<em>${esc(it.observacoes)}</em>` : ""}
             </div>
+            <div style="margin-top:0.4rem; max-width:340px">${ui.progressBar(S.calc.progress(it))}</div>
           </div>
         </div>
-        <button class="btn btn-xs btn-outline no-print" data-action="edit-initiative" data-id="${esc(it.id)}">Editar</button>
+        <span class="actions no-print">
+          <a class="btn btn-xs btn-primary" href="${A.drill.projectHref(it.id)}" data-nav>Atividades</a>
+          <button class="btn btn-xs btn-outline" data-action="edit-initiative" data-id="${esc(it.id)}">Editar</button>
+        </span>
       </div>`).join("");
   }
 

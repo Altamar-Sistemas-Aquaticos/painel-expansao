@@ -40,6 +40,17 @@
     resultado: ["oquefoidecidido", "resultado", "decisao", "encaminhamento"],
   };
 
+  // Aba 2_Atividades da planilha oficial ou aba "Atividades" exportada pelo painel.
+  const ACTIVITY_COLUMNS = {
+    grupo: ["grupo", "idiniciativa", "iniciativaid"],
+    nome: ["atividade", "atividades"],
+    pct: ["concluido", "conclusao", "percentualconcluido", "percentual"],
+    status: ["status"],
+    responsavel: ["responsavel"],
+    prazo: ["prazo"],
+    observacoes: ["observacoes", "obs"],
+  };
+
   function mapHeader(row, spec) {
     const normalized = row.map((h) => norm(h));
     const map = {};
@@ -109,6 +120,13 @@
     const n = Number(String(v).replace(",", "."));
     return isFinite(n) && n > 0 ? n : null;
   }
+  // Aceita 50, "50%", "50,5" ou 0,5 (célula formatada como porcentagem no Excel).
+  function toPct(v) {
+    if (v === "" || v == null) return null;
+    const n = Number(String(v).replace("%", "").replace(",", ".").trim());
+    if (!isFinite(n) || n < 0) return null;
+    return Math.min(100, Math.round(n <= 1 ? n * 100 : n));
+  }
   function toText(v) {
     if (v == null) return "";
     if (typeof v === "number" && v > 30000 && v < 80000) return excelSerialToStr(v);
@@ -132,11 +150,15 @@
       (m) => m.pauta != null && m.status != null && m.quem != null,
       /decis/i);
 
-    if (!iniTable && !decTable) {
-      throw new Error("Não encontrei as abas esperadas. A planilha precisa de uma tabela com colunas Grupo/ID, Nome, Valor e Esforço (ex.: aba 1_Grupos) e/ou Descrição, Quem decide e Status (aba de decisões).");
+    const actTable = findTable(XLSX, wb, ACTIVITY_COLUMNS,
+      (m) => m.grupo != null && m.nome != null,
+      /ativid/i);
+
+    if (!iniTable && !decTable && !actTable) {
+      throw new Error("Não encontrei as abas esperadas. A planilha precisa de uma tabela com colunas Grupo/ID, Nome, Valor e Esforço (ex.: aba 1_Grupos), Grupo e Atividade (aba 2_Atividades) e/ou Descrição, Quem decide e Status (aba de decisões).");
     }
 
-    const plan = { fileName: file.name, initiatives: [], decisions: [], skipped: [], sheets: [] };
+    const plan = { fileName: file.name, initiatives: [], decisions: [], activities: [], skipped: [], sheets: [] };
 
     if (iniTable) {
       plan.sheets.push(iniTable.sheet);
@@ -212,6 +234,50 @@
       });
     }
 
+    if (actTable) {
+      plan.sheets.push(actTable.sheet);
+      const newIds = new Set(plan.initiatives.filter((p) => p.isNew).map((p) => p.id));
+      const used = new Set(); // atividades com nome repetido casam uma a uma, na ordem
+      actTable.rows.forEach((row) => {
+        const iniId = toText(row.grupo).toUpperCase();
+        const nome = toText(row.nome).replace(/\s+/g, " ");
+        if (!iniId || !nome) return;
+        const ini = S.findInitiative(iniId);
+        if (!ini && !newIds.has(iniId)) { plan.skipped.push(`${iniId}: ${nome}`); return; }
+
+        const incoming = { nome };
+        const status = toStatus(row.status);
+        if (status) incoming.status = status;
+        const pct = toPct(row.pct);
+        if (pct != null) incoming.pct = pct;
+        else if (status === "Concluído") incoming.pct = 100;
+        const resp = toText(row.responsavel);
+        if (resp) incoming.responsavel = resp;
+        const prazo = toText(row.prazo);
+        if (prazo) incoming.prazo = prazo;
+        const obs = toText(row.observacoes);
+        if (obs) incoming.observacoes = obs;
+
+        const existing = ini?.atividades.find((a) => !used.has(a.id) && norm(a.nome) === norm(nome));
+        if (!existing) {
+          plan.activities.push({ isNew: true, iniId, data: incoming });
+          return;
+        }
+        used.add(existing.id);
+        // "Não iniciado"/"A fazer" na planilha é o valor padrão das linhas: não desfaz avanço registrado no painel.
+        if (incoming.status === "A fazer" && existing.status !== "A fazer") delete incoming.status;
+        const patch = {};
+        const changes = [];
+        Object.entries(incoming).forEach(([k, v]) => {
+          if (k !== "nome" && String(existing[k] ?? "") !== String(v)) {
+            patch[k] = v;
+            changes.push({ label: S.FIELDS.ACTIVITY_FIELDS[k] || k, from: existing[k], to: v });
+          }
+        });
+        if (changes.length) plan.activities.push({ isNew: false, iniId, actId: existing.id, data: patch, changes, nome: existing.nome });
+      });
+    }
+
     return plan;
   }
 
@@ -231,6 +297,8 @@
       Valor: it.valor,
       Esforço: it.esforco,
       "V ÷ E": Math.round(ve(it) * 100) / 100,
+      "% concluído": S.calc.progress(it) ?? "",
+      Atividades: it.atividades.length,
       "Acima da linha?": isAboveCut(it, cut) ? "Sim" : "Não",
       "Tempo estimado": A.meta.tempoPorEsforco(it.esforco),
       Onda: it.onda,
@@ -242,6 +310,18 @@
       Habilitadora: it.enabler ? "Sim" : "",
       Observações: it.observacoes,
     }));
+    const actRows = [];
+    ranked.forEach((it) => it.atividades.forEach((a, i) => actRows.push({
+      Grupo: it.id,
+      Iniciativa: it.nome,
+      "Nº": i + 1,
+      Atividade: a.nome,
+      "% concluído": a.pct,
+      Status: a.status,
+      Responsável: a.responsavel,
+      Prazo: a.prazo,
+      Observações: a.observacoes,
+    })));
     const decRows = S.state.data.decisions.map((d) => ({
       Data: d.data, "Quem decide": d.quem, Grupo: d.grupo, Descrição: d.pauta, Status: d.status, "O que foi decidido": d.resultado,
     }));
@@ -260,7 +340,8 @@
       ws["!cols"] = widths.map((w) => ({ wch: w }));
       XLSX.utils.book_append_sheet(wb, ws, name);
     };
-    add(iniRows, "Iniciativas", [8, 6, 60, 12, 7, 8, 7, 14, 16, 9, 14, 10, 18, 14, 14, 12, 50]);
+    add(iniRows, "Iniciativas", [8, 6, 60, 12, 7, 8, 7, 12, 10, 14, 16, 9, 14, 10, 18, 14, 14, 12, 50]);
+    add(actRows, "Atividades", [8, 40, 5, 70, 12, 14, 14, 14, 40]);
     add(decRows, "Decisoes", [12, 16, 8, 70, 11, 60]);
     add(histRows, "Historico", [17, 12, 10, 50, 10, 80]);
 
