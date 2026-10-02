@@ -7,7 +7,7 @@
   <meta name="theme-color" content="#026488">
   <title>Painel de Expansão · Altamar</title>
   <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%23026488'/%3E%3Ctext x='32' y='44' font-family='Segoe UI,Arial' font-size='36' font-weight='800' fill='white' text-anchor='middle'%3EA%3C/text%3E%3C/svg%3E">
-  <link rel="stylesheet" href="assets/css/app.css">
+  <link rel="stylesheet" href="assets/css/app.css?v=20261002c">
   <script>
     // Aplica o tema antes da pintura para evitar "piscar" claro → escuro.
     (function () {
@@ -26,7 +26,7 @@
   <header class="app-header">
     <div class="header-bar">
       <a class="brand" href="#executivo" data-action="go-tab" data-tab="executivo" title="Ir para o Painel executivo">
-        <span class="brand-logo-wrap"><img class="brand-img" src="assets/img/logo-altamar.png" alt="Altamar Sistemas Aquáticos" width="164" height="40"></span>
+        <span class="brand-logo-wrap"><img class="brand-img" src="assets/img/logo-altamar.png?v=20261002c" alt="Altamar Sistemas Aquáticos" width="164" height="40"></span>
         <span class="brand-divider" aria-hidden="true"></span>
         <span class="brand-sub">Painel de Gestão<br>Projeto de Expansão</span>
       </a>
@@ -102,43 +102,7 @@
 
     <!-- 1. Painel executivo -->
     <section id="view-executivo" class="view" aria-label="Painel executivo">
-      <div class="kpi-grid" id="kpi-grid"></div>
-
-      <div class="exec-grid">
-        <div class="panel">
-          <div class="panel-head">
-            <div>
-              <h2 class="panel-title">Iniciativas em andamento</h2>
-              <div class="muted small">Foco das quintas-feiras: status, prazos e impedimentos</div>
-            </div>
-            <button class="btn btn-sm btn-outline no-print" data-action="go-tab" data-tab="kanban">Ver no Kanban →</button>
-          </div>
-          <div id="exec-in-progress" class="stack"></div>
-        </div>
-
-        <div class="exec-side">
-          <div class="panel">
-            <div class="panel-head">
-              <h3 class="panel-title">🚨 Semáforo de riscos</h3>
-              <span class="badge">Revisão semanal</span>
-            </div>
-            <div id="exec-risks" class="stack"></div>
-          </div>
-          <div class="panel">
-            <div class="panel-head">
-              <h3 class="panel-title">⚖️ Pauta com a diretoria</h3>
-              <button class="btn btn-xs btn-outline no-print" data-action="go-tab" data-tab="decisoes">Ver todas</button>
-            </div>
-            <div id="exec-decisions" class="stack"></div>
-          </div>
-          <div class="panel">
-            <div class="panel-head">
-              <h3 class="panel-title">🌊 Progresso por onda</h3>
-            </div>
-            <div id="exec-waves" class="stack"></div>
-          </div>
-        </div>
-      </div>
+      <div id="exec-dashboard"></div>
     </section>
 
     <!-- 1a. Visão geral (anéis por área + lista com linha do tempo) -->
@@ -533,21 +497,21 @@
   <datalist id="people-list"></datalist>
   <div class="toasts" id="toasts" aria-live="polite"></div>
 
-  <script src="assets/js/utils.js"></script>
-  <script src="assets/js/data.js"></script>
-  <script src="assets/js/activities-seed.js"></script>
-  <script src="assets/js/store.js"></script>
-  <script src="assets/js/excel.js"></script>
-  <script src="assets/js/views/executive.js"></script>
-  <script src="assets/js/views/matrix.js"></script>
-  <script src="assets/js/views/tables.js"></script>
-  <script src="assets/js/views/board.js"></script>
-  <script src="assets/js/views/drilldown.js"></script>
-  <script src="assets/js/views/portfolio.js"></script>
-  <script src="assets/js/views/overview.js"></script>
-  <script src="assets/js/views/cadastros.js"></script>
-  <script src="assets/js/forms.js"></script>
-  <script src="assets/js/ficha.js"></script>
-  <script src="assets/js/app.js"></script>
+  <script src="assets/js/utils.js?v=20261002c"></script>
+  <script src="assets/js/data.js?v=20261002c"></script>
+  <script src="assets/js/activities-seed.js?v=20261002c"></script>
+  <script src="assets/js/store.js?v=20261002c"></script>
+  <script src="assets/js/excel.js?v=20261002c"></script>
+  <script src="assets/js/views/executive.js?v=20261002c"></script>
+  <script src="assets/js/views/matrix.js?v=20261002c"></script>
+  <script src="assets/js/views/tables.js?v=20261002c"></script>
+  <script src="assets/js/views/board.js?v=20261002c"></script>
+  <script src="assets/js/views/drilldown.js?v=20261002c"></script>
+  <script src="assets/js/views/portfolio.js?v=20261002c"></script>
+  <script src="assets/js/views/overview.js?v=20261002c"></script>
+  <script src="assets/js/views/cadastros.js?v=20261002c"></script>
+  <script src="assets/js/forms.js?v=20261002c"></script>
+  <script src="assets/js/ficha.js?v=20261002c"></script>
+  <script src="assets/js/app.js?v=20261002c"></script>
 </body>
 </html>

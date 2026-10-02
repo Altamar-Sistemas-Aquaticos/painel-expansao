@@ -480,6 +480,71 @@ tr.cut-divider td {
 .act-new { display: flex; gap: 0.5rem; margin-top: 0.85rem; }
 .act-new .input { flex: 1; }
 
+/* ---------- Painel executivo (tendências em destaque) ---------- */
+.exec-hero {
+  display: flex; justify-content: space-between; align-items: center; gap: 1rem; flex-wrap: wrap;
+  background: var(--surface); border: 1px solid var(--border); border-radius: 14px; padding: 1.1rem 1.4rem;
+  box-shadow: var(--shadow); border-left: 5px solid var(--accent);
+}
+.exec-hero-date { margin: 0; font-size: 0.8rem; color: var(--text-muted); font-weight: 600; letter-spacing: 0.2px; }
+.exec-hero-title { margin: 0.2rem 0 0; font-size: 1.3rem; font-weight: 700; line-height: 1.35; max-width: 70ch; }
+.exec-hero-chips { display: flex; gap: 0.4rem; flex-wrap: wrap; }
+
+.kgrid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 0.9rem; margin-top: 0.9rem; }
+.kcard {
+  display: flex; flex-direction: column; align-items: stretch; text-align: left; gap: 0.25rem;
+  background: var(--surface); border: 1px solid var(--border); border-radius: 14px; padding: 1rem 1.1rem 0.85rem;
+  box-shadow: var(--shadow); cursor: pointer; font: inherit; color: inherit; transition: transform 0.12s, box-shadow 0.12s, border-color 0.12s;
+}
+.kcard:hover { transform: translateY(-2px); border-color: var(--accent); box-shadow: 0 8px 20px -10px rgba(2, 100, 136, 0.35); }
+.kcard-top { display: flex; justify-content: space-between; align-items: center; gap: 0.5rem; font-size: 0.82rem; color: var(--text-muted); font-weight: 600; }
+.kcard-value { font-size: 2.4rem; font-weight: 800; line-height: 1.05; letter-spacing: -0.5px; font-variant-numeric: tabular-nums; margin-top: 0.15rem; }
+.kcard-value.good { color: var(--ok); }
+.kcard-value.bad { color: var(--alert); }
+.kcard-foot { font-size: 0.76rem; color: var(--text-muted); }
+.spark { width: 100%; height: 38px; display: block; margin: 0.35rem 0 0.15rem; overflow: visible; }
+.spark-limit { stroke: var(--border-strong); stroke-dasharray: 3 3; vector-effect: non-scaling-stroke; }
+.spark-empty { height: 38px; display: flex; align-items: center; font-size: 0.72rem; color: var(--text-muted); border-bottom: 1px dashed var(--border); margin: 0.35rem 0 0.15rem; }
+.kchip { display: inline-flex; align-items: center; font-size: 0.72rem; font-weight: 700; padding: 0.12rem 0.5rem; border-radius: 999px; white-space: nowrap; }
+.kchip.big { font-size: 0.8rem; padding: 0.3rem 0.75rem; }
+.kchip.good { background: var(--ok-soft); color: var(--ok-text); }
+.kchip.bad { background: var(--alert-soft); color: var(--alert-text); }
+.kchip.warnc { background: var(--warn-soft); color: var(--warn-text); }
+.kchip.neutral { background: var(--surface-3); color: var(--text-muted); }
+
+.exec-bottom { display: grid; grid-template-columns: minmax(0, 1.25fr) minmax(0, 1fr); gap: 0.9rem; margin-top: 0.9rem; align-items: start; }
+.exec-bottom .panel { border-radius: 14px; }
+.todo { list-style: none; margin: 0; padding: 0; }
+.todo li + li { border-top: 1px solid var(--border); }
+.todo-item {
+  width: 100%; display: flex; align-items: center; gap: 0.75rem; text-align: left; padding: 0.7rem 0.3rem;
+  border: none; background: none; font: inherit; color: inherit; cursor: pointer; border-radius: 8px;
+}
+.todo-item:hover { background: var(--surface-2); }
+.todo-item:hover .todo-go { color: var(--accent); transform: translateX(2px); }
+.todo-n { width: 26px; height: 26px; border-radius: 8px; display: grid; place-items: center; font-size: 0.8rem; font-weight: 800; flex-shrink: 0; }
+.todo-n.alert { background: var(--alert-soft); color: var(--alert-text); }
+.todo-n.warn { background: var(--warn-soft); color: var(--warn-text); }
+.todo-n.accent { background: var(--accent-soft); color: var(--accent-strong); }
+.todo-text { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 0.1rem; font-size: 0.9rem; }
+.todo-text strong { font-weight: 650; }
+.todo-go { color: var(--text-muted); transition: transform 0.12s, color 0.12s; }
+.todo-clear { padding: 1.2rem; text-align: center; color: var(--ok-text); background: var(--ok-soft); border-radius: 10px; font-weight: 600; }
+
+.wk-grid { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 0.45rem; }
+.wk-label { display: block; text-align: center; font-size: 0.72rem; color: var(--text-muted); font-weight: 600; margin-bottom: 0.3rem; text-transform: capitalize; }
+.wk-day.today .wk-label { color: var(--accent); font-weight: 800; }
+.wk-cell { min-height: 84px; background: var(--surface-2); border: 1px solid var(--border); border-radius: 10px; padding: 0.35rem; display: flex; flex-direction: column; gap: 0.25rem; }
+.wk-day.today .wk-cell { border-color: var(--accent); box-shadow: 0 0 0 2px var(--accent-soft); }
+.wk-day.past .wk-cell { opacity: 0.55; }
+.wk-ev { font-size: 0.7rem; font-weight: 700; border-radius: 6px; padding: 0.2rem 0.3rem; text-align: center; line-height: 1.2; }
+.wk-ev[role="button"] { cursor: pointer; }
+.wk-ev.warn { background: var(--warn-soft); color: var(--warn-text); }
+.wk-ev.accent { background: var(--accent-soft); color: var(--accent-strong); }
+.wk-ev.alert { background: var(--alert-soft); color: var(--alert-text); }
+.wk-more { font-size: 0.68rem; color: var(--text-muted); text-align: center; }
+.wk-foot { margin: 0.7rem 0 0; font-size: 0.8rem; color: var(--text-muted); }
+
 /* ---------- Visão geral ---------- */
 .ov-rings { display: grid; grid-template-columns: repeat(auto-fill, minmax(170px, 1fr)); gap: 0.85rem; margin-bottom: 1.25rem; }
 .ov-ring {
@@ -684,6 +749,7 @@ body.presentation .filter-bar { display: none; }
 
 /* ---------- Responsive ---------- */
 @media (max-width: 1180px) {
+  .kgrid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .ov-row { grid-template-columns: 26px 46px minmax(200px, 2fr) 130px 78px 78px 120px minmax(160px, 1.4fr); }
   .ov-col-onda { display: none; }
   .kanban { grid-template-columns: repeat(3, minmax(0, 1fr)); }
@@ -699,6 +765,9 @@ body.presentation .filter-bar { display: none; }
   .k-col { min-height: 0; }
   .k-col.backlog { order: 5; }
   .portfolio { grid-auto-flow: row; grid-auto-columns: auto; }
+  .exec-bottom { grid-template-columns: 1fr; }
+  .exec-hero-title { font-size: 1.1rem; }
+  .kcard-value { font-size: 2rem; }
   .ov-rings { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .ov-row { grid-template-columns: 22px 40px minmax(0, 1fr) 96px; }
   .ov-row > :nth-child(n+5) { display: none; }

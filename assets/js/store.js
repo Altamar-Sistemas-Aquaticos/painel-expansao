@@ -9,6 +9,7 @@
   const LEGACY_INI = "altamar_expansao_iniciativas_v1";
   const LEGACY_DEC = "altamar_expansao_decisoes_v1";
   const SCHEMA_VERSION = 3;
+  const PORTFOLIO_BASE_DATE = "2026-09-01T12:00:00.000Z"; // data-base dos 29 projetos iniciais
   const HISTORY_LIMIT = 2000;
 
   const ONDA_KEYS = ONDAS.map((o) => o.key);
@@ -247,11 +248,20 @@
       initiatives: [],
       decisions: (raw.decisions || []).map(normalizeDecision).filter((d) => d.pauta),
       history: Array.isArray(raw.history) ? raw.history.slice(0, HISTORY_LIMIT) : [],
+      // Foto semanal dos indicadores ({ "2026-09-28": { wip, atraso, total } }) para as tendências do painel.
+      snapshots: raw.snapshots && typeof raw.snapshots === "object" ? raw.snapshots : {},
     };
     const prev = store.data;
     store.data = data; // normalizeInitiative consulta as áreas cadastradas
     try {
       data.initiatives = (raw.initiatives || []).map(normalizeInitiative).filter((i) => i.id && i.nome);
+      // Os projetos iniciais do painel não foram "cadastrados" no dia em que ele foi aberto pela 1ª vez:
+      // sem registro de criação no histórico, recebem a data-base do portfólio (evita "+29 novos na semana").
+      const criadosNoHistorico = new Set(data.history.filter((h) => h.entity === "iniciativa" && h.action === "criou").map((h) => h.refId));
+      const iniciais = new Set(A.defaults.initiatives.map((i) => i.id));
+      data.initiatives.forEach((it) => {
+        if (iniciais.has(it.id) && !criadosNoHistorico.has(it.id)) it.criadoEm = PORTFOLIO_BASE_DATE;
+      });
       registerMissing(data);
     } finally {
       store.data = prev;
@@ -310,8 +320,18 @@
     return "default";
   }
 
+  // Segunda-feira da semana de `d` (chave das fotos semanais).
+  function weekKey(d = new Date()) {
+    const x = new Date(d); x.setHours(0, 0, 0, 0);
+    x.setDate(x.getDate() - ((x.getDay() + 6) % 7));
+    return `${x.getFullYear()}-${String(x.getMonth() + 1).padStart(2, "0")}-${String(x.getDate()).padStart(2, "0")}`;
+  }
+
   function persist() {
     store.settings.lastSavedAt = new Date().toISOString();
+    try {
+      if (A.metrics) store.data.snapshots[weekKey()] = A.metrics.snapshot(A.store);
+    } catch {}
     const ok = writeJSON(DATA_KEY, store.data) && writeJSON(SETTINGS_KEY, store.settings);
     store.saveError = !ok;
     return ok;
@@ -723,7 +743,7 @@
   }
 
   function resetToDefaults() {
-    store.data = { ...normalizeData(clone(A.defaults)), history: store.data.history };
+    store.data = { ...normalizeData(clone(A.defaults)), history: store.data.history, snapshots: store.data.snapshots };
     commit([entry("sistema", null, "restaurou", "Dados restaurados para o padrão inicial", [], "Sistema")]);
   }
 
@@ -763,7 +783,7 @@
 
   A.store = {
     state: store, load, persist, subscribe, emit, saveSettings,
-    calc: { ve, cutoff, isAboveCut, wipCount, snapFib, progress, parseDate },
+    calc: { ve, cutoff, isAboveCut, wipCount, snapFib, progress, parseDate, weekKey },
     findInitiative, nextId, saveInitiative, createProject, deleteInitiative, canDelete, advanceSituacao,
     moveToColumn, setOnda, setStatus, warnings,
     saveActivity, setRaci, deleteActivity, findActivity, projectTeam, raciText, raciPeople, splitNames,
