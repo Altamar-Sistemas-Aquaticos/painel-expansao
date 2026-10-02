@@ -68,6 +68,7 @@
   <nav class="tabs-wrap no-print" aria-label="Seções">
     <div class="tabs" role="tablist">
       <button class="tab-btn" data-tab="executivo" role="tab">📊 Painel executivo</button>
+      <button class="tab-btn" data-tab="overview" role="tab">🧭 Visão geral</button>
       <button class="tab-btn" data-tab="portfolio" role="tab">🗂️ Portfólio <span class="tab-count" id="tab-count-rascunho">0</span></button>
       <button class="tab-btn" data-tab="matriz" role="tab">🎯 Matriz valor × esforço</button>
       <button class="tab-btn" data-tab="ranking" role="tab">🔢 Ranking <span class="tab-count" id="tab-count-ranking">0</span></button>
@@ -142,7 +143,10 @@
       </div>
     </section>
 
-    <!-- 1a. Portfólio (raio-x por área) -->
+    <!-- 1a. Visão geral (anéis por área + lista com linha do tempo) -->
+    <section id="view-overview" class="view" aria-label="Visão geral do portfólio"></section>
+
+    <!-- 1b. Portfólio (raio-x por área) -->
     <section id="view-portfolio" class="view" aria-label="Portfólio de projetos por área">
       <div class="page-head">
         <div>
@@ -542,6 +546,7 @@
   <script src="assets/js/views/board.js"></script>
   <script src="assets/js/views/drilldown.js"></script>
   <script src="assets/js/views/portfolio.js"></script>
+  <script src="assets/js/views/overview.js"></script>
   <script src="assets/js/views/cadastros.js"></script>
   <script src="assets/js/forms.js"></script>
   <script src="assets/js/ficha.js"></script>

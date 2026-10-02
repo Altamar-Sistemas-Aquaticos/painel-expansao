@@ -5,7 +5,7 @@
   const { toast, closeModal, closeTopModal, confirmDialog, downloadBlob, esc, initials } = A.util;
   const $ = (id) => document.getElementById(id);
 
-  const TABS = ["executivo", "portfolio", "matriz", "ranking", "kanban", "ondas", "decisoes", "historico", "cadastros"];
+  const TABS = ["executivo", "overview", "portfolio", "matriz", "ranking", "kanban", "ondas", "decisoes", "historico", "cadastros"];
   const TAB_KEY = "altamar_painel_tab";
   // Rota atual. Telas de detalhamento: "setor/<área>" e "projeto/<id>" (pertencem à aba Kanban).
   let route = { view: "executivo", param: null };
@@ -13,6 +13,7 @@
   /* ---------- Renderização ---------- */
   function renderAll() {
     A.views.executive(S);
+    A.views.overview(S);
     A.views.portfolio(S);
     A.views.cadastros(S);
     A.views.matrix(S);
