@@ -99,14 +99,21 @@
     return `<div class="act-blocked">⏳ Depende da atividade ${n} (“${esc(dep.nome)}”), que está em ${dep.pct}%.</div>`;
   }
 
-  // Resumo da RACI da atividade (a edição fica na matriz RACI do projeto).
-  function raciChips(a) {
+  // RACI no próprio cartão: R e A escolhidos aqui; C e I aparecem como resumo (editáveis na matriz).
+  function raciChips(it, a) {
     const S = A.store;
-    const parts = S.RACI_ROLES.map((r) => {
+    const role = (r) => S.raciPeople(a.raci, r)[0] || "";
+    const sel = (r, label) => `
+      <label class="raci-pick"><span class="raci-tag raci-${r}" title="${label}">${r}</span>
+        <select class="input input-sm ${r === "R" && !role("R") ? "invalid" : ""}" data-raci-role="${r}" data-ini="${esc(it.id)}" data-act="${esc(a.id)}" aria-label="${label} da atividade">
+          ${A.ui.peopleOptions(role(r), { blank: r === "R" ? "Escolha o responsável…" : "Sem aprovador" })}
+        </select></label>`;
+    const others = ["C", "I"].map((r) => {
       const names = S.raciPeople(a.raci, r);
       return names.length ? `<span class="raci-chip"><span class="raci-tag raci-${r}">${r}</span>${esc(names.join(", "))}</span>` : "";
     }).join("");
-    return parts || `<span class="badge alert">Sem RACI: defina o responsável (R) na matriz abaixo</span>`;
+    return `${sel("R", "Responsável")}${sel("A", "Aprovador")}${others}
+      <a href="#raci-${esc(it.id)}" class="small raci-more no-print" data-raci-scroll>+ Consultados / Informados na matriz ↓</a>`;
   }
 
   function activityRow(it, a, n) {
@@ -122,7 +129,7 @@
             ${A.meta.STATUS.map((s) => `<option ${s === a.status ? "selected" : ""}>${esc(s)}</option>`).join("")}
           </select>
         </div>
-        <div class="act-raci">${raciChips(a)}
+        <div class="act-raci">${raciChips(it, a)}
           ${A.store.canDelete(it) ? `<button type="button" class="btn btn-xs btn-danger-ghost no-print" data-del-act="${id}" data-ini="${ini}" style="margin-left:auto">Remover</button>` : ""}
         </div>
         <div class="act-pct">
@@ -157,7 +164,7 @@
       return `<tr class="${a.status === "Cancelado" ? "muted" : ""}"><th class="raci-act"><span class="raci-ok">${ok ? "✓" : "⚠"}</span> ${i + 1}. ${esc(a.nome)}</th>${cells}</tr>`;
     }).join("");
     return `
-      <div class="panel raci-panel" style="margin-top:1.25rem">
+      <div class="panel raci-panel" id="raci-${esc(it.id)}" style="margin-top:1.25rem">
         <div class="panel-head">
           <div>
             <h3 class="panel-title">Matriz RACI</h3>
@@ -335,6 +342,15 @@
       if (!el.closest?.("#view-projeto")) return;
       const S = A.store;
       if (el.dataset.act && el.dataset.field) return saveField(el);
+      if (el.dataset.raciRole) {
+        // Escolha de R/A no cartão: vazio remove quem tinha o papel; outra pessoa assume (R e A são únicos).
+        const { ini, act, raciRole: roleKey } = el.dataset;
+        const atual = S.raciPeople(S.findActivity(ini, act)?.raci, roleKey)[0];
+        const r = el.value ? S.setRaci(ini, act, el.value, roleKey) : (atual ? S.setRaci(ini, act, atual, "") : { ok: true });
+        if (!r.ok) { A.util.toast(r.error, "error"); S.emit(); }
+        else if (!r.unchanged && el.value) A.util.toast(`${el.value} é ${roleKey === "R" ? "o responsável (R)" : "o aprovador (A)"} da atividade.`);
+        return;
+      }
       if (el.dataset.raciAct) {
         const r = S.setRaci(el.dataset.raciIni, el.dataset.raciAct, el.dataset.name, el.value);
         if (!r.ok) { A.util.toast(r.error, "error"); S.emit(); }
@@ -347,6 +363,12 @@
       }
     });
     document.addEventListener("click", async (e) => {
+      const link = e.target.closest?.("[data-raci-scroll]");
+      if (link) {
+        e.preventDefault(); // só rola até a matriz, sem mudar a rota
+        document.querySelector(link.getAttribute("href"))?.scrollIntoView({ behavior: "smooth", block: "start" });
+        return;
+      }
       const b = e.target.closest?.("[data-del-act]");
       if (!b) return;
       const S = A.store;

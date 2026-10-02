@@ -192,7 +192,15 @@ textarea.input { resize: vertical; min-height: 80px; }
   max-width: 1400px; margin: 0 auto; padding: 0.7rem 1.5rem;
   display: flex; justify-content: space-between; align-items: center; gap: 1rem; flex-wrap: wrap;
 }
-.brand { display: flex; align-items: center; gap: 0.8rem; }
+.brand { display: flex; align-items: center; gap: 0.8rem; text-decoration: none; color: inherit; border-radius: 8px; }
+.brand:hover .brand-img { opacity: 0.85; }
+.brand-logo-wrap { display: inline-flex; border-radius: 8px; }
+.brand-img { display: block; height: 40px; width: auto; transition: opacity 0.15s; }
+.brand-divider { width: 1px; height: 30px; background: var(--border-strong); }
+.brand .brand-sub { line-height: 1.25; }
+/* No tema escuro o texto escuro do logo some: ele fica sobre uma "plaquinha" clara. */
+:root[data-theme="dark"] .brand-logo-wrap { background: #fff; padding: 4px 8px; }
+@media (max-width: 760px) { .brand-divider { display: none; } .brand-img { height: 34px; } }
 .brand-logo {
   width: 38px; height: 38px; border-radius: 9px;
   background: linear-gradient(135deg, #026488 0%, #0099b8 100%);
@@ -450,7 +458,7 @@ tr.cut-divider td {
 .act-n { font-weight: 750; text-align: right; }
 .act-head { align-items: start; }
 .act-n { padding-top: 0.5rem; }
-.act textarea.act-name { resize: none; }
+.act textarea.act-name { resize: none; min-height: 0; }
 .act-name { font-weight: 650; border-color: transparent; background: transparent; padding-left: 0.4rem; resize: none; min-height: 0; field-sizing: content; line-height: 1.4; }
 .act-name:hover { border-color: var(--border); }
 .act-name:focus { background: var(--surface); }
@@ -592,6 +600,10 @@ tr.invalid th { color: var(--alert-text); }
 .raci-cell.raci-none { color: var(--text-muted); }
 .act-raci { display: flex; flex-wrap: wrap; gap: 0.35rem 0.6rem; align-items: center; margin: 0.45rem 0 0 30px; font-size: 0.8rem; }
 .raci-chip { display: inline-flex; align-items: center; gap: 0.3rem; }
+.raci-pick { display: inline-flex; align-items: center; gap: 0.35rem; }
+.raci-pick select.input-sm { width: 190px; }
+.raci-more { color: var(--text-muted); text-decoration: none; margin-left: 0.25rem; }
+.raci-more:hover { color: var(--accent); text-decoration: underline; }
 
 /* ---------- Waves ---------- */
 .wave { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 1rem 1.1rem; margin-bottom: 1rem; border-top: 4px solid var(--wave-color, var(--accent)); transition: background 0.12s; }
