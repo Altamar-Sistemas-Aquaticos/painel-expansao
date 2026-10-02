@@ -301,6 +301,9 @@
     A.drill.initActivityEvents();
     A.ficha.init();
     A.cadastros.init();
+    A.compromissos.init();
+    A.google.init();
+    $("menu-google").addEventListener("click", () => { closeMenu(); A.google.openSettings(); });
     initFilters();
     initDataMenu();
 

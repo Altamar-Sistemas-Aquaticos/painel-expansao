@@ -35,7 +35,11 @@
     data: "Data", quem: "Quem decide", grupo: "Iniciativa", pauta: "Pauta", status: "Status", resultado: "Decisão / encaminhamento",
   };
   const AREA_FIELDS = { key: "Nome", code: "Código", cor: "Cor" };
-  const PESSOA_FIELDS = { nome: "Nome", funcao: "Função", area: "Área", ativo: "Ativa" };
+  const PESSOA_FIELDS = { nome: "Nome", funcao: "Função", email: "E-mail", area: "Área", ativo: "Ativa" };
+  const COMPROMISSO_FIELDS = {
+    titulo: "Título", data: "Data", horaInicio: "Início", horaFim: "Fim", projeto: "Projeto",
+    participantes: "Participantes", local: "Local / link", notas: "Notas", enviarConvite: "Enviar convite",
+  };
 
   const store = {
     data: { version: SCHEMA_VERSION, config: { areas: [], pessoas: [] }, initiatives: [], decisions: [], history: [] },
@@ -228,10 +232,35 @@
       cor: /^#[0-9a-f]{6}$/i.test(raw.cor) ? raw.cor : "#64748b",
     };
   }
+  // Call ou reunião marcada no painel (vai para o Google Agenda com horário).
+  function normalizeCompromisso(raw) {
+    const hora = (h, def) => (/^\d{2}:\d{2}$/.test(String(h ?? "")) ? h : def);
+    const inicio = hora(raw.horaInicio, "09:00");
+    let fim = hora(raw.horaFim, "");
+    if (!fim || fim <= inicio) {
+      const [h, m] = inicio.split(":").map(Number);
+      fim = `${String(Math.min(23, h + 1)).padStart(2, "0")}:${String(m).padStart(2, "0")}`;
+    }
+    return {
+      id: raw.id || uid("cmp"),
+      titulo: String(raw.titulo ?? "").trim(),
+      data: String(raw.data ?? "").trim(), // dd/mm/aaaa
+      horaInicio: inicio,
+      horaFim: fim,
+      projeto: String(raw.projeto ?? "").trim().toUpperCase(),
+      participantes: Array.isArray(raw.participantes) ? raw.participantes.map((n) => String(n).trim()).filter(Boolean) : [],
+      local: String(raw.local ?? "").trim(),
+      notas: String(raw.notas ?? "").trim(),
+      enviarConvite: !!raw.enviarConvite,
+      criadoEm: raw.criadoEm || new Date().toISOString(),
+    };
+  }
+
   function normalizePessoa(raw) {
     return {
       nome: String(raw.nome ?? "").trim(),
       funcao: String(raw.funcao ?? "").trim(),
+      email: String(raw.email ?? "").trim().toLowerCase(),
       area: String(raw.area ?? "").trim(),
       ativo: raw.ativo !== false,
     };
@@ -247,6 +276,7 @@
       },
       initiatives: [],
       decisions: (raw.decisions || []).map(normalizeDecision).filter((d) => d.pauta),
+      compromissos: (raw.compromissos || []).map(normalizeCompromisso).filter((c) => c.titulo && c.data),
       history: Array.isArray(raw.history) ? raw.history.slice(0, HISTORY_LIMIT) : [],
       // Foto semanal dos indicadores ({ "2026-09-28": { wip, atraso, total } }) para as tendências do painel.
       snapshots: raw.snapshots && typeof raw.snapshots === "object" ? raw.snapshots : {},
@@ -371,6 +401,7 @@
     const ok = persist();
     emit();
     if (!ok) A.util.toast("Não foi possível salvar no navegador. Exporte um backup agora.", "error", 6000);
+    A.google?.schedule(); // leva prazos e compromissos para o Google Agenda (se conectado)
   }
 
   /* ---------- Iniciativas ---------- */
@@ -643,6 +674,7 @@
     const before = originalNome ? findPessoa(originalNome) : null;
     const after = normalizePessoa({ ...(before || {}), ...input });
     if (!after.nome) return { ok: false, error: "Informe o nome." };
+    if (after.email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(after.email)) return { ok: false, error: "E-mail inválido." };
     const dup = findPessoa(after.nome);
     if (dup && dup !== before) return { ok: false, error: "Já existe uma pessoa com esse nome." };
     if (!before) {
@@ -672,6 +704,36 @@
     if (uso) return { ok: false, error: `${nome} aparece em ${uso} projeto(s)/atividade(s). Desative em vez de excluir.` };
     store.data.config.pessoas = store.data.config.pessoas.filter((p) => norm(p.nome) !== norm(nome));
     commit([entry("cadastro", null, "excluiu", `Pessoa ${nome}`)]);
+    return { ok: true };
+  }
+
+  /* ---------- Compromissos (calls e reuniões) ---------- */
+  const findCompromisso = (id) => store.data.compromissos.find((c) => c.id === id);
+
+  function saveCompromisso(input) {
+    const existing = input.id ? findCompromisso(input.id) : null;
+    const after = normalizeCompromisso({ ...(existing || {}), ...input });
+    if (!after.titulo) return { ok: false, error: "Dê um título ao compromisso." };
+    if (!parseDate(after.data)) return { ok: false, error: "Informe a data do compromisso." };
+    if (after.projeto && !findInitiative(after.projeto)) return { ok: false, error: `Projeto ${after.projeto} não encontrado.` };
+    const label = `${after.data} ${after.horaInicio} · ${after.titulo}`;
+    if (!existing) {
+      store.data.compromissos.push(after);
+      commit([entry("compromisso", after.projeto || null, "criou", label)]);
+      return { ok: true, item: after };
+    }
+    const changes = diff(existing, after, COMPROMISSO_FIELDS);
+    if (!changes.length) return { ok: true, item: existing, unchanged: true };
+    Object.assign(existing, after);
+    commit([entry("compromisso", after.projeto || null, "editou", label, changes)]);
+    return { ok: true, item: existing };
+  }
+
+  function deleteCompromisso(id) {
+    const c = findCompromisso(id);
+    if (!c) return { ok: false, error: "Compromisso não encontrado." };
+    store.data.compromissos = store.data.compromissos.filter((x) => x.id !== id);
+    commit([entry("compromisso", c.projeto || null, "excluiu", `${c.data} ${c.horaInicio} · ${c.titulo}`)]);
     return { ok: true };
   }
 
@@ -790,6 +852,7 @@
     areas, findArea, saveArea, deleteArea, suggestAreaCode, nextAreaColor,
     pessoas, findPessoa, savePessoa, deletePessoa, pessoaUso,
     findDecision, saveDecision, deleteDecision,
+    findCompromisso, saveCompromisso, deleteCompromisso,
     replaceAll, applyImportPlan, resetToDefaults, clearHistory, markBackup, backupOverdue,
     matchesFilters, filtered, hasActiveFilters,
     SITUACOES, RACI_ROLES,

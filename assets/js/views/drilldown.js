@@ -148,6 +148,19 @@
       </div>`;
   }
 
+  // Próximos compromissos (calls/reuniões) ligados ao projeto.
+  function projectAgenda(S, it) {
+    const hoje = new Date(); hoje.setHours(0, 0, 0, 0);
+    const list = S.state.data.compromissos
+      .filter((c) => c.projeto === it.id && (S.calc.parseDate(c.data) || 0) >= hoje)
+      .sort((a, b) => S.calc.parseDate(a.data) - S.calc.parseDate(b.data) || a.horaInicio.localeCompare(b.horaInicio));
+    if (!list.length) return "";
+    return `<div class="project-agenda">
+      <span class="kpi-label">Próximos compromissos</span>
+      ${list.slice(0, 4).map((c) => `<button class="cal-ev pro full" data-cmp-edit="${esc(c.id)}">${esc(c.data)} ${esc(c.horaInicio)} · ${esc(c.titulo)}${c.participantes.length ? ` · ${esc(c.participantes.join(", "))}` : ""}</button>`).join("")}
+    </div>`;
+  }
+
   // Pessoas adicionadas à matriz que ainda não têm papel (só na tela; somem se ficarem sem papel).
   const extraTeam = {};
 
@@ -225,10 +238,12 @@
             ${nextSit ? `<button class="btn btn-sm btn-primary" data-action="advance-situacao" data-id="${esc(it.id)}">${nextSit}</button>` : ""}
             <button class="btn btn-sm btn-outline" data-action="edit-initiative" data-id="${esc(it.id)}">Editar dados</button>
             <button class="btn btn-sm btn-ghost" data-action="new-decision-for" data-id="${esc(it.id)}">+ Decisão</button>
+            <button class="btn btn-sm btn-ghost" data-cmp-new="${esc(it.id)}">+ Compromisso</button>
             ${S.canDelete(it) ? `<button class="btn btn-sm btn-danger-ghost" data-action="delete-initiative" data-id="${esc(it.id)}">Excluir rascunho</button>` : ""}
           </div>
         </div>
         ${warns.length ? `<ul class="pf-warn project-warn">${warns.map((x) => `<li>${esc(x)}</li>`).join("")}</ul>` : ""}
+        ${projectAgenda(S, it)}
         <dl class="project-facts">
           <div><dt>Valor</dt><dd>${it.valor}</dd></div>
           <div><dt>Esforço</dt><dd>${it.esforco}</dd></div>

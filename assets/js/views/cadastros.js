@@ -52,6 +52,7 @@
           <td><span class="avatar" style="width:26px;height:26px">${esc(A.util.initials(p.nome))}</span></td>
           <td><input class="input input-sm" value="${esc(p.nome)}" ${k} data-field="nome" aria-label="Nome"></td>
           <td><input class="input input-sm" value="${esc(p.funcao)}" placeholder="Função" ${k} data-field="funcao" aria-label="Função de ${esc(p.nome)}"></td>
+          <td><input class="input input-sm" type="email" value="${esc(p.email)}" placeholder="nome@altamar.com.br" ${k} data-field="email" aria-label="E-mail de ${esc(p.nome)}"></td>
           <td><select class="input input-sm" ${k} data-field="area" aria-label="Área de ${esc(p.nome)}">${areaOpts(p.area)}</select></td>
           <td class="center"><input type="checkbox" ${p.ativo ? "checked" : ""} ${k} data-field="ativo" aria-label="${esc(p.nome)} ativa"></td>
           <td class="num" title="Projetos e atividades em que aparece">${uso}</td>
@@ -68,13 +69,14 @@
       </div>
       <div class="table-wrap">
         <table class="data">
-          <thead><tr><th></th><th>Nome</th><th>Função</th><th>Área</th><th class="center">Ativa</th><th class="num">Uso</th><th></th></tr></thead>
-          <tbody>${rows || `<tr><td colspan="7" class="muted">Nenhuma pessoa cadastrada.</td></tr>`}</tbody>
+          <thead><tr><th></th><th>Nome</th><th>Função</th><th>E-mail (convites)</th><th>Área</th><th class="center">Ativa</th><th class="num">Uso</th><th></th></tr></thead>
+          <tbody>${rows || `<tr><td colspan="8" class="muted">Nenhuma pessoa cadastrada.</td></tr>`}</tbody>
         </table>
       </div>
       <form class="cad-add" id="cad-pessoa-form">
         <input class="input input-sm" id="cad-pessoa-nome" placeholder="Nome (ex.: Bia)" autocomplete="off" aria-label="Nome da nova pessoa">
         <input class="input input-sm" id="cad-pessoa-funcao" placeholder="Função (ex.: Financeiro)" autocomplete="off" aria-label="Função">
+        <input class="input input-sm" id="cad-pessoa-email" type="email" placeholder="E-mail (opcional)" autocomplete="off" aria-label="E-mail">
         <select class="input input-sm" id="cad-pessoa-area" aria-label="Área">${areaOpts("")}</select>
         <button class="btn btn-sm btn-primary" type="submit">+ Adicionar pessoa</button>
       </form>`;
@@ -144,6 +146,7 @@
         const r = S.savePessoa({
           nome: document.getElementById("cad-pessoa-nome").value,
           funcao: document.getElementById("cad-pessoa-funcao").value,
+          email: document.getElementById("cad-pessoa-email").value,
           area: document.getElementById("cad-pessoa-area").value,
         });
         if (!r.ok) return toast(r.error, "error", 5000);

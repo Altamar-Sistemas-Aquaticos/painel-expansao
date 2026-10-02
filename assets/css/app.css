@@ -584,6 +584,20 @@ tr.cut-divider td {
 .cal-ev.alert { background: var(--alert-soft); color: var(--alert-text); }
 .cal-ev.accent { background: var(--accent-soft); color: var(--accent-strong); }
 .cal-ev:hover { filter: brightness(0.96); }
+.cal-ev.pro { background: color-mix(in srgb, #7048e8 14%, var(--surface)); color: #5b3cc4; }
+:root[data-theme="dark"] .cal-ev.pro { color: #c3b4fc; }
+.cal-ev.gcal { background: var(--surface-3); color: var(--text); border-left-color: var(--text-muted); font-weight: 600; }
+.cal-google { margin-top: 0.5rem; font-size: 0.78rem; color: var(--text-muted); }
+.project-agenda { display: flex; flex-direction: column; gap: 0.3rem; margin-bottom: 0.75rem; }
+.cmp-people { display: flex; flex-wrap: wrap; gap: 0.4rem; }
+.cmp-person {
+  display: inline-flex; align-items: center; gap: 0.35rem; padding: 0.3rem 0.65rem; border-radius: 999px;
+  border: 1px solid var(--border-strong); font-size: 0.85rem; cursor: pointer; user-select: none;
+}
+.cmp-person input { margin: 0; }
+.cmp-person.on { background: var(--accent-soft); border-color: var(--accent); color: var(--accent-strong); font-weight: 650; }
+.g-steps { margin: 0 0 0.9rem; padding-left: 1.2rem; color: var(--text-muted); }
+.g-steps li + li { margin-top: 0.2rem; }
 .cal-more { border: none; background: none; font: inherit; font-size: 0.68rem; color: var(--accent); cursor: pointer; text-align: left; padding: 0 0.35rem; }
 .cal-foot { display: flex; justify-content: space-between; gap: 0.5rem 1rem; flex-wrap: wrap; margin-top: 0.7rem; font-size: 0.8rem; color: var(--text-muted); }
 .link-btn { border: none; background: none; padding: 0; font: inherit; color: var(--accent); cursor: pointer; }
@@ -639,8 +653,13 @@ tr.cut-divider td {
 .ov-group-head {
   position: sticky; top: 76px; z-index: 5; /* altura do cabeçalho */ width: 100%; display: flex; align-items: center; gap: 0.6rem;
   border: none; border-bottom: 1px solid var(--border); padding: 0.6rem 0.8rem; cursor: pointer; font: inherit; text-align: left;
-  background: color-mix(in srgb, var(--ac) 14%, var(--surface)); color: var(--text); box-shadow: inset 4px 0 0 var(--ac);
+  background: color-mix(in srgb, var(--ac) 26%, var(--surface)); color: var(--text); box-shadow: inset 6px 0 0 var(--ac);
 }
+/* Cada linha leva a cor da área: faixa à esquerda e fundo bem leve. */
+.ov-group .ov-proj { box-shadow: inset 4px 0 0 var(--ac); background: color-mix(in srgb, var(--ac) 4%, var(--surface)); }
+.ov-group .ov-proj:hover { background: color-mix(in srgb, var(--ac) 10%, var(--surface)); }
+.ov-group .ov-proj.is-late { box-shadow: inset 4px 0 0 var(--alert); }
+.ov-group .ov-act { box-shadow: inset 4px 0 0 color-mix(in srgb, var(--ac) 45%, transparent); }
 .ov-group-title { font-weight: 800; color: var(--ac); }
 :root[data-theme="dark"] .ov-group-title { color: color-mix(in srgb, var(--ac) 55%, #fff); }
 .ov-group-meta { font-size: 0.8rem; color: var(--text-muted); }
@@ -653,10 +672,11 @@ tr.cut-divider td {
 .ov-tick { position: absolute; top: 0; transform: translateX(-2px); white-space: nowrap; line-height: 1.15; border-left: 1px solid var(--border-strong); padding-left: 3px; }
 .ov-today { position: absolute; top: -6px; bottom: -6px; width: 2px; background: var(--alert); opacity: 0.55; }
 .ov-tl-head .ov-today { top: 0; bottom: -10px; }
-.ov-bar { position: absolute; top: 3px; height: 12px; border-radius: 6px; background: color-mix(in srgb, var(--bc) 28%, transparent); border: 1px solid var(--bc); overflow: hidden; }
-.ov-bar.est { border-style: dashed; background: repeating-linear-gradient(45deg, color-mix(in srgb, var(--bc) 18%, transparent) 0 4px, transparent 4px 8px); }
+.ov-bar { position: absolute; top: 2px; height: 14px; border-radius: 7px; background: color-mix(in srgb, var(--bc) 55%, transparent); border: 1.5px solid var(--bc); overflow: hidden; }
+/* Datas estimadas: listras na cor da área, bem visíveis, com borda tracejada. */
+.ov-bar.est { border-style: dashed; background: repeating-linear-gradient(45deg, color-mix(in srgb, var(--bc) 55%, transparent) 0 5px, color-mix(in srgb, var(--bc) 20%, transparent) 5px 10px); }
 .ov-bar.late { border-color: var(--alert); }
-.ov-bar.thin { top: 5px; height: 8px; }
+.ov-bar.thin { top: 4px; height: 10px; }
 .ov-bar-fill { display: block; height: 100%; background: var(--bc); }
 .ov-dot { position: absolute; top: 4px; width: 10px; height: 10px; border-radius: 50%; background: var(--bc); transform: translateX(-5px); }
 

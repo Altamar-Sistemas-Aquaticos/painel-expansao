@@ -179,14 +179,25 @@
           short: `${it.id} entrega`, title: `Entrega: ${it.id} · ${it.nome}`, detail: `Prazo final do projeto${it.responsavel ? ` · Responsável: ${it.responsavel}` : ""}` });
       }
     });
-    if (reuniao) {
+    // Calls e reuniões marcadas no painel.
+    S.state.data.compromissos.forEach((c) => {
+      const d = S.calc.parseDate(c.data);
+      if (!d || d < from || d > to) return;
+      out.push({ date: d, kind: "compromisso", cls: "pro", id: `cmp-${c.id}`, cmp: c.id, ini: c.projeto || null,
+        short: `${c.horaInicio} ${c.titulo}`, title: c.titulo, hora: c.horaInicio,
+        detail: `${c.horaInicio} – ${c.horaFim}${c.projeto ? ` · ${c.projeto}` : ""}${c.participantes.length ? ` · ${c.participantes.join(", ")}` : ""}${c.local ? ` · ${c.local}` : ""}` });
+    });
+    // Compromissos da agenda Google (quando conectada). A reunião fixa de quinta só aparece sem Google.
+    const google = A.google?.isConnected();
+    if (google && reuniao) out.push(...A.google.calendarEvents(from, to));
+    if (reuniao && !google) {
       for (let d = new Date(from); d <= to; d = new Date(d.getTime() + DAY)) {
         if (d.getDay() === 4) out.push({ date: new Date(d), kind: "reuniao", cls: "warn", id: `reuniao-${d.toISOString().slice(0, 10)}`,
           short: "Reunião diretoria", title: "Reunião de gestão com a diretoria", detail: "Quinta-feira: status, prazos, impedimentos e decisões" });
       }
     }
-    const order = { reuniao: 0, entrega: 1, prazo: 2 };
-    return out.sort((a, b) => a.date - b.date || order[a.kind] - order[b.kind]);
+    const order = { reuniao: 0, compromisso: 1, google: 1, entrega: 2, prazo: 3 };
+    return out.sort((a, b) => a.date - b.date || order[a.kind] - order[b.kind] || String(a.short).localeCompare(String(b.short)));
   }
 
   function calendar(S) {
@@ -210,17 +221,24 @@
           ${list.length > 3 ? `<button class="cal-more" data-cal-day="${d.getTime()}">+${list.length - 3} mais</button>` : ""}
         </div>`;
     }).join("");
-    const count = evs.filter((e) => e.kind !== "reuniao").length;
+    const nPrazos = evs.filter((e) => e.kind === "prazo" || e.kind === "entrega").length;
+    const nComp = evs.filter((e) => e.kind === "compromisso" || e.kind === "google").length;
     const depois = agendaEvents(S, new Date(end.getTime() + DAY), new Date(end.getTime() + 120 * DAY), { reuniao: false }).slice(0, 3);
     A.agenda._last = evs; // usados pelo popover
     return `
       <div class="cal-head">${dow.map((x, i) => `<span class="${i > 4 ? "weekend" : ""}">${x}</span>`).join("")}</div>
       <div class="cal-grid">${cells}</div>
       <div class="cal-foot">
-        <span>${count ? `${count} prazo(s) nestas 2 semanas` : "Nenhum prazo nestas 2 semanas"}</span>
+        <span>${nPrazos ? `${nPrazos} prazo(s)` : "Nenhum prazo"}${nComp ? ` · ${nComp} compromisso(s)` : ""} nestas 2 semanas</span>
         ${depois.length ? `<span>Depois: ${depois.map((e) => `<button class="link-btn" data-action="go-tab" data-tab="projeto/${esc(e.ini)}" title="${esc(e.title)}">${esc(e.ini)} ${e.date.toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit" })}</button>`).join(" · ")}</span>` : ""}
       </div>
-      <div class="cal-legend"><span class="cal-ev warn">Reunião</span><span class="cal-ev alert">Entrega de projeto</span><span class="cal-ev accent">Prazo de atividade</span></div>
+      <div class="cal-legend">
+        ${A.google?.isConnected() ? `<span class="cal-ev gcal">Sua agenda Google</span>` : `<span class="cal-ev warn">Reunião de quinta</span>`}
+        <span class="cal-ev pro">Compromisso</span><span class="cal-ev alert">Entrega de projeto</span><span class="cal-ev accent">Prazo de atividade</span>
+      </div>
+      <div class="cal-google no-print">${A.google?.isConnected()
+        ? `${A.google.statusHtml()} · <button class="link-btn" data-g-sync>Sincronizar agora</button>`
+        : `Google Agenda não conectado · <button class="link-btn" data-g-open>Conectar</button>`}</div>
       <div class="cal-pop hidden" id="cal-pop" role="dialog" aria-label="Detalhes do evento"></div>`;
   }
 
@@ -259,8 +277,12 @@
       <div class="cal-pop-title">${esc(ev.title)}</div>
       <div class="cal-pop-detail">${esc(ev.detail)}</div>
       <div class="cal-pop-actions">
-        ${ev.kind !== "reuniao" ? `<button class="btn btn-xs btn-outline" data-action="go-tab" data-tab="projeto/${esc(ev.ini)}">Abrir projeto</button>` : ""}
-        <a class="btn btn-xs btn-primary" href="${esc(googleLink(ev))}" target="_blank" rel="noopener">Adicionar ao Google Agenda ↗</a>
+        ${ev.kind === "compromisso" ? `<button class="btn btn-xs btn-primary" data-cmp-edit="${esc(ev.cmp)}">Editar compromisso</button>` : ""}
+        ${ev.ini ? `<button class="btn btn-xs btn-outline" data-action="go-tab" data-tab="projeto/${esc(ev.ini)}">Abrir projeto</button>` : ""}
+        ${(ev.kind === "prazo" || ev.kind === "entrega") && !A.google?.isConnected()
+          ? `<a class="btn btn-xs btn-primary" href="${esc(googleLink(ev))}" target="_blank" rel="noopener">Adicionar ao Google Agenda ↗</a>` : ""}
+        ${(ev.kind === "prazo" || ev.kind === "entrega" || ev.kind === "compromisso") && A.google?.isConnected()
+          ? `<span class="muted small">✓ Sincronizado com a agenda “Painel Altamar”</span>` : ""}
       </div>`;
     pop.style.left = `${Math.min(Math.max(0, r.left - panel.left), panel.width - 280)}px`;
     pop.style.top = `${r.bottom - panel.top + 6}px`;
@@ -291,6 +313,12 @@
       return;
     }
     if (e.target.closest?.("[data-ics-export]")) return exportIcs(A.store);
+    if (e.target.closest?.("[data-g-sync]")) return A.google.sync({ silent: false });
+    if (e.target.closest?.("[data-g-open]")) return A.google.openSettings();
+    const novo = e.target.closest?.("[data-cmp-new]");
+    if (novo) { pop?.classList.add("hidden"); return A.compromissos.open(null, { projeto: novo.dataset.cmpNew || "" }); }
+    const edit = e.target.closest?.("[data-cmp-edit]");
+    if (edit) { pop?.classList.add("hidden"); return A.compromissos.open(edit.dataset.cmpEdit); }
     if (pop && !e.target.closest?.("#cal-pop")) pop.classList.add("hidden");
   });
 
@@ -407,7 +435,10 @@
         <section class="panel cal-panel">
           <div class="panel-head">
             <h3 class="panel-title">Agenda · 2 semanas</h3>
-            <button class="btn btn-xs btn-outline no-print" data-ics-export title="Baixa um arquivo .ics com todos os prazos para importar no Google Agenda">Exportar prazos (.ics)</button>
+            <div class="row no-print">
+              <button class="btn btn-xs btn-primary" data-cmp-new="">+ Compromisso</button>
+              ${A.google?.isConnected() ? "" : `<button class="btn btn-xs btn-outline" data-ics-export title="Baixa um arquivo .ics com todos os prazos para importar no Google Agenda">Exportar .ics</button>`}
+            </div>
           </div>
           ${calendar(S)}
         </section>

@@ -7,7 +7,7 @@
   <meta name="theme-color" content="#026488">
   <title>Painel de Expansão · Altamar</title>
   <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%23026488'/%3E%3Ctext x='32' y='44' font-family='Segoe UI,Arial' font-size='36' font-weight='800' fill='white' text-anchor='middle'%3EA%3C/text%3E%3C/svg%3E">
-  <link rel="stylesheet" href="assets/css/app.css?v=20261002h">
+  <link rel="stylesheet" href="assets/css/app.css?v=20261002j">
   <script>
     // Aplica o tema antes da pintura para evitar "piscar" claro → escuro.
     (function () {
@@ -26,7 +26,7 @@
   <header class="app-header">
     <div class="header-bar">
       <a class="brand" href="#executivo" data-action="go-tab" data-tab="executivo" title="Ir para o Painel executivo">
-        <span class="brand-logo-wrap"><img class="brand-img" src="assets/img/logo-altamar-branco.png?v=20261002h" alt="Altamar Sistemas Aquáticos" width="217" height="54"></span>
+        <span class="brand-logo-wrap"><img class="brand-img" src="assets/img/logo-altamar-branco.png?v=20261002j" alt="Altamar Sistemas Aquáticos" width="217" height="54"></span>
         <span class="brand-divider" aria-hidden="true"></span>
         <span class="brand-sub">Painel de Gestão<br>Projeto de Expansão</span>
       </a>
@@ -42,6 +42,8 @@
           <div id="data-menu" class="menu-panel hidden" role="menu">
             <button id="menu-import-excel" role="menuitem">📥 Importar da planilha Excel…</button>
             <button id="menu-export-excel" role="menuitem">📤 Exportar para Excel</button>
+            <hr>
+            <button id="menu-google" role="menuitem">📅 Google Agenda…</button>
             <hr>
             <button id="menu-export-json" role="menuitem">💾 Exportar backup (JSON)</button>
             <button id="menu-import-json" role="menuitem">📂 Restaurar backup (JSON)…</button>
@@ -228,6 +230,7 @@
             <option value="iniciativa">Iniciativas</option>
             <option value="atividade">Atividades</option>
             <option value="cadastro">Cadastros</option>
+            <option value="compromisso">Compromissos</option>
             <option value="decisao">Decisões</option>
             <option value="sistema">Sistema</option>
           </select>
@@ -370,6 +373,43 @@
     <div class="modal xl" id="ficha-body"></div>
   </div>
 
+  <!-- Compromisso (conteúdo montado por compromissos.js) -->
+  <div class="modal-backdrop" id="modal-compromisso" role="dialog" aria-modal="true">
+    <div class="modal" id="cmp-body"></div>
+  </div>
+
+  <!-- Conexão com o Google Agenda -->
+  <div class="modal-backdrop" id="modal-google" role="dialog" aria-modal="true" aria-labelledby="g-title">
+    <div class="modal">
+      <div class="modal-head">
+        <h3 id="g-title">Conectar Google Agenda</h3>
+        <button class="btn btn-xs btn-ghost" data-action="close-modal" data-target="modal-google" aria-label="Fechar">✕</button>
+      </div>
+      <p class="small" style="margin-top:0">Com a conexão, os <strong>prazos</strong>, <strong>entregas</strong> e <strong>compromissos</strong> do painel vão sozinhos para a agenda <strong>“Painel Altamar”</strong> no seu Google, e os seus compromissos do Google aparecem no calendário do painel.</p>
+      <ol class="small g-steps">
+        <li>Em <strong>script.google.com</strong>, cole o código da ponte (<code>google-apps-script/Codigo.gs</code>) e salve.</li>
+        <li>Execute a função <strong>configurar</strong>. O registro mostra a <strong>senha da ponte</strong>.</li>
+        <li><strong>Implantar → Nova implantação → App da Web</strong>, executar como <strong>Eu</strong>, acesso <strong>Qualquer pessoa</strong>. Copie a URL.</li>
+      </ol>
+      <div class="field" style="margin-bottom:0.75rem">
+        <label for="g-url">URL do app da Web</label>
+        <input id="g-url" class="input" placeholder="https://script.google.com/macros/s/…/exec" autocomplete="off">
+      </div>
+      <div class="field" style="margin-bottom:0.75rem">
+        <label for="g-token">Senha da ponte</label>
+        <input id="g-token" class="input" autocomplete="off" spellcheck="false">
+      </div>
+      <div class="small" id="g-status" style="min-height:1.4em"></div>
+      <div class="modal-foot">
+        <button type="button" class="btn btn-sm btn-danger-ghost hidden" id="g-disconnect">Desconectar</button>
+        <div class="right">
+          <button class="btn btn-outline" data-action="close-modal" data-target="modal-google">Fechar</button>
+          <button class="btn btn-primary" id="g-test">Testar e conectar</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
   <!-- Decisão -->
   <div class="modal-backdrop" id="modal-decision" role="dialog" aria-modal="true" aria-labelledby="dec-modal-title">
     <div class="modal">
@@ -497,21 +537,23 @@
   <datalist id="people-list"></datalist>
   <div class="toasts" id="toasts" aria-live="polite"></div>
 
-  <script src="assets/js/utils.js?v=20261002h"></script>
-  <script src="assets/js/data.js?v=20261002h"></script>
-  <script src="assets/js/activities-seed.js?v=20261002h"></script>
-  <script src="assets/js/store.js?v=20261002h"></script>
-  <script src="assets/js/excel.js?v=20261002h"></script>
-  <script src="assets/js/views/executive.js?v=20261002h"></script>
-  <script src="assets/js/views/matrix.js?v=20261002h"></script>
-  <script src="assets/js/views/tables.js?v=20261002h"></script>
-  <script src="assets/js/views/board.js?v=20261002h"></script>
-  <script src="assets/js/views/drilldown.js?v=20261002h"></script>
-  <script src="assets/js/views/portfolio.js?v=20261002h"></script>
-  <script src="assets/js/views/overview.js?v=20261002h"></script>
-  <script src="assets/js/views/cadastros.js?v=20261002h"></script>
-  <script src="assets/js/forms.js?v=20261002h"></script>
-  <script src="assets/js/ficha.js?v=20261002h"></script>
-  <script src="assets/js/app.js?v=20261002h"></script>
+  <script src="assets/js/utils.js?v=20261002j"></script>
+  <script src="assets/js/data.js?v=20261002j"></script>
+  <script src="assets/js/activities-seed.js?v=20261002j"></script>
+  <script src="assets/js/store.js?v=20261002j"></script>
+  <script src="assets/js/excel.js?v=20261002j"></script>
+  <script src="assets/js/views/executive.js?v=20261002j"></script>
+  <script src="assets/js/views/matrix.js?v=20261002j"></script>
+  <script src="assets/js/views/tables.js?v=20261002j"></script>
+  <script src="assets/js/views/board.js?v=20261002j"></script>
+  <script src="assets/js/views/drilldown.js?v=20261002j"></script>
+  <script src="assets/js/views/portfolio.js?v=20261002j"></script>
+  <script src="assets/js/views/overview.js?v=20261002j"></script>
+  <script src="assets/js/views/cadastros.js?v=20261002j"></script>
+  <script src="assets/js/google.js?v=20261002j"></script>
+  <script src="assets/js/compromissos.js?v=20261002j"></script>
+  <script src="assets/js/forms.js?v=20261002j"></script>
+  <script src="assets/js/ficha.js?v=20261002j"></script>
+  <script src="assets/js/app.js?v=20261002j"></script>
 </body>
 </html>
