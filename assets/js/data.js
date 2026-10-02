@@ -2,11 +2,17 @@
 (function () {
   const A = (window.Altamar = window.Altamar || {});
 
+  // Áreas iniciais. A lista definitiva fica nos Cadastros (podem ser criadas novas áreas).
   const AREAS = [
-    { key: "Projetos", code: "P", cls: "p", color: "var(--area-p)" },
-    { key: "Vendas", code: "V", cls: "v", color: "var(--area-v)" },
-    { key: "Marketing", code: "M", cls: "m", color: "var(--area-m)" },
-    { key: "Estratégia", code: "E", cls: "e", color: "var(--area-e)" },
+    { key: "Projetos", code: "P", cor: "#0b7285" },
+    { key: "Vendas", code: "V", cor: "#2b8a3e" },
+    { key: "Marketing", code: "M", cor: "#6741d9" },
+    { key: "Estratégia", code: "E", cor: "#c2410c" },
+  ];
+  const PESSOAS_INICIAIS = [
+    { nome: "Pedro", funcao: "Gestor de projetos", area: "Projetos" },
+    { nome: "Maíra", funcao: "Diretoria", area: "Estratégia" },
+    { nome: "Shei", funcao: "Diretoria", area: "Estratégia" },
   ];
 
   const ONDAS = [
@@ -84,9 +90,8 @@
     { id: "d3", data: "24/10/2026", quem: "Maíra / Shei", grupo: "V4", pauta: "Aprovar teto orçamentário de investimento para V4, E3 e E4 (P&D e Consultoria Comercial)", status: "Pendente", resultado: "Pauta agendada para a reunião mensal de fechamento estratégico." },
   ];
 
-  A.meta = { AREAS, ONDAS, STATUS, SEMAFOROS, COLUNAS, FIBONACCI, WIP_MIN, WIP_MAX, PESSOAS, tempoPorEsforco };
-  A.defaults = { initiatives: DEFAULT_INITIATIVES, decisions: DEFAULT_DECISIONS };
+  A.meta = { ONDAS, STATUS, SEMAFOROS, COLUNAS, FIBONACCI, WIP_MIN, WIP_MAX, PESSOAS, tempoPorEsforco };
+  A.defaults = { areas: AREAS, pessoas: PESSOAS_INICIAIS, initiatives: DEFAULT_INITIATIVES, decisions: DEFAULT_DECISIONS };
 
-  A.area = (key) => AREAS.find((a) => a.key === key) || AREAS[0];
   A.onda = (key) => ONDAS.find((o) => o.key === key) || ONDAS[ONDAS.length - 1];
 })();

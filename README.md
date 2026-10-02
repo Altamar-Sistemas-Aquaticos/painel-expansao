@@ -41,6 +41,18 @@ Outros recursos: criar, editar e excluir iniciativas (tecla **N** cria uma nova)
 - Atividades não são apagadas: para tirar uma atividade do cálculo, use o status "Cancelado".
 - As 41 atividades iniciais vieram da aba `2_Atividades` da planilha (`assets/js/activities-seed.js`). E2, E3 e E4 ainda não têm atividades.
 
+### Cadastro de projetos (dentro do painel)
+
+- **+ Novo projeto** (ou tecla N) abre a **ficha**: dados do projeto, atividades (com entregável, início, prazo e dependência) e a **matriz RACI** (atividades × pessoas). A ficha valida tudo antes de salvar, gera o ID pela área e guarda o preenchimento se for fechada no meio.
+- O projeto nasce como **Rascunho** e aparece no **Portfólio** (colunas por área). Na reunião com a diretoria: **Validar ✓** e depois **Aprovar para onda ✓**. Rascunhos não aparecem no Kanban e podem ser excluídos; a partir de Validado, nada é apagado (use o status Cancelado).
+- O Portfólio e a tela do projeto mostram **avisos de consistência**: objetivo ou "pronto quando" vazios, atividade sem R, prazo do projeto antes da última atividade, Onda 1 abaixo da linha de corte sem justificativa.
+- **Cadastros**: áreas (nome, código do ID, cor — novas áreas viram colunas do Portfólio) e pessoas (nome, função, área, ativa). Renomear propaga para os projetos; excluir só é possível se não houver uso (senão, desative).
+- **RACI** por atividade: exatamente um **R** (responsável), no máximo um **A** (aprovador), C e I à vontade. Na exportação para Excel, a aba Atividades traz as colunas Responsável (R), Aprovador (A), Consultados (C) e Informados (I).
+
+### Arquivo Mãe (opcional — substituído pela ficha do painel)
+
+O cadastro inicial dos projetos é feito no Excel `Arquivo mae\Arquivo_Mae_Expansao.xlsm`, pela aba **Ficha_Projeto**: projeto + atividades num só formulário, validados e lançados por macro (`CadastroProjetos.bas`), com ID gerado pela área. As abas `Base_Iniciativas`, `Base_Atividades` e `Base_Decisoes` usam os mesmos cabeçalhos que o painel importa. Os campos da ficha (patrocinador, objetivo, pronto quando, indicador, investimento, situação do cadastro; e, por atividade, entregável, envolvidos, início e "depende de") são importados, exibidos na tela do projeto e exportados de volta.
+
 ### Importação do Excel
 
 Aceita a planilha `Ferramentas_Gestao_Altamar.xlsx` (abas `1_Grupos` e `4_Decisoes`) ou qualquer planilha com cabeçalhos equivalentes:

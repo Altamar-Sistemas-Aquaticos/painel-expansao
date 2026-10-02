@@ -18,6 +18,7 @@
     const c = cut.value;
     const filtering = S.hasActiveFilters();
 
+    document.getElementById("matrix-legend-areas").innerHTML = S.areas().map((a) => A.ui.areaBadge(a.key)).join("");
     document.getElementById("matrix-cutoff-text").innerHTML =
       `Linha de corte = <strong>Σ Valor (${cut.sumValor}) ÷ Σ Esforço (${cut.sumEsforco}) = ${fmtNum(c)}</strong>. ` +
       `Iniciativas acima da linha inclinada têm retorno proporcional superior ao esforço.`;
@@ -70,7 +71,7 @@
         parts.push(`
           <g class="${cls}" data-action="edit-initiative" data-id="${esc(it.id)}" tabindex="0" role="button" aria-label="${esc(it.id + " " + it.nome)}">
             <title>${esc(tip)}</title>
-            <circle cx="${cx}" cy="${cy}" r="${doing ? 17 : 14}" style="fill:${A.area(it.area).color}"/>
+            <circle cx="${cx}" cy="${cy}" r="${doing ? 17 : 14}" style="fill:${A.area(it.area).cor}"/>
             <text x="${cx}" y="${cy + 3.5}" text-anchor="middle">${esc(it.id)}</text>
           </g>`);
       });

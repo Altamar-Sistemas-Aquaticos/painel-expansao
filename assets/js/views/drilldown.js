@@ -45,14 +45,14 @@
 
     el.innerHTML = `
       ${breadcrumb([{ label: "Kanban", href: "#kanban" }, { label: `Setor ${esc(meta.key)}` }])}
-      <div class="panel sector-head" style="--sector-color:${meta.color}">
+      <div class="panel sector-head" style="--sector-color:${meta.cor}">
         <div class="row" style="justify-content:space-between; align-items:flex-start">
           <div>
             <div class="row">${ui.areaBadge(meta.key)}<span class="muted small">Setor</span></div>
             <h2 class="sector-title">${esc(meta.key)}</h2>
           </div>
           <div class="row no-print">
-            ${A.meta.AREAS.filter((a) => a.key !== meta.key).map((a) =>
+            ${S.areas().filter((a) => a.key !== meta.key).map((a) =>
               `<a class="btn btn-xs btn-outline" href="${sectorHref(a.key)}" data-nav>${esc(a.key)}</a>`).join("")}
           </div>
         </div>
@@ -90,6 +90,25 @@
   };
 
   /* ---------- Projeto ---------- */
+  // Aviso quando a atividade depende de outra que ainda não foi concluída.
+  function blockedBy(it, a) {
+    const n = parseInt(a.dependeDe, 10);
+    if (!n || a.status === "Concluído" || a.status === "Cancelado") return "";
+    const dep = it.atividades[n - 1];
+    if (!dep || dep.status === "Concluído" || dep.status === "Cancelado") return "";
+    return `<div class="act-blocked">⏳ Depende da atividade ${n} (“${esc(dep.nome)}”), que está em ${dep.pct}%.</div>`;
+  }
+
+  // Resumo da RACI da atividade (a edição fica na matriz RACI do projeto).
+  function raciChips(a) {
+    const S = A.store;
+    const parts = S.RACI_ROLES.map((r) => {
+      const names = S.raciPeople(a.raci, r);
+      return names.length ? `<span class="raci-chip"><span class="raci-tag raci-${r}">${r}</span>${esc(names.join(", "))}</span>` : "";
+    }).join("");
+    return parts || `<span class="badge alert">Sem RACI: defina o responsável (R) na matriz abaixo</span>`;
+  }
+
   function activityRow(it, a, n) {
     const id = esc(a.id);
     const ini = esc(it.id);
@@ -103,16 +122,62 @@
             ${A.meta.STATUS.map((s) => `<option ${s === a.status ? "selected" : ""}>${esc(s)}</option>`).join("")}
           </select>
         </div>
+        <div class="act-raci">${raciChips(a)}
+          ${A.store.canDelete(it) ? `<button type="button" class="btn btn-xs btn-danger-ghost no-print" data-del-act="${id}" data-ini="${ini}" style="margin-left:auto">Remover</button>` : ""}
+        </div>
         <div class="act-pct">
           <input type="range" min="0" max="100" step="5" value="${a.pct}" ${k("pct")} aria-label="% de conclusão" ${a.status === "Cancelado" ? "disabled" : ""}>
           <output class="act-pct-label" data-pct-label="${id}">${a.pct}%</output>
         </div>
         <div class="act-grid">
-          <div class="field"><label>Responsável</label><input class="input input-sm" list="people-list" value="${esc(a.responsavel)}" placeholder="A definir" ${k("responsavel")}></div>
-          <div class="field"><label>Prazo</label><input class="input input-sm" value="${esc(a.prazo)}" placeholder="ex.: 30/Nov/2026" ${k("prazo")}></div>
+          <div class="field act-wide"><label>Entregável (pronto quando)</label><input class="input input-sm" value="${esc(a.entregavel)}" placeholder="O que existe quando a atividade termina" ${k("entregavel")}></div>
+          <div class="field"><label>Início</label><input class="input input-sm" value="${esc(a.inicio)}" placeholder="dd/mm/aaaa" ${k("inicio")}></div>
+          <div class="field"><label>Prazo</label><input class="input input-sm" value="${esc(a.prazo)}" placeholder="dd/mm/aaaa" ${k("prazo")}></div>
+          <div class="field"><label>Depende de (Nº)</label><input class="input input-sm" value="${esc(a.dependeDe)}" placeholder="—" ${k("dependeDe")}></div>
           <div class="field act-obs"><label>Observações</label><textarea class="input input-sm" rows="1" ${k("observacoes")}>${esc(a.observacoes)}</textarea></div>
         </div>
+        ${blockedBy(it, a)}
         ${a.status === "Cancelado" ? '<div class="muted small">Cancelada — fora do cálculo do % do projeto (continua registrada).</div>' : ""}
+      </div>`;
+  }
+
+  // Pessoas adicionadas à matriz que ainda não têm papel (só na tela; somem se ficarem sem papel).
+  const extraTeam = {};
+
+  function raciMatrix(S, it, team) {
+    const acts = it.atividades;
+    const disponiveis = S.pessoas({ ativas: true }).map((p) => p.nome).filter((n) => !team.includes(n));
+    const head = team.map((n) => `<th class="raci-person"><span>${esc(n)}</span></th>`).join("");
+    const rows = acts.map((a, i) => {
+      const ok = S.raciPeople(a.raci, "R").length === 1;
+      const cells = team.map((n) => `
+        <td><select class="raci-cell raci-${a.raci[n] || "none"}" data-raci-ini="${esc(it.id)}" data-raci-act="${esc(a.id)}" data-name="${esc(n)}" aria-label="Papel de ${esc(n)} na atividade ${i + 1}">
+          <option value="">—</option>${S.RACI_ROLES.map((r) => `<option ${a.raci[n] === r ? "selected" : ""}>${r}</option>`).join("")}
+        </select></td>`).join("");
+      return `<tr class="${a.status === "Cancelado" ? "muted" : ""}"><th class="raci-act"><span class="raci-ok">${ok ? "✓" : "⚠"}</span> ${i + 1}. ${esc(a.nome)}</th>${cells}</tr>`;
+    }).join("");
+    return `
+      <div class="panel raci-panel" style="margin-top:1.25rem">
+        <div class="panel-head">
+          <div>
+            <h3 class="panel-title">Matriz RACI</h3>
+            <div class="raci-legend"><span class="raci-tag raci-R">R</span> Responsável — executa ·
+              <span class="raci-tag raci-A">A</span> Aprovador — aprova a entrega ·
+              <span class="raci-tag raci-C">C</span> Consultado — participa/opina ·
+              <span class="raci-tag raci-I">I</span> Informado — acompanha o status</div>
+          </div>
+          <select class="input input-sm no-print" data-raci-add="${esc(it.id)}" aria-label="Adicionar pessoa à matriz">
+            <option value="">+ Adicionar pessoa…</option>${disponiveis.map((n) => `<option>${esc(n)}</option>`).join("")}
+          </select>
+        </div>
+        ${acts.length && team.length ? `
+        <div class="table-wrap">
+          <table class="data raci-table">
+            <thead><tr><th>Atividade</th>${head}</tr></thead>
+            <tbody>${rows}</tbody>
+          </table>
+        </div>` : ui.empty(acts.length ? "Adicione pessoas para distribuir os papéis." : "Cadastre atividades para montar a matriz.")}
+        <div class="muted small" style="margin-top:0.4rem">Cada atividade tem exatamente um <strong>R</strong> e no máximo um <strong>A</strong>. Pessoas novas são cadastradas em Cadastros.</div>
       </div>`;
   }
 
@@ -135,19 +200,28 @@
     const acts = it.atividades;
     const counted = acts.filter((a) => a.status !== "Cancelado");
 
+    const warns = S.warnings(it);
+    const nextSit = { Rascunho: "Validar ✓", Validado: "Aprovar para onda ✓" }[it.situacao];
+    // Rascunhos ainda não estão no Kanban: o caminho começa no Portfólio.
+    const root = it.situacao === "Rascunho" ? { label: "Portfólio", href: "#portfolio" } : { label: "Kanban", href: "#kanban" };
     const header = `
-      ${breadcrumb([{ label: "Kanban", href: "#kanban" }, { label: `Setor ${esc(meta.key)}`, href: sectorHref(meta.key) }, { label: `${esc(it.id)} · ${esc(it.nome)}` }])}
-      <div class="panel project-head" style="--sector-color:${meta.color}">
+      ${breadcrumb([root, { label: `Setor ${esc(meta.key)}`, href: sectorHref(meta.key) }, { label: `${esc(it.id)} · ${esc(it.nome)}` }])}
+      <div class="panel project-head" style="--sector-color:${meta.cor}">
         <div class="row" style="justify-content:space-between; align-items:flex-start">
           <div style="min-width:0">
-            <div class="row">${ui.areaBadge(meta.key)} ${statusBadge(it.status)} ${it.enabler ? '<span class="badge enabler">★ Habilitadora</span>' : ""}</div>
+            <div class="row">${ui.areaBadge(meta.key)} ${statusBadge(it.status)}
+              <span class="badge ${{ Rascunho: "warn", Validado: "accent", "Aprovado para onda": "ok" }[it.situacao] || ""}">${esc(it.situacao)}</span>
+              ${it.enabler ? '<span class="badge enabler">★ Habilitadora</span>' : ""}</div>
             <h2 class="project-title"><span style="color:var(--accent)">${esc(it.id)}</span> · ${esc(it.nome)}</h2>
           </div>
           <div class="row no-print">
+            ${nextSit ? `<button class="btn btn-sm btn-primary" data-action="advance-situacao" data-id="${esc(it.id)}">${nextSit}</button>` : ""}
             <button class="btn btn-sm btn-outline" data-action="edit-initiative" data-id="${esc(it.id)}">Editar dados</button>
             <button class="btn btn-sm btn-ghost" data-action="new-decision-for" data-id="${esc(it.id)}">+ Decisão</button>
+            ${S.canDelete(it) ? `<button class="btn btn-sm btn-danger-ghost" data-action="delete-initiative" data-id="${esc(it.id)}">Excluir rascunho</button>` : ""}
           </div>
         </div>
+        ${warns.length ? `<ul class="pf-warn project-warn">${warns.map((x) => `<li>${esc(x)}</li>`).join("")}</ul>` : ""}
         <dl class="project-facts">
           <div><dt>Valor</dt><dd>${it.valor}</dd></div>
           <div><dt>Esforço</dt><dd>${it.esforco}</dd></div>
@@ -157,7 +231,14 @@
           <div><dt>Responsável</dt><dd>${esc(it.responsavel || "A definir")}</dd></div>
           <div><dt>Prazo</dt><dd>${esc(it.prazo || "—")}</dd></div>
           <div><dt>Semáforo</dt><dd class="row" style="gap:0.35rem">${ui.dot(it.semaforo)} ${esc(sem.label)}</dd></div>
+          ${it.investimento === "Sim" ? `<div><dt>Investimento</dt><dd>Exige investimento</dd></div>` : ""}
         </dl>
+        ${it.objetivo || it.prontoQuando || it.indicador ? `
+        <dl class="project-brief">
+          ${it.objetivo ? `<div><dt>Objetivo</dt><dd>${esc(it.objetivo)}</dd></div>` : ""}
+          ${it.prontoQuando ? `<div><dt>Pronto quando</dt><dd>${esc(it.prontoQuando)}</dd></div>` : ""}
+          ${it.indicador ? `<div><dt>Indicador de sucesso</dt><dd>${esc(it.indicador)}</dd></div>` : ""}
+        </dl>` : ""}
         <div class="project-progress">
           <div class="row" style="justify-content:space-between">
             <span class="kpi-label">Conclusão do projeto <span class="muted">(média de ${counted.length} atividade${counted.length === 1 ? "" : "s"}, calculada automaticamente)</span></span>
@@ -170,8 +251,9 @@
 
     // A lista só é redesenhada quando muda a estrutura, o % ou o status das atividades;
     // edições de texto não a redesenham, para não tirar o foco de quem está digitando.
-    const sig = `${it.id}|` + acts.map((a) => `${a.id}:${a.pct}:${a.status}`).join(",");
-    const fullSig = sig + JSON.stringify(acts.map((a) => [a.nome, a.responsavel, a.prazo, a.observacoes]));
+    const team = [...new Set([...(it.responsavel ? [it.responsavel] : []), ...S.projectTeam(it), ...(extraTeam[it.id] || [])])];
+    const sig = `${it.id}|${it.situacao}|${team.join(",")}|` + acts.map((a) => `${a.id}:${a.pct}:${a.status}:${S.raciText(a.raci)}`).join(",");
+    const fullSig = sig + JSON.stringify(acts.map((a) => [a.nome, a.entregavel, a.inicio, a.prazo, a.dependeDe, a.observacoes]));
     const editing = !!document.activeElement?.closest?.("#act-list");
     if (el.dataset.sig === sig && (el.dataset.fullSig === fullSig || editing) && el.querySelector("#project-header")) {
       el.querySelector("#project-header").innerHTML = header;
@@ -195,7 +277,8 @@
       <form class="act-new no-print" data-ini="${esc(it.id)}" id="act-new-form">
         <input class="input" id="act-new-name" placeholder="Nova atividade…" autocomplete="off" aria-label="Nome da nova atividade">
         <button class="btn btn-primary" type="submit">+ Adicionar atividade</button>
-      </form>`;
+      </form>
+      ${raciMatrix(S, it, team)}`;
 
     if (focusKey) {
       const f = el.querySelector(`[data-key="${CSS.escape(focusKey)}"]`);
@@ -249,7 +332,29 @@
     });
     document.addEventListener("change", (e) => {
       const el = e.target;
-      if (el.closest?.("#view-projeto") && el.dataset.act && el.dataset.field) saveField(el);
+      if (!el.closest?.("#view-projeto")) return;
+      const S = A.store;
+      if (el.dataset.act && el.dataset.field) return saveField(el);
+      if (el.dataset.raciAct) {
+        const r = S.setRaci(el.dataset.raciIni, el.dataset.raciAct, el.dataset.name, el.value);
+        if (!r.ok) { A.util.toast(r.error, "error"); S.emit(); }
+        return;
+      }
+      if (el.dataset.raciAdd && el.value) {
+        (extraTeam[el.dataset.raciAdd] ||= []).push(el.value);
+        document.getElementById("view-projeto").dataset.sig = ""; // força redesenhar a matriz
+        A.views.project(S, el.dataset.raciAdd);
+      }
+    });
+    document.addEventListener("click", async (e) => {
+      const b = e.target.closest?.("[data-del-act]");
+      if (!b) return;
+      const S = A.store;
+      const a = S.findActivity(b.dataset.ini, b.dataset.delAct);
+      if (!a) return;
+      if (!(await A.util.confirmDialog(`Remover a atividade “${a.nome}” deste rascunho?`, { title: "Remover atividade", okLabel: "Remover", danger: true }))) return;
+      const r = S.deleteActivity(b.dataset.ini, b.dataset.delAct);
+      if (!r.ok) A.util.toast(r.error, "error");
     });
     document.addEventListener("submit", (e) => {
       const form = e.target;
@@ -258,7 +363,9 @@
       const input = document.getElementById("act-new-name");
       const nome = input.value.trim();
       if (!nome) return input.focus();
-      const r = A.store.saveActivity(form.dataset.ini, null, { nome });
+      const resp = A.store.findInitiative(form.dataset.ini)?.responsavel;
+      // A nova atividade começa com o responsável do projeto como R (ajustável na matriz RACI).
+      const r = A.store.saveActivity(form.dataset.ini, null, { nome, raci: resp ? { [resp]: "R" } : {} });
       if (!r.ok) return A.util.toast(r.error, "error");
       A.util.toast("Atividade adicionada.");
       document.getElementById("act-new-name")?.focus();

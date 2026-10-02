@@ -68,12 +68,14 @@
   <nav class="tabs-wrap no-print" aria-label="Seções">
     <div class="tabs" role="tablist">
       <button class="tab-btn" data-tab="executivo" role="tab">📊 Painel executivo</button>
+      <button class="tab-btn" data-tab="portfolio" role="tab">🗂️ Portfólio <span class="tab-count" id="tab-count-rascunho">0</span></button>
       <button class="tab-btn" data-tab="matriz" role="tab">🎯 Matriz valor × esforço</button>
       <button class="tab-btn" data-tab="ranking" role="tab">🔢 Ranking <span class="tab-count" id="tab-count-ranking">0</span></button>
       <button class="tab-btn" data-tab="kanban" role="tab">📋 Kanban da sprint</button>
       <button class="tab-btn" data-tab="ondas" role="tab">🌊 Ondas trimestrais</button>
       <button class="tab-btn" data-tab="decisoes" role="tab">⚖️ Decisões <span class="tab-count" id="tab-count-decisoes">0</span></button>
       <button class="tab-btn" data-tab="historico" role="tab">🕘 Histórico</button>
+      <button class="tab-btn" data-tab="cadastros" role="tab">👥 Cadastros</button>
     </div>
   </nav>
 
@@ -96,7 +98,7 @@
       </div>
       <button class="btn btn-xs btn-ghost hidden" id="filter-clear">✕ Limpar filtros</button>
       <div class="spacer"></div>
-      <button class="btn btn-sm btn-primary" data-action="new-initiative" title="Atalho: tecla N">+ Nova iniciativa</button>
+      <button class="btn btn-sm btn-primary" data-action="new-initiative" title="Atalho: tecla N">+ Novo projeto</button>
     </div>
 
     <!-- 1. Painel executivo -->
@@ -140,6 +142,18 @@
       </div>
     </section>
 
+    <!-- 1a. Portfólio (raio-x por área) -->
+    <section id="view-portfolio" class="view" aria-label="Portfólio de projetos por área">
+      <div class="page-head">
+        <div>
+          <h2>Portfólio de projetos</h2>
+          <div class="muted">Raio-x por área. Projetos nascem como <strong>Rascunho</strong>, passam a <strong>Validado</strong> na reunião com a diretoria e a <strong>Aprovado para onda</strong> quando entram no ciclo.</div>
+        </div>
+        <div class="row no-print" id="portfolio-filters"></div>
+      </div>
+      <div class="portfolio" id="portfolio"></div>
+    </section>
+
     <!-- 2. Matriz -->
     <section id="view-matriz" class="view" aria-label="Matriz valor × esforço">
       <div class="panel">
@@ -148,12 +162,7 @@
             <h2 class="panel-title">Matriz Valor × Esforço (Fibonacci 1 a 8)</h2>
             <div class="muted small" id="matrix-cutoff-text"></div>
           </div>
-          <div class="row">
-            <span class="area-badge p">Projetos</span>
-            <span class="area-badge v">Vendas</span>
-            <span class="area-badge m">Marketing</span>
-            <span class="area-badge e">Estratégia</span>
-          </div>
+          <div class="row" id="matrix-legend-areas"></div>
         </div>
         <div class="matrix-wrap">
           <svg id="matrix-svg" class="matrix-svg" viewBox="0 0 860 500" preserveAspectRatio="xMidYMid meet" role="img" aria-label="Gráfico de dispersão valor por esforço"></svg>
@@ -252,6 +261,7 @@
             <option value="ALL">Tudo</option>
             <option value="iniciativa">Iniciativas</option>
             <option value="atividade">Atividades</option>
+            <option value="cadastro">Cadastros</option>
             <option value="decisao">Decisões</option>
             <option value="sistema">Sistema</option>
           </select>
@@ -259,6 +269,20 @@
         </div>
       </div>
       <div class="panel" id="history-list"></div>
+    </section>
+
+    <!-- 8. Cadastros -->
+    <section id="view-cadastros" class="view" aria-label="Cadastros de áreas e pessoas">
+      <div class="page-head">
+        <div>
+          <h2>Cadastros</h2>
+          <div class="muted">Áreas que organizam o portfólio e pessoas que podem receber papéis na matriz RACI.</div>
+        </div>
+      </div>
+      <div class="cad-grid">
+        <div class="panel" id="cad-areas"></div>
+        <div class="panel" id="cad-pessoas"></div>
+      </div>
     </section>
   </main>
 
@@ -320,20 +344,42 @@
             <select id="ini-semaforo" class="input"></select>
           </div>
           <div class="field">
-            <label for="ini-responsavel">Responsável</label>
-            <input id="ini-responsavel" class="input" list="people-list" placeholder="ex.: Pedro, Maíra…" autocomplete="off">
+            <label for="ini-responsavel">Responsável pelo projeto</label>
+            <select id="ini-responsavel" class="input"></select>
           </div>
           <div class="field">
-            <label for="ini-prazo">Prazo / sprint</label>
-            <input id="ini-prazo" class="input" placeholder="ex.: 15/Nov/2026" autocomplete="off">
+            <label for="ini-prazo">Prazo final</label>
+            <input id="ini-prazo" class="input" placeholder="dd/mm/aaaa" autocomplete="off">
+          </div>
+          <div class="field">
+            <label for="ini-situacao">Situação do cadastro</label>
+            <select id="ini-situacao" class="input"></select>
+          </div>
+        </div>
+
+        <div class="form-grid">
+          <div class="field" style="grid-column:1/-1">
+            <label for="ini-objetivo">Objetivo</label>
+            <textarea id="ini-objetivo" class="input" rows="2" style="min-height:0"></textarea>
+          </div>
+          <div class="field" style="grid-column:1/-1">
+            <label for="ini-pronto">Pronto quando</label>
+            <textarea id="ini-pronto" class="input" rows="2" style="min-height:0" placeholder="Qual resultado existe quando o projeto termina?"></textarea>
+          </div>
+          <div class="field" style="grid-column:1/-1">
+            <label for="ini-indicador">Indicador de sucesso</label>
+            <input id="ini-indicador" class="input" autocomplete="off">
           </div>
         </div>
 
         <div class="field" style="margin-bottom:0.85rem">
-          <label for="ini-obs">Observações / entregáveis / bloqueios</label>
+          <label for="ini-obs">Observações / bloqueios</label>
           <textarea id="ini-obs" class="input"></textarea>
         </div>
-        <label class="checkbox"><input type="checkbox" id="ini-enabler"> Habilitadora técnica (destrava outras iniciativas)</label>
+        <div class="row">
+          <label class="checkbox"><input type="checkbox" id="ini-enabler"> Habilitadora técnica (destrava outras iniciativas)</label>
+          <label class="checkbox"><input type="checkbox" id="ini-invest"> Exige investimento</label>
+        </div>
 
         <div id="ini-related" style="margin-top:0.85rem"></div>
         <div class="field-error" id="ini-error" role="alert"></div>
@@ -351,6 +397,11 @@
         </div>
       </form>
     </div>
+  </div>
+
+  <!-- Ficha de novo projeto (conteúdo montado por ficha.js) -->
+  <div class="modal-backdrop" id="modal-ficha" role="dialog" aria-modal="true" aria-labelledby="ficha-title">
+    <div class="modal xl" id="ficha-body"></div>
   </div>
 
   <!-- Decisão -->
@@ -490,7 +541,10 @@
   <script src="assets/js/views/tables.js"></script>
   <script src="assets/js/views/board.js"></script>
   <script src="assets/js/views/drilldown.js"></script>
+  <script src="assets/js/views/portfolio.js"></script>
+  <script src="assets/js/views/cadastros.js"></script>
   <script src="assets/js/forms.js"></script>
+  <script src="assets/js/ficha.js"></script>
   <script src="assets/js/app.js"></script>
 </body>
 </html>

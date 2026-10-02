@@ -4,7 +4,15 @@
   const { esc, fmtNum } = A.util;
 
   const ui = (A.ui = A.ui || {});
-  ui.areaBadge = (area, label) => `<span class="area-badge ${A.area(area).cls}">${esc(label ?? area)}</span>`;
+  // Cor vem do cadastro da área (Cadastros → Áreas).
+  ui.areaBadge = (area, label) => `<span class="area-badge" style="--ac:${A.area(area).cor}">${esc(label ?? area)}</span>`;
+  ui.areaOptions = (selected) => A.store.areas()
+    .map((a) => `<option value="${esc(a.key)}" ${a.key === selected ? "selected" : ""}>${esc(a.key)} (${esc(a.code)})</option>`).join("");
+  ui.peopleOptions = (selected, { blank = "— Escolha —" } = {}) => {
+    const list = A.store.pessoas({ ativas: true }).map((p) => p.nome);
+    if (selected && !list.includes(selected)) list.unshift(selected); // mantém valor antigo ainda não cadastrado
+    return `<option value="">${esc(blank)}</option>` + list.map((n) => `<option ${n === selected ? "selected" : ""}>${esc(n)}</option>`).join("");
+  };
   ui.dot = (sem) => {
     const s = A.meta.SEMAFOROS.find((x) => x.key === sem) || A.meta.SEMAFOROS[0];
     return `<span class="dot ${s.key}" title="${esc(s.label + " — " + s.desc)}" aria-label="Semáforo ${esc(s.label)}"></span>`;

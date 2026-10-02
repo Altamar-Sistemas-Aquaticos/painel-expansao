@@ -29,6 +29,12 @@
     semaforo: ["semaforo"],
     prazo: ["prazo"],
     observacoes: ["observacoes", "obs"],
+    patrocinador: ["patrocinador", "patrocinadorquemcobra"],
+    objetivo: ["objetivo"],
+    prontoQuando: ["prontoquando"],
+    indicador: ["indicadordesucesso", "indicador"],
+    investimento: ["investimento", "exigeinvestimento"],
+    situacao: ["situacaodocadastro", "situacao"],
   };
   const DECISION_COLUMNS = {
     data: ["data"],
@@ -46,9 +52,16 @@
     nome: ["atividade", "atividades"],
     pct: ["concluido", "conclusao", "percentualconcluido", "percentual"],
     status: ["status"],
-    responsavel: ["responsavel"],
+    responsavel: ["responsavelr", "responsavel"],
+    aprovador: ["aprovadora", "aprovador"],
+    consultados: ["consultadosc", "consultados", "consultado"],
+    informados: ["informadosi", "informados", "informado"],
     prazo: ["prazo"],
     observacoes: ["observacoes", "obs"],
+    entregavel: ["entregavel", "entregavelprontoquando"],
+    envolvidos: ["envolvidos"],
+    inicio: ["inicio", "datadeinicio"],
+    dependeDe: ["dependede", "dependedeno"],
   };
 
   function mapHeader(row, spec) {
@@ -83,14 +96,16 @@
     return null;
   }
 
+  // Casa o texto da planilha com uma área cadastrada (nome exato, depois aproximações conhecidas).
   function toArea(v) {
     const n = norm(v);
     if (!n) return null;
-    if (n.includes("projet")) return "Projetos";
-    if (n.includes("vend") || n.includes("comerc")) return "Vendas";
-    if (n.includes("market") || n.includes("brand")) return "Marketing";
-    if (n.includes("estrat") || n.includes("diret")) return "Estratégia";
-    return null;
+    const areas = A.store.areas();
+    const exact = areas.find((a) => norm(a.key) === n);
+    if (exact) return exact.key;
+    const guess = [["projet", "Projetos"], ["vend", "Vendas"], ["comerc", "Vendas"], ["market", "Marketing"], ["brand", "Marketing"], ["estrat", "Estratégia"], ["diret", "Estratégia"]]
+      .find(([frag, key]) => n.includes(frag) && areas.some((a) => a.key === key));
+    return guess ? guess[1] : null;
   }
   function toStatus(v) {
     const n = norm(v);
@@ -158,7 +173,7 @@
       throw new Error("Não encontrei as abas esperadas. A planilha precisa de uma tabela com colunas Grupo/ID, Nome, Valor e Esforço (ex.: aba 1_Grupos), Grupo e Atividade (aba 2_Atividades) e/ou Descrição, Quem decide e Status (aba de decisões).");
     }
 
-    const plan = { fileName: file.name, initiatives: [], decisions: [], activities: [], skipped: [], sheets: [] };
+    const plan = { fileName: file.name, initiatives: [], decisions: [], activities: [], skipped: [], sheets: [], newAreas: [] };
 
     if (iniTable) {
       plan.sheets.push(iniTable.sheet);
@@ -168,7 +183,14 @@
         if (!id || !nome || !/^[A-Z0-9][A-Z0-9_-]{0,11}$/.test(id)) return;
 
         const incoming = { nome };
-        const area = toArea(row.area) || A.meta.AREAS.find((a) => a.code === id[0])?.key;
+        const areaText = toText(row.area);
+        let area = toArea(areaText);
+        if (!area && areaText) {
+          // Área ainda não cadastrada: será criada na importação.
+          area = areaText;
+          if (!plan.newAreas.includes(area)) plan.newAreas.push(area);
+        }
+        if (!area) area = S.areas().find((a) => id.startsWith(a.code) && /^\d+$/.test(id.slice(a.code.length)))?.key;
         if (area) incoming.area = area;
         const valor = toNumber(row.valor) ?? toNumber(row.valorSugerido);
         if (valor) incoming.valor = calc.snapFib(valor);
@@ -186,6 +208,14 @@
         if (prazo) incoming.prazo = prazo;
         const obs = toText(row.observacoes);
         if (obs) incoming.observacoes = obs;
+        ["objetivo", "prontoQuando", "indicador"].forEach((k) => {
+          const v = toText(row[k]);
+          if (v) incoming[k] = v;
+        });
+        const inv = norm(row.investimento);
+        if (inv) incoming.investimento = inv.startsWith("s") ? "Sim" : "Não";
+        const sit = toText(row.situacao);
+        if (["Rascunho", "Validado", "Aprovado para onda"].includes(sit)) incoming.situacao = sit;
 
         const existing = S.findInitiative(id);
         if (!existing) {
@@ -251,12 +281,22 @@
         const pct = toPct(row.pct);
         if (pct != null) incoming.pct = pct;
         else if (status === "Concluído") incoming.pct = 100;
-        const resp = toText(row.responsavel);
-        if (resp) incoming.responsavel = resp;
         const prazo = toText(row.prazo);
         if (prazo) incoming.prazo = prazo;
         const obs = toText(row.observacoes);
         if (obs) incoming.observacoes = obs;
+        ["entregavel", "inicio", "dependeDe"].forEach((k) => {
+          const v = toText(row[k]);
+          if (v) incoming[k] = v;
+        });
+        // RACI: colunas R/A/C/I (exportação do painel) ou Responsável + Envolvidos (planilhas antigas → R e C).
+        const raci = {};
+        S.splitNames(toText(row.responsavel)).slice(0, 1).forEach((n) => { raci[n] = "R"; });
+        S.splitNames(toText(row.aprovador)).slice(0, 1).forEach((n) => { if (!raci[n]) raci[n] = "A"; });
+        S.splitNames(toText(row.consultados)).forEach((n) => { if (!raci[n]) raci[n] = "C"; });
+        S.splitNames(toText(row.informados)).forEach((n) => { if (!raci[n]) raci[n] = "I"; });
+        S.splitNames(toText(row.envolvidos)).forEach((n) => { if (!raci[n]) raci[n] = "C"; });
+        if (Object.keys(raci).length) incoming.raci = raci;
 
         const existing = ini?.atividades.find((a) => !used.has(a.id) && norm(a.nome) === norm(nome));
         if (!existing) {
@@ -269,9 +309,11 @@
         const patch = {};
         const changes = [];
         Object.entries(incoming).forEach(([k, v]) => {
-          if (k !== "nome" && String(existing[k] ?? "") !== String(v)) {
+          const from = k === "raci" ? S.raciText(existing.raci) : String(existing[k] ?? "");
+          const to = k === "raci" ? S.raciText(v) : String(v);
+          if (k !== "nome" && from !== to) {
             patch[k] = v;
-            changes.push({ label: S.FIELDS.ACTIVITY_FIELDS[k] || k, from: existing[k], to: v });
+            changes.push({ label: S.FIELDS.ACTIVITY_FIELDS[k] || k, from, to });
           }
         });
         if (changes.length) plan.activities.push({ isNew: false, iniId, actId: existing.id, data: patch, changes, nome: existing.nome });
@@ -308,18 +350,30 @@
       Responsável: it.responsavel,
       Prazo: it.prazo,
       Habilitadora: it.enabler ? "Sim" : "",
+      Objetivo: it.objetivo,
+      "Pronto quando": it.prontoQuando,
+      "Indicador de sucesso": it.indicador,
+      "Investimento?": it.investimento,
+      "Situação do cadastro": it.situacao,
       Observações: it.observacoes,
     }));
     const actRows = [];
+    // Uma linha por atividade, com a RACI em quatro colunas; % gravado como fração (0–1) com formato de porcentagem.
     ranked.forEach((it) => it.atividades.forEach((a, i) => actRows.push({
       Grupo: it.id,
-      Iniciativa: it.nome,
+      "Nome do projeto": it.nome,
       "Nº": i + 1,
       Atividade: a.nome,
-      "% concluído": a.pct,
-      Status: a.status,
-      Responsável: a.responsavel,
+      Entregável: a.entregavel,
+      "Responsável (R)": S.raciPeople(a.raci, "R").join(", "),
+      "Aprovador (A)": S.raciPeople(a.raci, "A").join(", "),
+      "Consultados (C)": S.raciPeople(a.raci, "C").join(", "),
+      "Informados (I)": S.raciPeople(a.raci, "I").join(", "),
+      Início: a.inicio,
       Prazo: a.prazo,
+      "Depende de": a.dependeDe,
+      Status: a.status,
+      "% concluído": a.pct / 100,
       Observações: a.observacoes,
     })));
     const decRows = S.state.data.decisions.map((d) => ({
@@ -340,8 +394,17 @@
       ws["!cols"] = widths.map((w) => ({ wch: w }));
       XLSX.utils.book_append_sheet(wb, ws, name);
     };
-    add(iniRows, "Iniciativas", [8, 6, 60, 12, 7, 8, 7, 12, 10, 14, 16, 9, 14, 10, 18, 14, 14, 12, 50]);
-    add(actRows, "Atividades", [8, 40, 5, 70, 12, 14, 14, 14, 40]);
+    add(iniRows, "Iniciativas", [8, 6, 60, 12, 7, 8, 7, 12, 10, 14, 16, 9, 14, 10, 18, 14, 14, 12, 40, 40, 30, 12, 16, 50]);
+    add(actRows, "Atividades", [8, 40, 5, 60, 40, 16, 16, 22, 22, 12, 12, 10, 13, 12, 40]);
+    // Cadastros (referência; a importação não lê estas abas)
+    add(S.areas().map((a) => ({ Área: a.key, Código: a.code, Cor: a.cor })), "Areas", [20, 8, 10]);
+    add(S.pessoas().map((p) => ({ Nome: p.nome, Função: p.funcao, Área: p.area, Ativa: p.ativo ? "Sim" : "Não" })), "Pessoas", [20, 24, 16, 8]);
+    const wsAct = wb.Sheets["Atividades"];
+    const pctCol = Object.keys(actRows[0] || {}).indexOf("% concluído");
+    for (let r = 1; r <= actRows.length && pctCol >= 0; r++) {
+      const cell = wsAct[XLSX.utils.encode_cell({ r, c: pctCol })];
+      if (cell) cell.z = "0%";
+    }
     add(decRows, "Decisoes", [12, 16, 8, 70, 11, 60]);
     add(histRows, "Historico", [17, 12, 10, 50, 10, 80]);
 

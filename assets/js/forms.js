@@ -10,10 +10,10 @@
       return `<option value="${esc(val)}" ${String(val) === String(selected) ? "selected" : ""}>${esc(label)}</option>`;
     }).join("");
 
+  // Sugestões de nomes vêm do cadastro de pessoas (Cadastros → Pessoas).
   function fillPeopleDatalist() {
     const S = A.store;
-    const names = new Set(A.meta.PESSOAS);
-    S.state.data.initiatives.forEach((i) => i.responsavel && names.add(i.responsavel));
+    const names = new Set(S.pessoas({ ativas: true }).map((p) => p.nome));
     S.state.data.decisions.forEach((d) => d.quem && names.add(d.quem));
     $("people-list").innerHTML = [...names].sort().map((n) => `<option value="${esc(n)}">`).join("");
   }
@@ -22,8 +22,8 @@
   let editingId = null;
 
   function setupInitiativeSelects() {
-    const { AREAS, FIBONACCI, ONDAS, STATUS, SEMAFOROS } = A.meta;
-    $("ini-area").innerHTML = optionList(AREAS.map((a) => [a.key, `${a.key} (${a.code})`]));
+    const { FIBONACCI, ONDAS, STATUS, SEMAFOROS } = A.meta;
+    $("ini-situacao").innerHTML = optionList(A.store.SITUACOES);
     const fib = FIBONACCI.map((f) => [f, `${f} — ${A.meta.tempoPorEsforco(f)}`]);
     $("ini-valor").innerHTML = optionList(FIBONACCI.map((f) => [f, String(f)]));
     $("ini-esforco").innerHTML = optionList(fib);
@@ -55,26 +55,32 @@
     editingId = it ? it.id : null;
     fillPeopleDatalist();
 
-    const area = it ? it.area : (S.state.ui.area !== "ALL" ? S.state.ui.area : "Projetos");
+    const area = it ? it.area : (S.state.ui.area !== "ALL" ? S.state.ui.area : S.areas()[0].key);
     const data = it || {
       id: S.nextId(area), nome: "", area, valor: 3, esforco: 3, onda: "Fila", status: "A fazer",
       semaforo: "verde", responsavel: S.state.settings.user || "", prazo: "", observacoes: "", enabler: false,
+      situacao: "Rascunho", objetivo: "", prontoQuando: "", indicador: "", investimento: "Não",
     };
     $("ini-modal-title").textContent = it ? `Editar ${it.id} · ${it.area}` : "Nova iniciativa";
     $("ini-id").value = data.id;
     $("ini-nome").value = data.nome;
-    $("ini-area").value = data.area;
+    $("ini-area").innerHTML = A.ui.areaOptions(data.area);
+    $("ini-responsavel").innerHTML = A.ui.peopleOptions(data.responsavel, { blank: "A definir" });
+    $("ini-situacao").value = data.situacao;
+    $("ini-objetivo").value = data.objetivo || "";
+    $("ini-pronto").value = data.prontoQuando || "";
+    $("ini-indicador").value = data.indicador || "";
+    $("ini-invest").checked = data.investimento === "Sim";
     $("ini-valor").value = data.valor;
     $("ini-esforco").value = data.esforco;
     $("ini-onda").value = data.onda;
     $("ini-status").value = data.status;
     $("ini-semaforo").value = data.semaforo;
-    $("ini-responsavel").value = data.responsavel;
     $("ini-prazo").value = data.prazo;
     $("ini-obs").value = data.observacoes;
     $("ini-enabler").checked = !!data.enabler;
     $("ini-error").textContent = "";
-    $("ini-delete").classList.toggle("hidden", !it);
+    $("ini-delete").classList.toggle("hidden", !S.canDelete(it));
     $("ini-add-decision").classList.toggle("hidden", !it);
 
     const decs = it ? S.state.data.decisions.filter((d) => d.grupo === it.id) : [];
@@ -105,6 +111,11 @@
       prazo: $("ini-prazo").value,
       observacoes: $("ini-obs").value,
       enabler: $("ini-enabler").checked,
+      situacao: $("ini-situacao").value,
+      objetivo: $("ini-objetivo").value,
+      prontoQuando: $("ini-pronto").value,
+      indicador: $("ini-indicador").value,
+      investimento: $("ini-invest").checked ? "Sim" : "Não",
     };
     const wasWip = editingId ? S.findInitiative(editingId)?.status === "Em andamento" : false;
     const r = S.saveInitiative(input, editingId);
@@ -124,12 +135,15 @@
     const S = A.store;
     const it = S.findInitiative(id);
     if (!it) return;
-    const ok = await confirmDialog(`Excluir “${it.id} · ${it.nome}”? A exclusão fica registrada no histórico, mas a iniciativa sai de todas as telas. Para só tirar do fluxo, prefira o status “Cancelado”.`,
-      { title: "Excluir iniciativa", okLabel: "Excluir", danger: true });
+    if (!S.canDelete(it)) return toast("Só projetos em Rascunho podem ser excluídos. Para tirar do fluxo, use o status Cancelado.", "warn", 5000);
+    const ok = await confirmDialog(`Excluir o rascunho “${it.id} · ${it.nome}” e suas ${it.atividades.length} atividades? A exclusão fica registrada no histórico.`,
+      { title: "Excluir rascunho", okLabel: "Excluir", danger: true });
     if (!ok) return;
-    S.deleteInitiative(id);
+    const r = S.deleteInitiative(id);
+    if (!r.ok) return toast(r.error, "error");
     closeModal("modal-initiative");
-    toast(`${id} excluída.`, "warn");
+    if (location.hash.startsWith("#projeto/")) location.hash = "portfolio";
+    toast(`${id} excluído.`, "warn");
   }
 
   /* ---------- Decisão ---------- */
@@ -191,7 +205,7 @@
   /* ---------- Usuário ---------- */
   function openUserForm(required = false) {
     const current = A.store.state.settings.user;
-    $("user-options").innerHTML = A.meta.PESSOAS.map((p) =>
+    $("user-options").innerHTML = A.store.pessoas({ ativas: true }).map((x) => x.nome).slice(0, 8).map((p) =>
       `<button type="button" class="btn ${p === current ? "btn-primary" : "btn-outline"}" data-user-pick="${esc(p)}">${esc(p)}</button>`).join("");
     $("user-name").value = current || "";
     $("user-cancel").classList.toggle("hidden", required);
@@ -310,6 +324,7 @@
       ...newA.map((p) => `<div class="import-row"><span class="badge ok">Nova atividade</span> <strong>${esc(p.iniId)}</strong> · ${esc(p.data.nome)}</div>`),
       ...updA.map((p) => `<div class="import-row"><span class="badge accent">Alterar atividade</span> <strong>${esc(p.iniId)}</strong> · ${esc(p.nome)}
           <ul class="h-changes">${p.changes.map((c) => `<li>${renderChange(c)}</li>`).join("")}</ul></div>`),
+      ...(plan.newAreas?.length ? [`<div class="import-row"><span class="badge warn">Áreas novas</span> ${esc(plan.newAreas.join(", "))} — serão criadas nos Cadastros</div>`] : []),
       ...(plan.skipped.length ? [`<div class="import-row muted">Ignoradas (iniciativa não encontrada): ${esc(plan.skipped.join(" · "))}</div>`] : []),
     ];
     $("import-list").innerHTML = rows.length ? rows.join("") : `<div class="import-row muted">O painel já está igual à planilha. Nada a importar.</div>`;
@@ -333,7 +348,7 @@
     $("ini-esforco").addEventListener("change", updateCalcBox);
     $("ini-area").addEventListener("change", () => {
       // Para iniciativas novas, sugere o próximo ID da área escolhida.
-      if (!editingId && /^[PVME]\d+$/.test($("ini-id").value)) $("ini-id").value = A.store.nextId($("ini-area").value);
+      if (!editingId && /^[A-Z]{1,3}\d+$/.test($("ini-id").value)) $("ini-id").value = A.store.nextId($("ini-area").value);
     });
     $("ini-delete").addEventListener("click", () => editingId && deleteInitiative(editingId));
     $("ini-add-decision").addEventListener("click", () => {

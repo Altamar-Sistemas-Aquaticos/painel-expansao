@@ -5,7 +5,7 @@
   const { toast, closeModal, closeTopModal, confirmDialog, downloadBlob, esc, initials } = A.util;
   const $ = (id) => document.getElementById(id);
 
-  const TABS = ["executivo", "matriz", "ranking", "kanban", "ondas", "decisoes", "historico"];
+  const TABS = ["executivo", "portfolio", "matriz", "ranking", "kanban", "ondas", "decisoes", "historico", "cadastros"];
   const TAB_KEY = "altamar_painel_tab";
   // Rota atual. Telas de detalhamento: "setor/<área>" e "projeto/<id>" (pertencem à aba Kanban).
   let route = { view: "executivo", param: null };
@@ -13,6 +13,8 @@
   /* ---------- Renderização ---------- */
   function renderAll() {
     A.views.executive(S);
+    A.views.portfolio(S);
+    A.views.cadastros(S);
     A.views.matrix(S);
     A.views.ranking(S);
     A.views.kanban(S);
@@ -39,7 +41,11 @@
     document.documentElement.dataset.theme = resolveTheme(settings.theme);
     $("btn-theme").textContent = { auto: "🌓 Tema: automático", light: "☀️ Tema: claro", dark: "🌙 Tema: escuro" }[settings.theme] || "🌓 Tema";
 
-    // Sincroniza controles de filtro com o estado.
+    // Sincroniza controles de filtro com o estado (as áreas vêm dos Cadastros e podem mudar).
+    if (S.state.ui.area !== "ALL" && !S.findArea(S.state.ui.area)) S.state.ui.area = "ALL";
+    $("filter-areas").innerHTML =
+      `<button class="btn btn-xs btn-outline" data-filter-area="ALL">Todas</button>` +
+      S.areas().map((a) => `<button class="btn btn-xs btn-outline" data-filter-area="${esc(a.key)}">${esc(a.key)}</button>`).join("");
     document.querySelectorAll("[data-filter-area]").forEach((b) => b.classList.toggle("active", b.dataset.filterArea === S.state.ui.area));
     $("filter-status").value = S.state.ui.status;
     $("filter-onda").value = S.state.ui.onda;
@@ -56,7 +62,7 @@
   function parseRoute(hash) {
     const [view, ...rest] = String(hash || "").split("/");
     const param = rest.length ? decodeURIComponent(rest.join("/")) : null;
-    if (view === "setor" && A.meta.AREAS.some((a) => a.key === param)) return { view, param };
+    if (view === "setor" && S.findArea(param)) return { view, param };
     if (view === "projeto" && param) return { view, param };
     return { view: TABS.includes(view) ? view : "executivo", param: null };
   }
@@ -82,7 +88,13 @@
   /* ---------- Ações delegadas ---------- */
   const actions = {
     "edit-initiative": (id) => A.forms.openInitiativeForm(id),
-    "new-initiative": () => A.forms.openInitiativeForm(null),
+    "new-initiative": (area) => A.ficha.open(area),
+    "advance-situacao": (id) => {
+      const r = S.advanceSituacao(id);
+      if (!r.ok) return toast(r.error, "error");
+      if (!r.unchanged) toast(`${id}: ${r.item.situacao}.`);
+    },
+    "open-project": (id) => { location.hash = A.drill.projectHref(id); },
     "delete-initiative": (id) => A.forms.deleteInitiative(id),
     "edit-decision": (id) => {
       closeModal("modal-initiative");
@@ -151,7 +163,7 @@
     // Atalho: N = nova iniciativa (fora de campos de texto).
     if (e.key === "n" && !e.ctrlKey && !e.metaKey && !e.altKey && !e.target.closest("input, textarea, select") && !document.querySelector(".modal-backdrop.open")) {
       e.preventDefault();
-      A.forms.openInitiativeForm(null);
+      A.ficha.open();
     }
   }
 
@@ -162,10 +174,7 @@
   }
 
   function initFilters() {
-    const { AREAS, STATUS, ONDAS } = A.meta;
-    $("filter-areas").innerHTML =
-      `<button class="btn btn-xs btn-outline" data-filter-area="ALL">Todas</button>` +
-      AREAS.map((a) => `<button class="btn btn-xs btn-outline" data-filter-area="${esc(a.key)}">${esc(a.key)}</button>`).join("");
+    const { STATUS, ONDAS } = A.meta;
     $("filter-status").innerHTML = `<option value="ALL">Todos os status</option>` + STATUS.map((s) => `<option>${esc(s)}</option>`).join("");
     $("filter-onda").innerHTML = `<option value="ALL">Todas as ondas</option>` + ONDAS.map((o) => `<option value="${esc(o.key)}">${esc(o.key === "Fila" ? "Fila posterior" : o.key)}</option>`).join("");
 
@@ -287,6 +296,8 @@
     A.forms.init();
     A.board.initDragAndDrop();
     A.drill.initActivityEvents();
+    A.ficha.init();
+    A.cadastros.init();
     initFilters();
     initDataMenu();
 

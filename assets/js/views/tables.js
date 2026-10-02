@@ -115,7 +115,7 @@
     criou: "criou", editou: "editou", excluiu: "excluiu", decidiu: "registrou decisão em",
     importou: "importou", restaurou: "restaurou", migrou: "migrou", limpou: "limpou",
   };
-  const ENTITY_LABEL = { iniciativa: "iniciativa", decisao: "decisão", atividade: "atividade", sistema: "" };
+  const ENTITY_LABEL = { iniciativa: "iniciativa", decisao: "decisão", atividade: "atividade", cadastro: "cadastro", sistema: "" };
 
   function fmtValue(field, v) {
     if (v === true) return "Sim";

@@ -34,7 +34,8 @@
 
   A.views.kanban = function (S) {
     const { ve } = S.calc;
-    const items = S.filtered().filter((i) => i.status !== "Cancelado");
+    // Rascunhos ficam no Portfólio até serem validados.
+    const items = S.filtered().filter((i) => i.status !== "Cancelado" && i.situacao !== "Rascunho");
     const cols = Object.fromEntries(A.meta.COLUNAS.map((c) => [c.key, []]));
     items.forEach((it) => cols[it.coluna]?.push(it));
 
