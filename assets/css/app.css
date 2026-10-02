@@ -672,12 +672,13 @@ tr.cut-divider td {
 .ov-tick { position: absolute; top: 0; transform: translateX(-2px); white-space: nowrap; line-height: 1.15; border-left: 1px solid var(--border-strong); padding-left: 3px; }
 .ov-today { position: absolute; top: -6px; bottom: -6px; width: 2px; background: var(--alert); opacity: 0.55; }
 .ov-tl-head .ov-today { top: 0; bottom: -10px; }
-.ov-bar { position: absolute; top: 2px; height: 14px; border-radius: 7px; background: color-mix(in srgb, var(--bc) 55%, transparent); border: 1.5px solid var(--bc); overflow: hidden; }
-/* Datas estimadas: listras na cor da área, bem visíveis, com borda tracejada. */
-.ov-bar.est { border-style: dashed; background: repeating-linear-gradient(45deg, color-mix(in srgb, var(--bc) 55%, transparent) 0 5px, color-mix(in srgb, var(--bc) 20%, transparent) 5px 10px); }
+/* Barras na cor cheia da área; o avanço (%) aparece num tom mais escuro da mesma cor. */
+.ov-bar { position: absolute; top: 2px; height: 14px; border-radius: 7px; background: var(--bc); overflow: hidden; box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--bc) 75%, #000); }
+/* Datas estimadas: listras em dois tons fortes da cor da área. */
+.ov-bar.est { background: repeating-linear-gradient(45deg, var(--bc) 0 6px, color-mix(in srgb, var(--bc) 62%, #fff) 6px 12px); }
 .ov-bar.late { border-color: var(--alert); }
 .ov-bar.thin { top: 4px; height: 10px; }
-.ov-bar-fill { display: block; height: 100%; background: var(--bc); }
+.ov-bar-fill { display: block; height: 100%; background: color-mix(in srgb, var(--bc) 60%, #000); }
 .ov-dot { position: absolute; top: 4px; width: 10px; height: 10px; border-radius: 50%; background: var(--bc); transform: translateX(-5px); }
 
 /* ---------- Portfólio ---------- */
