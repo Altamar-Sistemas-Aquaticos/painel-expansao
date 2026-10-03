@@ -1060,6 +1060,10 @@ body.presentation .filter-bar { display: none; }
 @media (max-width: 1000px) { .kanban.sprint-board { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
 @media (max-width: 900px) { .guia-ritmo { grid-template-columns: 1fr; } }
 
+/* ---------- Boletim ---------- */
+.boletim-actions { margin-bottom: 0.7rem; flex-wrap: wrap; }
+.boletim-frame { width: 100%; height: 65vh; border: 1px solid var(--border); border-radius: 10px; background: #e9eef3; }
+
 /* ---------- Capacidade (Cadastros) ---------- */
 .cap-form { display: flex; flex-wrap: wrap; gap: 0.8rem; align-items: flex-end; }
 .cap-form .field { margin: 0; }

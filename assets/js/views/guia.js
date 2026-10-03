@@ -153,7 +153,7 @@
             Antes de tudo, uma reunião única de triagem para dar nota às ideias.</p>
 
             ${reuniao("⚡", "Reunião semanal de acompanhamento", "Toda quinta, com a Maíra", "15 min",
-              "Só acompanhar: o que andou, o que travou e o que precisa de decisão. Não é lugar de replanejar. Se a reunião não acontecer, a Maíra recebe o boletim da semana com as mesmas informações.",
+              "Só acompanhar: o que andou, o que travou e o que precisa de decisão. Não é lugar de replanejar. Se a reunião não acontecer, a Maíra recebe o boletim da semana com as mesmas informações (botão 📨 Boletim, no topo do painel).",
               [
                 passo(1, "O que foi feito (5 min)", "Atividades que foram para “Feito” na semana e itens de checklist concluídos.", ["kanban", "Kanban"]),
                 passo(2, "O que está travado (5 min)", "Coluna “Esperando / Travado” e semáforos vermelhos: o que falta e de quem depende.", ["kanban", "Kanban"]),

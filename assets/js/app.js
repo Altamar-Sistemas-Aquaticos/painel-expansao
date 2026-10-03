@@ -124,6 +124,7 @@
       m?.dispatchEvent(new Event("modal:dismiss"));
     },
     "meeting-summary": () => A.forms.openMeetingSummary(),
+    "boletim": () => A.boletim.open(),
     "print": () => window.print(),
     "change-user": () => A.forms.openUserForm(false),
   };
@@ -309,6 +310,7 @@
     A.cadastros.init();
     A.triagem.init();
     A.sprint.init();
+    A.boletim.init();
     A.compromissos.init();
     A.google.init();
     $("menu-google").addEventListener("click", () => { closeMenu(); A.google.openSettings(); });
