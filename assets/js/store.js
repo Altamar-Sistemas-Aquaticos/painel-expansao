@@ -25,7 +25,7 @@
     status: "Status", semaforo: "Semáforo", responsavel: "Responsável", prazo: "Prazo",
     observacoes: "Observações", enabler: "Habilitadora", coluna: "Coluna do Kanban",
     objetivo: "Objetivo", prontoQuando: "Pronto quando", indicador: "Indicador de sucesso",
-    investimento: "Exige investimento", situacao: "Situação do cadastro",
+    investimento: "Exige investimento", situacao: "Situação do cadastro", autor: "Autor da ideia",
   };
   const ACTIVITY_FIELDS = {
     nome: "Atividade", entregavel: "Entregável", pct: "% concluído", status: "Status", raci: "RACI",
@@ -46,7 +46,7 @@
     settings: { user: "", theme: "auto", lastBackupAt: null, lastSavedAt: null },
     ui: {
       area: "ALL", status: "ALL", onda: "ALL", search: "", rankingSort: "ve", decisionFilter: "ALL",
-      historyQuery: "", historyEntity: "ALL", portfolioSituacao: "ALL",
+      historyQuery: "", historyEntity: "ALL", triagemFiltro: "triar",
     },
     saveError: false,
   };
@@ -90,6 +90,15 @@
     return Math.round(acts.reduce((s, a) => s + a.pct, 0) / acts.length);
   }
   const wipCount = () => store.data.initiatives.filter((i) => i.status === "Em andamento").length;
+  // Carga = soma do esforço (pontos) dos projetos em andamento. Projetos pequenos ocupam pouca capacidade.
+  const carga = () => store.data.initiatives.filter((i) => i.status === "Em andamento").reduce((s, i) => s + (i.esforco || 0), 0);
+  const capacidade = () => store.data.config.capacidade || A.meta.CAPACIDADE_PADRAO;
+  const maxProjetos = () => store.data.config.maxProjetos || A.meta.MAX_PROJETOS_PADRAO;
+  // Estoura a capacidade se a carga passar dos pontos OU a quantidade passar da trava.
+  const overCapacity = (extraPts = 0, extraQtd = 0) => carga() + extraPts > capacidade() || wipCount() + extraQtd > maxProjetos();
+
+  // 0 = nota ainda "a definir" (ideias recém-cadastradas, antes da triagem).
+  const scoreOrZero = (v) => (v === 0 || v === "0" || v === "" || v == null ? 0 : snapFib(v));
 
   function snapFib(v) {
     const n = Number(String(v ?? "").replace(",", "."));
@@ -185,8 +194,9 @@
       id: String(raw.id ?? "").trim().toUpperCase(),
       nome: String(raw.nome ?? "").trim(),
       area: String(raw.area ?? "").trim() || (areas()[0] || {}).key || "Projetos",
-      valor: snapFib(raw.valor),
-      esforco: snapFib(raw.esforco),
+      valor: scoreOrZero(raw.valor),
+      esforco: scoreOrZero(raw.esforco),
+      autor: String(raw.autor ?? "").trim(),
       onda: ONDA_KEYS.includes(raw.onda) ? raw.onda : "Fila",
       status,
       semaforo: SEMAFORO_KEYS.includes(raw.semaforo) ? raw.semaforo : "verde",
@@ -273,6 +283,8 @@
       config: {
         areas: (cfg.areas || A.defaults.areas).map(normalizeArea).filter((a) => a.key && a.code),
         pessoas: (cfg.pessoas || A.defaults.pessoas).map(normalizePessoa).filter((p) => p.nome),
+        capacidade: Number(cfg.capacidade) > 0 ? Number(cfg.capacidade) : A.meta.CAPACIDADE_PADRAO,
+        maxProjetos: Number(cfg.maxProjetos) > 0 ? Number(cfg.maxProjetos) : A.meta.MAX_PROJETOS_PADRAO,
       },
       initiatives: [],
       decisions: (raw.decisions || []).map(normalizeDecision).filter((d) => d.pauta),
@@ -291,6 +303,12 @@
       const iniciais = new Set(A.defaults.initiatives.map((i) => i.id));
       data.initiatives.forEach((it) => {
         if (iniciais.has(it.id) && !criadosNoHistorico.has(it.id)) it.criadoEm = PORTFOLIO_BASE_DATE;
+      });
+      // Autor: quem registrou a criação no histórico; os projetos iniciais vieram da planilha do Pedro.
+      const autorNoHistorico = {};
+      data.history.forEach((h) => { if (h.entity === "iniciativa" && h.action === "criou" && h.user) autorNoHistorico[h.refId] = h.user; });
+      data.initiatives.forEach((it) => {
+        if (!it.autor) it.autor = autorNoHistorico[it.id] || (iniciais.has(it.id) ? "Pedro" : "");
       });
       registerMissing(data);
     } finally {
@@ -473,6 +491,7 @@
   function createProject(input, activities) {
     const id = nextId(input.area);
     const item = normalizeInitiative({
+      autor: store.settings.user || "",
       ...input, id, situacao: "Rascunho", status: "A fazer", semaforo: "verde",
       atividades: activities.map((a) => normalizeActivity(a)), criadoEm: new Date().toISOString(),
     });
@@ -484,6 +503,41 @@
       { field: "snapshot", label: "Ficha", from: `${item.area} · V${item.valor}/E${item.esforco} · ${item.onda} · ${item.atividades.length} atividades`, to: "" },
     ], "Ficha")]);
     return { ok: true, item };
+  }
+
+  /**
+   * Cadastro rápido de ideia (Triagem): só o essencial — nome, área, autor, prazo pensado e,
+   * se já souber, valor e esforço. Entra como Rascunho, sem atividades.
+   */
+  function quickIdea(input) {
+    if (!String(input.nome || "").trim()) return { ok: false, error: "Descreva a ideia." };
+    if (!findArea(input.area)) return { ok: false, error: "Escolha a área." };
+    const dup = store.data.initiatives.find((i) => norm(i.nome) === norm(input.nome));
+    if (dup) return { ok: false, error: `Já existe um projeto com esse nome (${dup.id}).` };
+    const id = nextId(input.area);
+    const item = normalizeInitiative({
+      id, nome: input.nome, area: input.area, autor: input.autor || store.settings.user || "",
+      prazo: input.prazo || "", valor: input.valor, esforco: input.esforco, objetivo: input.objetivo || "",
+      onda: "Fila", situacao: "Rascunho", status: "A fazer", semaforo: "verde", atividades: [],
+      criadoEm: new Date().toISOString(),
+    });
+    store.data.initiatives.push(item);
+    registerMissing(store.data);
+    commit([entry("iniciativa", id, "criou", `${id} · ${item.nome}`, [], "Triagem")]);
+    return { ok: true, item };
+  }
+
+  function saveConfig(patch) {
+    const before = { capacidade: capacidade(), maxProjetos: maxProjetos() };
+    const after = {
+      capacidade: Math.max(1, Math.round(Number(patch.capacidade ?? before.capacidade)) || before.capacidade),
+      maxProjetos: Math.max(1, Math.round(Number(patch.maxProjetos ?? before.maxProjetos)) || before.maxProjetos),
+    };
+    const changes = diff(before, after, { capacidade: "Capacidade (pontos)", maxProjetos: "Máximo de projetos simultâneos" });
+    if (!changes.length) return { ok: true, unchanged: true };
+    Object.assign(store.data.config, after);
+    commit([entry("cadastro", null, "editou", "Capacidade de execução", changes)]);
+    return { ok: true };
   }
 
   const canDelete = (it) => it && it.situacao === "Rascunho";
@@ -505,7 +559,7 @@
     if (!it) return { ok: false, error: "Iniciativa não encontrada." };
     const next = SITUACOES[SITUACOES.indexOf(it.situacao) + 1];
     if (!next) return { ok: true, unchanged: true };
-    return saveInitiative({ situacao: next }, id, { source: "Portfólio" });
+    return saveInitiative({ situacao: next }, id, { source: "Triagem" });
   }
 
   function moveToColumn(id, coluna) {
@@ -519,11 +573,12 @@
   const setOnda = (id, onda) => saveInitiative({ onda }, id, { source: "Ondas" });
   const setStatus = (id, status) => saveInitiative({ status }, id);
 
-  /* ---------- Consistência (avisos do Portfólio e da tela do projeto) ---------- */
+  /* ---------- Consistência (avisos da Triagem e da tela do projeto) ---------- */
   function warnings(it) {
     const w = [];
     const acts = it.atividades.filter((a) => a.status !== "Cancelado");
     if (it.status === "Concluído" || it.status === "Cancelado") return w;
+    if (!it.valor || !it.esforco) w.push("Valor e esforço a definir (Triagem).");
     if (!it.objetivo) w.push("Objetivo não preenchido.");
     if (!it.prontoQuando) w.push("“Pronto quando” não preenchido.");
     else if (parseDate(it.prontoQuando)) w.push("“Pronto quando” deve descrever o resultado, não uma data.");
@@ -538,7 +593,7 @@
       const maior = new Date(Math.max(...ultimas));
       if (maior > fim) w.push(`Prazo do projeto (${it.prazo}) anterior à última atividade (${maior.toLocaleDateString("pt-BR")}).`);
     }
-    if (it.onda === "Onda 1" && !isAboveCut(it) && !it.observacoes) {
+    if (it.valor && it.esforco && it.onda === "Onda 1" && !isAboveCut(it) && !it.observacoes) {
       w.push("Na Onda 1, mas abaixo da linha de corte: registre o motivo nas observações.");
     }
     return w;
@@ -845,8 +900,8 @@
 
   A.store = {
     state: store, load, persist, subscribe, emit, saveSettings,
-    calc: { ve, cutoff, isAboveCut, wipCount, snapFib, progress, parseDate, weekKey },
-    findInitiative, nextId, saveInitiative, createProject, deleteInitiative, canDelete, advanceSituacao,
+    calc: { ve, cutoff, isAboveCut, wipCount, snapFib, progress, parseDate, weekKey, carga, capacidade, maxProjetos, overCapacity },
+    findInitiative, nextId, saveInitiative, createProject, quickIdea, saveConfig, deleteInitiative, canDelete, advanceSituacao,
     moveToColumn, setOnda, setStatus, warnings,
     saveActivity, setRaci, deleteActivity, findActivity, projectTeam, raciText, raciPeople, splitNames,
     areas, findArea, saveArea, deleteArea, suggestAreaCode, nextAreaColor,

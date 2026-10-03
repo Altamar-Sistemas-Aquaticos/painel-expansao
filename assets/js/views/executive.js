@@ -77,13 +77,14 @@
       concluidas: keys.map((k) => done[k] || 0),
       // WIP e atraso só existem a partir das fotos semanais (semanas sem foto ficam sem ponto).
       wip: keys.map((k, i) => (i === keys.length - 1 ? S.calc.wipCount() : snaps[k]?.wip ?? null)),
+      carga: keys.map((k, i) => (i === keys.length - 1 ? S.calc.carga() : snaps[k]?.carga ?? null)),
       atraso: keys.map((k, i) => (i === keys.length - 1 ? overdue(S).total : snaps[k]?.atraso ?? null)),
     };
   }
 
   A.metrics = {
     overdue,
-    snapshot: (S) => ({ wip: S.calc.wipCount(), atraso: overdue(S).total, total: S.state.data.initiatives.length }),
+    snapshot: (S) => ({ wip: S.calc.wipCount(), carga: S.calc.carga(), atraso: overdue(S).total, total: S.state.data.initiatives.length }),
   };
 
   /* ---------- Fila "Para resolver" ---------- */
@@ -96,7 +97,9 @@
 
     if (od.projetos.length) items.push({ sev: "alert", text: `${od.projetos.length} projeto(s) com prazo vencido`, sub: od.projetos.slice(0, 4).map((i) => i.id).join(", "), go: "overview" });
     if (od.atividades.length) items.push({ sev: "alert", text: `${od.atividades.length} atividade(s) atrasada(s)`, sub: [...new Set(od.atividades.map((x) => x.it.id))].slice(0, 5).join(", "), go: "overview" });
-    if (wip > A.meta.WIP_MAX) items.push({ sev: "alert", text: `Reduzir WIP de ${wip} para ${A.meta.WIP_MAX}`, sub: "Pausar ou concluir uma iniciativa antes de puxar outra", go: "kanban" });
+    const carga = S.calc.carga(), cap = S.calc.capacidade(), maxP = S.calc.maxProjetos();
+    if (carga > cap) items.push({ sev: "alert", text: `Carga de ${carga} pts acima da capacidade (${cap})`, sub: "Pausar ou concluir um projeto antes de puxar outro", go: "kanban" });
+    else if (wip > maxP) items.push({ sev: "alert", text: `${wip} projetos em andamento (trava: ${maxP})`, sub: "Muitas frentes ao mesmo tempo, concluir antes de puxar", go: "kanban" });
 
     const active = all.filter((i) => i.status === "Em andamento");
     const semR = active.flatMap((it) => it.atividades.filter((a) => isOpen(a.status) && !S.raciPeople(a.raci, "R").length).map((a) => ({ it, a })));
@@ -119,7 +122,9 @@
     if (amarelos.length) items.push({ sev: "warn", text: `${amarelos.length} projeto(s) em atenção`, sub: amarelos.map((i) => i.id).join(", "), go: `projeto/${amarelos[0].id}` });
 
     const drafts = all.filter((i) => i.situacao === "Rascunho");
-    if (drafts.length) items.push({ sev: "accent", text: `Validar ${drafts.length} rascunho(s)`, sub: drafts.map((i) => i.id).join(", "), go: "portfolio" });
+    if (drafts.length) items.push({ sev: "accent", text: `Validar ${drafts.length} rascunho(s)`, sub: drafts.map((i) => i.id).join(", "), go: "triagem" });
+    const semNota = all.filter((i) => isOpen(i.status) && (!i.valor || !i.esforco));
+    if (semNota.length) items.push({ sev: "accent", text: `Dar nota a ${semNota.length} ideia(s) na Triagem`, sub: semNota.slice(0, 5).map((i) => i.id).join(", "), go: "triagem" });
 
     return { items, soon, od };
   }
@@ -334,28 +339,33 @@
     return best;
   }
 
-  function summarySentence(S, od, wip) {
+  function summarySentence(S, od) {
     const parts = [];
+    const carga = S.calc.carga(), cap = S.calc.capacidade();
     parts.push(od.total ? `${od.total} item(ns) em atraso.` : "Nada atrasado.");
     if (od.total) parts.push("O ponto da semana é recuperar os prazos.");
-    else if (wip > A.meta.WIP_MAX) parts.push(`O ponto da semana é o WIP: ${wip} em andamento para um limite de ${A.meta.WIP_MAX}.`);
-    else parts.push("O fluxo está dentro do limite.");
+    else if (S.calc.overCapacity()) parts.push(`O ponto da semana é a carga: ${carga} pontos em andamento para uma capacidade de ${cap}.`);
+    else parts.push("A carga está dentro da capacidade.");
     return parts.join(" ");
   }
 
   /* ---------- Render ---------- */
   function renderHeader(S) {
     const wip = S.calc.wipCount();
+    const carga = S.calc.carga(), cap = S.calc.capacidade();
     const pill = document.getElementById("wip-pill");
-    const over = wip > A.meta.WIP_MAX;
+    const over = S.calc.overCapacity();
     pill.className = `wip-pill ${over ? "warn" : "ok"}`;
-    pill.innerHTML = `Em andamento: <strong>${wip}</strong> <span class="small">${over ? `(acima de ${A.meta.WIP_MAX})` : "(no limite)"}</span>`;
+    pill.title = `Capacidade: ${cap} pontos de esforço · trava de ${S.calc.maxProjetos()} projetos`;
+    pill.innerHTML = `Carga: <strong>${carga}</strong> de ${cap} pts <span class="small">· ${wip} projeto${wip === 1 ? "" : "s"}</span>`;
 
     const pending = S.state.data.decisions.filter((d) => d.status === "Pendente").length;
     const decCount = document.getElementById("tab-count-decisoes");
     decCount.textContent = pending;
     decCount.className = `tab-count ${pending ? "alert" : ""}`;
-    document.getElementById("tab-count-ranking").textContent = S.filtered().length;
+    const tri = S.state.data.initiatives.filter((i) => i.status !== "Cancelado" && i.status !== "Concluído" && (i.situacao === "Rascunho" || !i.valor || !i.esforco)).length;
+    const triCount = document.getElementById("tab-count-triagem");
+    if (triCount) { triCount.textContent = tri; triCount.className = `tab-count ${tri ? "accent" : ""}`; }
 
     const cut = S.calc.cutoff();
     document.getElementById("footer-cutoff").textContent =
@@ -369,6 +379,7 @@
     const s = series(S);
     const last = s.keys.length - 1;
     const wip = S.calc.wipCount();
+    const carga = S.calc.carga(), cap = S.calc.capacidade(), over = S.calc.overCapacity();
     const { items, soon, od } = actionItems(S);
     const urgentes = items.filter((i) => i.sev === "alert").length;
     const user = S.state.settings.user;
@@ -384,7 +395,7 @@
       <div class="exec-hero">
         <div>
           <p class="exec-hero-date">Semana ${semana} · ${fmtD(mon)} a ${fmtD(sun)}</p>
-          <p class="exec-hero-title">${new Date().getHours() < 12 ? "Bom dia" : new Date().getHours() < 18 ? "Boa tarde" : "Boa noite"}${user ? `, ${esc(user)}` : ""}. ${esc(summarySentence(S, od, wip))}</p>
+          <p class="exec-hero-title">${new Date().getHours() < 12 ? "Bom dia" : new Date().getHours() < 18 ? "Boa tarde" : "Boa noite"}${user ? `, ${esc(user)}` : ""}. ${esc(summarySentence(S, od))}</p>
         </div>
         <div class="exec-hero-chips">
           ${urgentes ? `<span class="kchip bad big">${urgentes} urgente${urgentes === 1 ? "" : "s"}</span>` : `<span class="kchip good big">Sem urgências</span>`}
@@ -397,7 +408,7 @@
           label: "Projetos cadastrados", value: all.length,
           chipHtml: chip(s.novos[last], { zeroLabel: "+0" }),
           spark: sparkline(s.total, "#378ADD"),
-          foot: `${s.novos[last]} novo(s) nesta semana`, go: "portfolio",
+          foot: `${s.novos[last]} novo(s) nesta semana`, go: "triagem",
         })}
         ${kpiCard({
           label: "Concluídas na semana", value: s.concluidas[last],
@@ -412,10 +423,10 @@
           foot: `${od.projetos.length} projeto(s) · ${od.atividades.length} atividade(s)`, go: "overview",
         })}
         ${kpiCard({
-          label: `WIP · limite ${A.meta.WIP_MAX}`, value: wip, valueClass: wip > A.meta.WIP_MAX ? "bad" : "",
-          chipHtml: wip > A.meta.WIP_MAX ? `<span class="kchip bad">+${wip - A.meta.WIP_MAX}</span>` : `<span class="kchip good">ok</span>`,
-          spark: sparkline(s.wip, wip > A.meta.WIP_MAX ? "#E24B4A" : "#378ADD", A.meta.WIP_MAX),
-          foot: "tracejado = limite", go: "kanban",
+          label: `Carga · capacidade ${cap}`, value: carga, valueClass: over ? "bad" : "",
+          chipHtml: over ? `<span class="kchip bad">${carga > cap ? `+${carga - cap} pts` : "muitos projetos"}</span>` : `<span class="kchip good">${cap - carga} pts livres</span>`,
+          spark: sparkline(s.carga, over ? "#E24B4A" : "#378ADD", cap),
+          foot: `pontos de esforço · ${wip} de ${S.calc.maxProjetos()} projetos`, go: "kanban",
         })}
       </div>
 
@@ -430,7 +441,7 @@
                 <span class="todo-go" aria-hidden="true">→</span>
               </button>
             </li>`).join("")}</ol>`
-            : `<div class="todo-clear"><span aria-hidden="true">✓</span> Nada pendente. Bom momento para revisar o Portfólio.</div>`}
+            : `<div class="todo-clear"><span aria-hidden="true">✓</span> Nada pendente. Bom momento para revisar a Triagem.</div>`}
         </section>
         <section class="panel cal-panel">
           <div class="panel-head">

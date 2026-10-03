@@ -17,7 +17,7 @@
     const S = A.store;
     const user = S.findPessoa(S.state.settings.user || "")?.nome || "";
     return {
-      nome: "", area: area || (S.state.ui.area !== "ALL" ? S.state.ui.area : S.areas()[0].key), responsavel: user,
+      nome: "", area: area || (S.state.ui.area !== "ALL" ? S.state.ui.area : S.areas()[0].key), responsavel: user, autor: user,
       valor: "", esforco: "", onda: "", prazo: "", objetivo: "", prontoQuando: "", indicador: "", investimento: false, observacoes: "",
       equipe: user ? [user] : [],
       atividades: [blankActivity(), blankActivity()].map((a) => ({ ...a, raci: user ? { [user]: "R" } : {} })),
@@ -108,8 +108,9 @@
           <div class="field"><label>Área *</label><select ${f("area")}>${opt(S.areas().map((a) => [a.key, `${a.key} (${a.code})`]), draft.area)}</select></div>
           <div class="field"><label>Responsável pelo projeto *</label><select ${f("responsavel")}>${opt(S.pessoas({ ativas: true }).map((p) => [p.nome, p.funcao ? `${p.nome} — ${p.funcao}` : p.nome]), draft.responsavel)}</select></div>
           <div class="field"><label>Prazo final</label><input type="date" ${f("prazo")} value="${esc(draft.prazo)}"></div>
-          <div class="field"><label>Valor *</label><select ${f("valor")}>${opt(A.meta.FIBONACCI.map((x) => [x, String(x)]), draft.valor)}</select></div>
-          <div class="field"><label>Esforço *</label><select ${f("esforco")}>${opt(A.meta.FIBONACCI.map((x) => [x, `${x} — ${A.meta.tempoPorEsforco(x)}`]), draft.esforco)}</select></div>
+          <div class="field"><label>Autor da ideia</label><select ${f("autor")}>${A.ui.peopleOptions(draft.autor || "", { blank: "Não informado" })}</select></div>
+          <div class="field"><label>Valor *</label><select ${f("valor")}>${A.meta.valorOptions(draft.valor, "— Escolha —")}</select></div>
+          <div class="field"><label>Esforço *</label><select ${f("esforco")}>${A.meta.esforcoOptions(draft.esforco, "— Escolha —")}</select></div>
           <div class="field"><label>Onda *</label><select ${f("onda")}>${opt(A.meta.ONDAS.map((o) => [o.key, `${o.key} · ${o.periodo}`]), draft.onda)}</select></div>
         </div>
         <div class="calc-box" id="ficha-calc">${calcBox()}</div>
@@ -192,7 +193,7 @@
         <h3 id="ficha-title">Novo projeto</h3>
         <button class="btn btn-xs btn-ghost" data-ficha="close" aria-label="Fechar">✕</button>
       </div>
-      <p class="muted small" style="margin-top:0">O projeto entra no Portfólio como <strong>Rascunho</strong>. O preenchimento fica guardado se você fechar a ficha antes de salvar.</p>
+      <p class="muted small" style="margin-top:0">O projeto entra na Triagem como <strong>Rascunho</strong>. O preenchimento fica guardado se você fechar a ficha antes de salvar.</p>
       ${errList}
       ${projectSection()}
       <div id="ficha-acts">${activitiesSection()}</div>
@@ -243,7 +244,7 @@
     }
     const S = A.store;
     const input = {
-      nome: draft.nome.trim(), area: draft.area, responsavel: draft.responsavel,
+      nome: draft.nome.trim(), area: draft.area, responsavel: draft.responsavel, autor: draft.autor || "",
       valor: Number(draft.valor), esforco: Number(draft.esforco), onda: draft.onda, prazo: isoToBR(draft.prazo),
       objetivo: draft.objetivo.trim(), prontoQuando: draft.prontoQuando.trim(), indicador: draft.indicador.trim(),
       investimento: draft.investimento ? "Sim" : "Não", observacoes: draft.observacoes.trim(),

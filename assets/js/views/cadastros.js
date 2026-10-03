@@ -82,11 +82,35 @@
       </form>`;
   }
 
+  function capacidadePanel(S) {
+    const { carga, capacidade, maxProjetos, wipCount } = S.calc;
+    return `
+      <div class="panel-head">
+        <div>
+          <h3 class="panel-title">Capacidade de execução</h3>
+          <div class="muted small">Cada projeto em andamento ocupa o seu esforço em pontos. Hoje: <strong>${carga()} de ${capacidade()} pontos</strong> · ${wipCount()} projeto(s).
+          Calibre depois de 2 ou 3 sprints, comparando com o que foi entregue.</div>
+        </div>
+      </div>
+      <div class="cap-form">
+        <div class="field">
+          <label for="cap-pontos">Capacidade (pontos de esforço)</label>
+          <input type="number" min="1" max="99" id="cap-pontos" class="input input-sm" value="${capacidade()}" data-cap="capacidade">
+        </div>
+        <div class="field">
+          <label for="cap-max">Trava de projetos simultâneos</label>
+          <input type="number" min="1" max="30" id="cap-max" class="input input-sm" value="${maxProjetos()}" data-cap="maxProjetos">
+        </div>
+        <div class="muted small">Cada onda (trimestre) comporta cerca de ${A.board.capOnda(S)} pontos.</div>
+      </div>`;
+  }
+
   A.views.cadastros = function (S) {
-    const sig = JSON.stringify([S.state.data.config, showInactive, S.state.data.initiatives.length]);
+    const sig = JSON.stringify([S.state.data.config, showInactive, S.state.data.initiatives.length, S.calc.carga(), S.calc.wipCount()]);
     const editing = document.activeElement?.closest?.("#view-cadastros");
     if (sig === lastSig && editing) return; // não redesenha sob quem está digitando
     lastSig = sig;
+    document.getElementById("cad-capacidade").innerHTML = capacidadePanel(S);
     document.getElementById("cad-areas").innerHTML = areasPanel(S);
     document.getElementById("cad-pessoas").innerHTML = pessoasPanel(S);
   };
@@ -100,6 +124,11 @@
     root.addEventListener("change", (e) => {
       const el = e.target;
       if (el.id === "cad-show-inactive") { showInactive = el.checked; return rerender(); }
+      if (el.dataset.cap) {
+        const r = S.saveConfig({ [el.dataset.cap]: el.value });
+        if (!r.unchanged) toast("Capacidade atualizada.");
+        return rerender();
+      }
       if (!el.dataset.cad) return;
       const value = el.type === "checkbox" ? el.checked : el.value;
       const r = el.dataset.cad === "area"

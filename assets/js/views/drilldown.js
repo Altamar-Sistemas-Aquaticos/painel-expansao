@@ -222,8 +222,8 @@
 
     const warns = S.warnings(it);
     const nextSit = { Rascunho: "Validar ✓", Validado: "Aprovar para onda ✓" }[it.situacao];
-    // Rascunhos ainda não estão no Kanban: o caminho começa no Portfólio.
-    const root = it.situacao === "Rascunho" ? { label: "Portfólio", href: "#portfolio" } : { label: "Kanban", href: "#kanban" };
+    // Rascunhos ainda não estão no Kanban: o caminho começa na Triagem.
+    const root = it.situacao === "Rascunho" ? { label: "Triagem", href: "#triagem" } : { label: "Kanban", href: "#kanban" };
     const header = `
       ${breadcrumb([root, { label: `Setor ${esc(meta.key)}`, href: sectorHref(meta.key) }, { label: `${esc(it.id)} · ${esc(it.nome)}` }])}
       <div class="panel project-head" style="--sector-color:${meta.cor}">

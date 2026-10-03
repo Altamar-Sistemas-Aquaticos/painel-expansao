@@ -7,7 +7,7 @@
   <meta name="theme-color" content="#026488">
   <title>Painel de Expansão · Altamar</title>
   <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%23026488'/%3E%3Ctext x='32' y='44' font-family='Segoe UI,Arial' font-size='36' font-weight='800' fill='white' text-anchor='middle'%3EA%3C/text%3E%3C/svg%3E">
-  <link rel="stylesheet" href="assets/css/app.css?v=20261002k">
+  <link rel="stylesheet" href="assets/css/app.css?v=20261003a">
   <script>
     // Aplica o tema antes da pintura para evitar "piscar" claro → escuro.
     (function () {
@@ -26,13 +26,13 @@
   <header class="app-header">
     <div class="header-bar">
       <a class="brand" href="#executivo" data-action="go-tab" data-tab="executivo" title="Ir para o Painel executivo">
-        <span class="brand-logo-wrap"><img class="brand-img" src="assets/img/logo-altamar-branco.png?v=20261002k" alt="Altamar Sistemas Aquáticos" width="217" height="54"></span>
+        <span class="brand-logo-wrap"><img class="brand-img" src="assets/img/logo-altamar-branco.png?v=20261003a" alt="Altamar Sistemas Aquáticos" width="217" height="54"></span>
         <span class="brand-divider" aria-hidden="true"></span>
         <span class="brand-sub">Painel de Gestão<br>Projeto de Expansão</span>
       </a>
 
       <div class="header-actions">
-        <div id="wip-pill" class="wip-pill ok" title="Regra do método: 4 a 5 iniciativas simultâneas"></div>
+        <div id="wip-pill" class="wip-pill ok" title="Carga em andamento × capacidade da equipe"></div>
         <button class="btn btn-sm btn-outline no-print" id="btn-presentation" title="Fontes maiores para projetar na reunião">📺 Modo reunião</button>
         <button class="btn btn-sm btn-primary no-print" data-action="meeting-summary">📋 Resumo da reunião</button>
         <div class="menu no-print">
@@ -43,6 +43,7 @@
             <button id="menu-import-excel" role="menuitem">📥 Importar da planilha Excel…</button>
             <button id="menu-export-excel" role="menuitem">📤 Exportar para Excel</button>
             <hr>
+            <button data-action="go-tab" data-tab="cadastros" role="menuitem">👥 Cadastros e capacidade</button>
             <button id="menu-google" role="menuitem">📅 Google Agenda…</button>
             <hr>
             <button id="menu-export-json" role="menuitem">💾 Exportar backup (JSON)</button>
@@ -68,15 +69,14 @@
   <nav class="tabs-wrap no-print" aria-label="Seções">
     <div class="tabs" role="tablist">
       <button class="tab-btn" data-tab="executivo" role="tab">📊 Painel executivo</button>
-      <button class="tab-btn" data-tab="overview" role="tab">🧭 Visão geral</button>
-      <button class="tab-btn" data-tab="portfolio" role="tab">🗂️ Portfólio <span class="tab-count" id="tab-count-rascunho">0</span></button>
-      <button class="tab-btn" data-tab="matriz" role="tab">🎯 Matriz valor × esforço</button>
-      <button class="tab-btn" data-tab="ranking" role="tab">🔢 Ranking <span class="tab-count" id="tab-count-ranking">0</span></button>
-      <button class="tab-btn" data-tab="kanban" role="tab">📋 Kanban da sprint</button>
-      <button class="tab-btn" data-tab="ondas" role="tab">🌊 Ondas trimestrais</button>
+      <button class="tab-btn" data-tab="guia" role="tab">📖 Guia</button>
+      <button class="tab-btn" data-tab="triagem" role="tab">📝 Triagem <span class="tab-count" id="tab-count-triagem">0</span></button>
+      <button class="tab-btn" data-tab="priorizacao" role="tab">🎯 Priorização</button>
+      <button class="tab-btn" data-tab="ondas" role="tab">🌊 Ondas</button>
+      <button class="tab-btn" data-tab="kanban" role="tab">📋 Kanban</button>
+      <button class="tab-btn" data-tab="overview" role="tab">🗓️ Cronograma</button>
       <button class="tab-btn" data-tab="decisoes" role="tab">⚖️ Decisões <span class="tab-count" id="tab-count-decisoes">0</span></button>
       <button class="tab-btn" data-tab="historico" role="tab">🕘 Histórico</button>
-      <button class="tab-btn" data-tab="cadastros" role="tab">👥 Cadastros</button>
     </div>
   </nav>
 
@@ -107,63 +107,48 @@
       <div id="exec-dashboard"></div>
     </section>
 
-    <!-- 1a. Visão geral (anéis por área + lista com linha do tempo) -->
-    <section id="view-overview" class="view" aria-label="Visão geral do portfólio"></section>
+    <!-- 2. Guia: o que é o painel, escalas, regras e roteiro das reuniões -->
+    <section id="view-guia" class="view" aria-label="Guia do painel"><div id="guia-root"></div></section>
 
-    <!-- 1b. Portfólio (raio-x por área) -->
-    <section id="view-portfolio" class="view" aria-label="Portfólio de projetos por área">
+    <!-- 3. Triagem: lista de ideias e projetos para dar valor e esforço -->
+    <section id="view-triagem" class="view" aria-label="Triagem de ideias e projetos">
       <div class="page-head">
         <div>
-          <h2>Portfólio de projetos</h2>
-          <div class="muted">Raio-x por área. Projetos nascem como <strong>Rascunho</strong>, passam a <strong>Validado</strong> na reunião com a diretoria e a <strong>Aprovado para onda</strong> quando entram no ciclo.</div>
+          <h2>Triagem</h2>
+          <div class="muted">Toda ideia entra aqui. Na reunião, dê <strong>valor</strong> e <strong>esforço</strong> a cada uma e valide as que fazem sentido.</div>
         </div>
-        <div class="row no-print" id="portfolio-filters"></div>
+        <div class="muted small" id="triagem-cut"></div>
       </div>
-      <div class="portfolio" id="portfolio"></div>
-    </section>
-
-    <!-- 2. Matriz -->
-    <section id="view-matriz" class="view" aria-label="Matriz valor × esforço">
-      <div class="panel">
-        <div class="panel-head">
-          <div>
-            <h2 class="panel-title">Matriz Valor × Esforço (Fibonacci 1 a 8)</h2>
-            <div class="muted small" id="matrix-cutoff-text"></div>
-          </div>
-          <div class="row" id="matrix-legend-areas"></div>
-        </div>
-        <div class="matrix-wrap">
-          <svg id="matrix-svg" class="matrix-svg" viewBox="0 0 860 500" preserveAspectRatio="xMidYMid meet" role="img" aria-label="Gráfico de dispersão valor por esforço"></svg>
-        </div>
-        <div class="matrix-legend">
-          <span><span class="legend-ring"></span> Contorno laranja = em andamento · bolhas apagadas = fora do filtro</span>
-          <span>Clique em uma bolha para editar status, valor, esforço ou prazo</span>
-        </div>
-      </div>
-    </section>
-
-    <!-- 3. Ranking -->
-    <section id="view-ranking" class="view" aria-label="Ranking priorizado">
-      <div class="page-head">
-        <div>
-          <h2 id="ranking-title">Ranking das iniciativas</h2>
-          <div class="muted">Ordenado pelo índice <strong>Valor ÷ Esforço</strong>. <span id="ranking-filter-note"></span></div>
-        </div>
-        <span class="badge ok" id="ranking-cut-badge"></span>
-      </div>
+      <form id="triagem-form" class="tri-quick no-print" autocomplete="off">
+        <div class="tri-quick-title">💡 Nova ideia</div>
+        <input id="tri-nome" class="input tri-q-nome" placeholder="Qual é a ideia ou projeto?" aria-label="Ideia">
+        <select id="tri-area" class="input" aria-label="Área"></select>
+        <select id="tri-autor" class="input" aria-label="Quem trouxe a ideia"></select>
+        <input id="tri-prazo" class="input tri-q-prazo" placeholder="Prazo pensado" aria-label="Prazo pensado">
+        <select id="tri-valor" class="input" aria-label="Valor prévio"></select>
+        <select id="tri-esforco" class="input" aria-label="Esforço prévio"></select>
+        <button type="submit" class="btn btn-primary">+ Adicionar</button>
+        <div class="field-error tri-q-error" id="tri-error" role="alert"></div>
+      </form>
+      <div class="row no-print tri-filters" id="triagem-filters"></div>
       <div class="table-wrap">
-        <table class="data">
+        <table class="data tri-table">
           <thead>
             <tr>
-              <th>Pos.</th><th>ID</th><th>Iniciativa</th><th>Área</th>
-              <th class="num">Valor</th><th class="num">Esforço</th><th class="num">V ÷ E</th>
-              <th>Tempo est.</th><th>Onda</th><th>Status</th><th class="center">Semáforo</th><th class="center no-print">Ações</th>
+              <th>ID</th><th>Ideia / projeto</th><th>Área</th><th>Autor</th><th>Criado</th>
+              <th>Valor</th><th>Esforço</th><th class="num">V÷E</th><th>Prazo</th><th>Situação</th><th class="no-print"></th>
             </tr>
           </thead>
-          <tbody id="ranking-tbody"></tbody>
+          <tbody id="triagem-tbody"></tbody>
         </table>
       </div>
     </section>
+
+    <!-- 4. Priorização: matriz compacta + ranking -->
+    <section id="view-priorizacao" class="view" aria-label="Priorização"><div id="priorizacao-root"></div></section>
+
+    <!-- 7. Cronograma (antiga Visão geral: anéis por área + lista com linha do tempo) -->
+    <section id="view-overview" class="view" aria-label="Cronograma"></section>
 
     <!-- 4. Kanban -->
     <section id="view-kanban" class="view" aria-label="Kanban da sprint">
@@ -185,11 +170,11 @@
     <section id="view-ondas" class="view" aria-label="Ondas trimestrais">
       <div class="page-head">
         <div>
-          <h2>Linha do tempo das ondas de expansão</h2>
-          <div class="muted">Sequenciamento em ciclos trimestrais para proteger o caixa e a capacidade de entrega. Arraste iniciativas entre ondas para replanejar.</div>
+          <h2>Ondas</h2>
+          <div class="muted">Em que trimestre cada projeto entra. Arraste para mudar de onda.</div>
         </div>
       </div>
-      <div id="waves"></div>
+      <div id="waves" class="waves-board"></div>
     </section>
 
     <!-- 6. Decisões -->
@@ -244,10 +229,11 @@
     <section id="view-cadastros" class="view" aria-label="Cadastros de áreas e pessoas">
       <div class="page-head">
         <div>
-          <h2>Cadastros</h2>
-          <div class="muted">Áreas que organizam o portfólio e pessoas que podem receber papéis na matriz RACI.</div>
+          <h2>Cadastros e capacidade</h2>
+          <div class="muted">Capacidade da equipe, áreas que organizam os projetos e pessoas que podem receber papéis na matriz RACI.</div>
         </div>
       </div>
+      <div class="panel" id="cad-capacidade" style="margin-bottom:1rem"></div>
       <div class="cad-grid">
         <div class="panel" id="cad-areas"></div>
         <div class="panel" id="cad-pessoas"></div>
@@ -323,6 +309,10 @@
           <div class="field">
             <label for="ini-situacao">Situação do cadastro</label>
             <select id="ini-situacao" class="input"></select>
+          </div>
+          <div class="field">
+            <label for="ini-autor">Autor da ideia</label>
+            <select id="ini-autor" class="input"></select>
           </div>
         </div>
 
@@ -537,23 +527,24 @@
   <datalist id="people-list"></datalist>
   <div class="toasts" id="toasts" aria-live="polite"></div>
 
-  <script src="assets/js/utils.js?v=20261002k"></script>
-  <script src="assets/js/data.js?v=20261002k"></script>
-  <script src="assets/js/activities-seed.js?v=20261002k"></script>
-  <script src="assets/js/store.js?v=20261002k"></script>
-  <script src="assets/js/excel.js?v=20261002k"></script>
-  <script src="assets/js/views/executive.js?v=20261002k"></script>
-  <script src="assets/js/views/matrix.js?v=20261002k"></script>
-  <script src="assets/js/views/tables.js?v=20261002k"></script>
-  <script src="assets/js/views/board.js?v=20261002k"></script>
-  <script src="assets/js/views/drilldown.js?v=20261002k"></script>
-  <script src="assets/js/views/portfolio.js?v=20261002k"></script>
-  <script src="assets/js/views/overview.js?v=20261002k"></script>
-  <script src="assets/js/views/cadastros.js?v=20261002k"></script>
-  <script src="assets/js/google.js?v=20261002k"></script>
-  <script src="assets/js/compromissos.js?v=20261002k"></script>
-  <script src="assets/js/forms.js?v=20261002k"></script>
-  <script src="assets/js/ficha.js?v=20261002k"></script>
-  <script src="assets/js/app.js?v=20261002k"></script>
+  <script src="assets/js/utils.js?v=20261003a"></script>
+  <script src="assets/js/data.js?v=20261003a"></script>
+  <script src="assets/js/activities-seed.js?v=20261003a"></script>
+  <script src="assets/js/store.js?v=20261003a"></script>
+  <script src="assets/js/excel.js?v=20261003a"></script>
+  <script src="assets/js/views/executive.js?v=20261003a"></script>
+  <script src="assets/js/views/matrix.js?v=20261003a"></script>
+  <script src="assets/js/views/tables.js?v=20261003a"></script>
+  <script src="assets/js/views/board.js?v=20261003a"></script>
+  <script src="assets/js/views/drilldown.js?v=20261003a"></script>
+  <script src="assets/js/views/triagem.js?v=20261003a"></script>
+  <script src="assets/js/views/guia.js?v=20261003a"></script>
+  <script src="assets/js/views/overview.js?v=20261003a"></script>
+  <script src="assets/js/views/cadastros.js?v=20261003a"></script>
+  <script src="assets/js/google.js?v=20261003a"></script>
+  <script src="assets/js/compromissos.js?v=20261003a"></script>
+  <script src="assets/js/forms.js?v=20261003a"></script>
+  <script src="assets/js/ficha.js?v=20261003a"></script>
+  <script src="assets/js/app.js?v=20261003a"></script>
 </body>
 </html>

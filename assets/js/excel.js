@@ -35,6 +35,7 @@
     indicador: ["indicadordesucesso", "indicador"],
     investimento: ["investimento", "exigeinvestimento"],
     situacao: ["situacaodocadastro", "situacao"],
+    autor: ["autor", "autordaideia", "quemtrouxe"],
   };
   const DECISION_COLUMNS = {
     data: ["data"],
@@ -208,7 +209,7 @@
         if (prazo) incoming.prazo = prazo;
         const obs = toText(row.observacoes);
         if (obs) incoming.observacoes = obs;
-        ["objetivo", "prontoQuando", "indicador"].forEach((k) => {
+        ["objetivo", "prontoQuando", "indicador", "autor"].forEach((k) => {
           const v = toText(row[k]);
           if (v) incoming[k] = v;
         });
@@ -219,7 +220,7 @@
 
         const existing = S.findInitiative(id);
         if (!existing) {
-          plan.initiatives.push({ isNew: true, id, data: { id, valor: 1, esforco: 1, onda: "Fila", ...incoming } });
+          plan.initiatives.push({ isNew: true, id, data: { id, valor: 0, esforco: 0, onda: "Fila", ...incoming } });
           return;
         }
         const patch = {};
@@ -355,6 +356,7 @@
       "Indicador de sucesso": it.indicador,
       "Investimento?": it.investimento,
       "Situação do cadastro": it.situacao,
+      "Autor da ideia": it.autor,
       Observações: it.observacoes,
     }));
     const actRows = [];
@@ -394,7 +396,7 @@
       ws["!cols"] = widths.map((w) => ({ wch: w }));
       XLSX.utils.book_append_sheet(wb, ws, name);
     };
-    add(iniRows, "Iniciativas", [8, 6, 60, 12, 7, 8, 7, 12, 10, 14, 16, 9, 14, 10, 18, 14, 14, 12, 40, 40, 30, 12, 16, 50]);
+    add(iniRows, "Iniciativas", [8, 6, 60, 12, 7, 8, 7, 12, 10, 14, 16, 9, 14, 10, 18, 14, 14, 12, 40, 40, 30, 12, 16, 14, 50]);
     add(actRows, "Atividades", [8, 40, 5, 60, 40, 16, 16, 22, 22, 12, 12, 10, 13, 12, 40]);
     // Cadastros (referência; a importação não lê estas abas)
     add(S.areas().map((a) => ({ Área: a.key, Código: a.code, Cor: a.cor })), "Areas", [20, 8, 10]);
@@ -411,7 +413,9 @@
     const resumo = [
       { Indicador: "Linha de corte (Σ Valor ÷ Σ Esforço)", Valor: Math.round(cut * 100) / 100 },
       { Indicador: "Iniciativas acima da linha", Valor: ranked.filter((i) => isAboveCut(i, cut)).length },
-      { Indicador: "Em andamento (WIP)", Valor: S.calc.wipCount() },
+      { Indicador: "Projetos em andamento", Valor: S.calc.wipCount() },
+      { Indicador: "Carga em andamento (pontos de esforço)", Valor: S.calc.carga() },
+      { Indicador: "Capacidade (pontos) / trava de projetos", Valor: `${S.calc.capacidade()} / ${S.calc.maxProjetos()}` },
       { Indicador: "Concluídas", Valor: ranked.filter((i) => i.status === "Concluído").length },
       { Indicador: "Decisões pendentes", Valor: S.state.data.decisions.filter((d) => d.status === "Pendente").length },
       { Indicador: "Exportado em", Valor: A.util.fmtDateTime(new Date().toISOString()) },

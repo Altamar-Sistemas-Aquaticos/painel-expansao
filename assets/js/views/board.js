@@ -34,7 +34,7 @@
 
   A.views.kanban = function (S) {
     const { ve } = S.calc;
-    // Rascunhos ficam no Portfólio até serem validados.
+    // Rascunhos ficam na Triagem até serem validados.
     const items = S.filtered().filter((i) => i.status !== "Cancelado" && i.situacao !== "Rascunho");
     const cols = Object.fromEntries(A.meta.COLUNAS.map((c) => [c.key, []]));
     items.forEach((it) => cols[it.coluna]?.push(it));
@@ -44,7 +44,7 @@
     cols.done.sort((a, b) => (a.atualizadoEm < b.atualizadoEm ? 1 : -1));
 
     const wip = S.calc.wipCount();
-    const over = wip > A.meta.WIP_MAX;
+    const over = S.calc.overCapacity();
 
     document.getElementById("kanban").innerHTML = A.meta.COLUNAS.map((c) => {
       const list = cols[c.key];
@@ -66,45 +66,45 @@
 
     const wipNote = document.getElementById("kanban-wip-note");
     wipNote.className = `wip-pill ${over ? "warn" : "ok"}`;
-    wipNote.textContent = `WIP: ${wip} em andamento (limite ${A.meta.WIP_MIN}–${A.meta.WIP_MAX})`;
+    wipNote.textContent = `Carga: ${S.calc.carga()} de ${S.calc.capacidade()} pontos · ${wip} de ${S.calc.maxProjetos()} projetos`;
   };
 
   /* ---------- Ondas ---------- */
+  // Capacidade de um trimestre: a equipe "gira" a carga cerca de duas vezes por onda.
+  const capOnda = (S) => S.calc.capacidade() * 2;
+
   A.views.waves = function (S) {
     const { ve } = S.calc;
-    const filtering = S.hasActiveFilters();
     document.getElementById("waves").innerHTML = A.meta.ONDAS.map((o) => {
-      const all = S.state.data.initiatives.filter((i) => i.onda === o.key);
-      const list = all.filter((i) => S.matchesFilters(i)).sort((a, b) => ve(b) - ve(a));
-      const active = all.filter((i) => i.status !== "Cancelado");
-      const done = active.filter((i) => i.status === "Concluído").length;
-      const doing = active.filter((i) => i.status === "Em andamento").length;
-      const sumE = active.reduce((s, i) => s + i.esforco, 0);
+      const list = S.state.data.initiatives
+        .filter((i) => i.onda === o.key && i.status !== "Cancelado" && S.matchesFilters(i))
+        .sort((a, b) => (a.status === "Concluído") - (b.status === "Concluído") || ve(b) - ve(a));
+      const pts = list.filter((i) => i.status !== "Concluído").reduce((s, i) => s + (i.esforco || 0), 0);
+      const isFila = o.key === "Fila";
+      const cap = capOnda(S);
+      const pct = Math.min(100, Math.round((pts / cap) * 100));
+      const over = !isFila && pts > cap;
       return `
-        <section class="wave" style="--wave-color:${o.color}" data-drop-onda="${esc(o.key)}">
-          <div class="wave-head">
-            <div>
-              <h3 class="wave-title">${o.key === "Fila" ? "⏳" : "🌊"} ${esc(o.key)} · ${esc(o.periodo)}: “${esc(o.titulo)}”</h3>
-              <div class="muted small" style="margin-top:0.15rem">${esc(o.descricao)}</div>
-            </div>
-            <div class="row">
-              <span class="badge">${active.length} iniciativas</span>
-              ${doing ? `<span class="badge accent">${doing} em andamento</span>` : ""}
-              ${done ? `<span class="badge ok">${done} concluídas</span>` : ""}
-              <span class="badge" title="Soma do esforço (Fibonacci) das iniciativas ativas">Σ esforço ${sumE}</span>
-            </div>
-          </div>
-          <div class="wave-chips">
+        <section class="wave-col" style="--wave-color:${o.color}" data-drop-onda="${esc(o.key)}" aria-label="${esc(o.key)}">
+          <header class="wave-col-head" title="${esc(o.titulo)}">
+            <div class="wave-col-title">${esc(o.key)}</div>
+            <div class="wave-col-sub">${esc(o.periodo)}</div>
+            ${isFila ? `<div class="wave-col-load muted">${pts} pts aguardando</div>` : `
+            <div class="wave-cap ${over ? "over" : ""}" title="Pontos de esforço planejados × capacidade do trimestre (${cap})">
+              <div class="wave-cap-bar"><span style="width:${pct}%"></span></div>
+              <div class="wave-col-load">${pts} de ${cap} pts</div>
+            </div>`}
+          </header>
+          <div class="wave-col-list">
             ${list.length ? list.map((it) => `
-              <div class="chip ${it.status === "Concluído" ? "done" : ""}" draggable="true" data-drag="initiative" data-id="${esc(it.id)}"
-                   data-action="edit-initiative" tabindex="0" role="button" title="${esc(it.status)} · V÷E ${fmtNum(ve(it))}"
-                   style="${it.status === "Cancelado" ? "opacity:0.5" : ""}">
-                ${ui.dot(it.semaforo)}
-                ${ui.areaBadge(it.area, it.id)}
-                <span class="chip-name">${esc(it.nome)}</span>
-                <span class="muted small nowrap">V÷E ${fmtNum(ve(it))}</span>
+              <div class="wchip ${it.status === "Concluído" ? "done" : ""}" draggable="true" data-drag="initiative" data-id="${esc(it.id)}"
+                   data-action="edit-initiative" tabindex="0" role="button"
+                   title="${esc(it.nome)} · ${esc(it.status)} · V÷E ${fmtNum(ve(it))} · esforço ${it.esforco || "?"}"
+                   style="--ac:${A.area(it.area).cor}">
+                <span class="wchip-id">${esc(it.id)}</span>
+                <span class="wchip-name">${esc(it.nome)}</span>
               </div>`).join("")
-              : `<div class="muted small">${filtering && all.length ? "Nenhuma iniciativa desta onda corresponde aos filtros." : "Arraste iniciativas para esta onda."}</div>`}
+              : `<div class="wave-empty">Arraste projetos para cá</div>`}
           </div>
         </section>`;
     }).join("");
@@ -163,9 +163,8 @@
     const r = S.moveToColumn(id, coluna);
     if (!r.ok) return toast(r.error, "error");
     const col = A.meta.COLUNAS.find((c) => c.key === coluna);
-    const wip = S.calc.wipCount();
-    if (!wasWip && (coluna === "doing" || coluna === "waiting") && wip > A.meta.WIP_MAX) {
-      toast(`${id} movida para “${col.label}”. Atenção: ${wip} iniciativas em andamento (limite ${A.meta.WIP_MAX}).`, "warn", 5000);
+    if (!wasWip && (coluna === "doing" || coluna === "waiting") && S.calc.overCapacity()) {
+      toast(`${id} movida para “${col.label}”. Atenção: carga de ${S.calc.carga()} pts para capacidade de ${S.calc.capacidade()} (${S.calc.wipCount()} projetos, trava ${S.calc.maxProjetos()}).`, "warn", 6000);
     } else {
       toast(`${id} movida para “${col.label}”.`);
     }
@@ -179,5 +178,5 @@
     toast(`${id} movida para ${onda}.`);
   }
 
-  A.board = { initDragAndDrop, moveCard };
+  A.board = { initDragAndDrop, moveCard, capOnda };
 })();

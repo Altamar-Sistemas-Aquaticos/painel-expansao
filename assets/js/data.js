@@ -40,6 +40,27 @@
   ];
 
   const FIBONACCI = [1, 2, 3, 5, 8];
+
+  // Escalas usadas no Guia e em todas as listas de nota (valor dado pela diretoria, esforço conferido com quem executa).
+  const VALOR_ESCALA = {
+    1: { curto: "Melhoria pequena", texto: "Melhoria pequena, “seria bom ter”", exemplo: "Padronizar um modelo de e-mail" },
+    2: { curto: "Pontual num setor", texto: "Melhora pontual num setor", exemplo: "Organizar a pasta de projetos" },
+    3: { curto: "Impacto num setor", texto: "Impacto claro num setor ou ganho indireto de receita", exemplo: "Cases de zoológicos para o site" },
+    5: { curto: "Clientes ou receita", texto: "Impacto em clientes, receita ou em vários setores", exemplo: "Formulário padrão de requisitos" },
+    8: { curto: "Estratégico", texto: "Estratégico: muda faturamento ou posicionamento", exemplo: "Prospecção por CNAE · oferta de fazenda completa" },
+  };
+  const ESFORCO_ESCALA = {
+    1: { curto: "Até 1 semana", texto: "Uma pessoa resolve sozinha" },
+    2: { curto: "2 semanas", texto: "Poucas etapas, sem dependência" },
+    3: { curto: "1 mês", texto: "Envolve outra área ou validação" },
+    5: { curto: "2 meses", texto: "Várias etapas, várias pessoas" },
+    8: { curto: "3 meses ou mais", texto: "Investimento, fornecedor externo ou muita incerteza" },
+  };
+
+  // Capacidade de execução: soma do esforço dos projetos em andamento (pontos) e trava de quantidade.
+  const CAPACIDADE_PADRAO = 15;
+  const MAX_PROJETOS_PADRAO = 8;
+  const SPRINTS_POR_ONDA = 6; // trimestre ≈ 6 sprints de 2 semanas
   const WIP_MIN = 4;
   const WIP_MAX = 5;
   const PESSOAS = ["Pedro", "Maíra", "Shei"];
@@ -90,7 +111,15 @@
     { id: "d3", data: "24/10/2026", quem: "Maíra / Shei", grupo: "V4", pauta: "Aprovar teto orçamentário de investimento para V4, E3 e E4 (P&D e Consultoria Comercial)", status: "Pendente", resultado: "Pauta agendada para a reunião mensal de fechamento estratégico." },
   ];
 
-  A.meta = { ONDAS, STATUS, SEMAFOROS, COLUNAS, FIBONACCI, WIP_MIN, WIP_MAX, PESSOAS, tempoPorEsforco };
+  A.meta = {
+    ONDAS, STATUS, SEMAFOROS, COLUNAS, FIBONACCI, WIP_MIN, WIP_MAX, PESSOAS, tempoPorEsforco,
+    VALOR_ESCALA, ESFORCO_ESCALA, CAPACIDADE_PADRAO, MAX_PROJETOS_PADRAO, SPRINTS_POR_ONDA,
+  };
+  // Opções de <select> com a descrição da escala ("5 · Clientes ou receita").
+  A.meta.valorOptions = (sel, blank = "— A definir —") => `<option value="">${blank}</option>` +
+    FIBONACCI.map((f) => `<option value="${f}" ${String(f) === String(sel) ? "selected" : ""}>${f} · ${VALOR_ESCALA[f].curto}</option>`).join("");
+  A.meta.esforcoOptions = (sel, blank = "— A definir —") => `<option value="">${blank}</option>` +
+    FIBONACCI.map((f) => `<option value="${f}" ${String(f) === String(sel) ? "selected" : ""}>${f} · ${ESFORCO_ESCALA[f].curto}</option>`).join("");
   A.defaults = { areas: AREAS, pessoas: PESSOAS_INICIAIS, initiatives: DEFAULT_INITIATIVES, decisions: DEFAULT_DECISIONS };
 
   A.onda = (key) => ONDAS.find((o) => o.key === key) || ONDAS[ONDAS.length - 1];

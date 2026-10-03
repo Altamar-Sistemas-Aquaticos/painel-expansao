@@ -24,9 +24,8 @@
   function setupInitiativeSelects() {
     const { FIBONACCI, ONDAS, STATUS, SEMAFOROS } = A.meta;
     $("ini-situacao").innerHTML = optionList(A.store.SITUACOES);
-    const fib = FIBONACCI.map((f) => [f, `${f} — ${A.meta.tempoPorEsforco(f)}`]);
-    $("ini-valor").innerHTML = optionList(FIBONACCI.map((f) => [f, String(f)]));
-    $("ini-esforco").innerHTML = optionList(fib);
+    $("ini-valor").innerHTML = A.meta.valorOptions("");
+    $("ini-esforco").innerHTML = A.meta.esforcoOptions("");
     $("ini-onda").innerHTML = optionList(ONDAS.map((o) => [o.key, `${o.key} · ${o.periodo}`]));
     $("ini-status").innerHTML = optionList(STATUS);
     $("ini-semaforo").innerHTML = optionList(SEMAFOROS.map((s) => [s.key, `${s.label} — ${s.desc}`]));
@@ -36,6 +35,10 @@
     const S = A.store;
     const valor = Number($("ini-valor").value);
     const esforco = Number($("ini-esforco").value);
+    if (!valor || !esforco) {
+      $("ini-calc").innerHTML = `<span class="muted">Defina valor e esforço para calcular o V ÷ E e comparar com a linha de corte.</span>`;
+      return;
+    }
     const veVal = esforco ? valor / esforco : 0;
     // A linha de corte considera os valores que estão sendo editados.
     const others = S.state.data.initiatives.filter((i) => i.id !== editingId);
@@ -57,7 +60,7 @@
 
     const area = it ? it.area : (S.state.ui.area !== "ALL" ? S.state.ui.area : S.areas()[0].key);
     const data = it || {
-      id: S.nextId(area), nome: "", area, valor: 3, esforco: 3, onda: "Fila", status: "A fazer",
+      id: S.nextId(area), nome: "", area, valor: 0, esforco: 0, onda: "Fila", status: "A fazer", autor: S.state.settings.user || "",
       semaforo: "verde", responsavel: S.state.settings.user || "", prazo: "", observacoes: "", enabler: false,
       situacao: "Rascunho", objetivo: "", prontoQuando: "", indicador: "", investimento: "Não",
     };
@@ -66,13 +69,14 @@
     $("ini-nome").value = data.nome;
     $("ini-area").innerHTML = A.ui.areaOptions(data.area);
     $("ini-responsavel").innerHTML = A.ui.peopleOptions(data.responsavel, { blank: "A definir" });
+    $("ini-autor").innerHTML = A.ui.peopleOptions(data.autor, { blank: "Não informado" });
     $("ini-situacao").value = data.situacao;
     $("ini-objetivo").value = data.objetivo || "";
     $("ini-pronto").value = data.prontoQuando || "";
     $("ini-indicador").value = data.indicador || "";
     $("ini-invest").checked = data.investimento === "Sim";
-    $("ini-valor").value = data.valor;
-    $("ini-esforco").value = data.esforco;
+    $("ini-valor").value = data.valor || "";
+    $("ini-esforco").value = data.esforco || "";
     $("ini-onda").value = data.onda;
     $("ini-status").value = data.status;
     $("ini-semaforo").value = data.semaforo;
@@ -102,6 +106,7 @@
       id: $("ini-id").value,
       nome: $("ini-nome").value,
       area: $("ini-area").value,
+      autor: $("ini-autor").value,
       valor: Number($("ini-valor").value),
       esforco: Number($("ini-esforco").value),
       onda: $("ini-onda").value,
@@ -126,8 +131,8 @@
     closeModal("modal-initiative");
     if (r.unchanged) return;
     toast(editingId ? `${r.item.id} atualizada.` : `${r.item.id} criada.`);
-    if (!wasWip && r.item.status === "Em andamento" && S.calc.wipCount() > A.meta.WIP_MAX) {
-      toast(`Atenção: ${S.calc.wipCount()} iniciativas em andamento (limite ${A.meta.WIP_MAX}).`, "warn", 5000);
+    if (!wasWip && r.item.status === "Em andamento" && S.calc.overCapacity()) {
+      toast(`Atenção: carga de ${S.calc.carga()} pts para capacidade de ${S.calc.capacidade()} (${S.calc.wipCount()} projetos, trava ${S.calc.maxProjetos()}).`, "warn", 6000);
     }
   }
 
@@ -142,7 +147,7 @@
     const r = S.deleteInitiative(id);
     if (!r.ok) return toast(r.error, "error");
     closeModal("modal-initiative");
-    if (location.hash.startsWith("#projeto/")) location.hash = "portfolio";
+    if (location.hash.startsWith("#projeto/")) location.hash = "triagem";
     toast(`${id} excluído.`, "warn");
   }
 
@@ -240,8 +245,8 @@
 
     let t = `${line}\nPAINEL DE EXPANSÃO ALTAMAR — RESUMO DA REUNIÃO\n`;
     t += `Data: ${new Date().toLocaleDateString("pt-BR")} · Gestão: Pedro | Diretoria: Maíra & Shei\n${line}\n\n`;
-    t += `1. STATUS DO FLUXO (WIP)\n`;
-    t += `• Em andamento: ${inProgress.length} (limite recomendado: ${A.meta.WIP_MIN} a ${A.meta.WIP_MAX})\n`;
+    t += `1. STATUS DO FLUXO (CARGA)\n`;
+    t += `• Em andamento: ${inProgress.length} projeto(s) · carga de ${S.calc.carga()} de ${S.calc.capacidade()} pontos (trava de ${S.calc.maxProjetos()} projetos)\n`;
     t += `• Concluídas: ${done.length} de ${active.length} iniciativas ativas (${active.length ? Math.round((done.length / active.length) * 100) : 0}%)\n`;
     t += `• Linha de corte V÷E: ${fmtNum(cut)}\n\n`;
 

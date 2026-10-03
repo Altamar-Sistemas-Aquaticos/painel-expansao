@@ -5,7 +5,9 @@
   const { toast, closeModal, closeTopModal, confirmDialog, downloadBlob, esc, initials } = A.util;
   const $ = (id) => document.getElementById(id);
 
-  const TABS = ["executivo", "overview", "portfolio", "matriz", "ranking", "kanban", "ondas", "decisoes", "historico", "cadastros"];
+  const TABS = ["executivo", "guia", "triagem", "priorizacao", "ondas", "kanban", "overview", "decisoes", "historico", "cadastros"];
+  // Endereços antigos (favoritos e links salvos) continuam funcionando.
+  const ALIASES = { portfolio: "triagem", matriz: "priorizacao", ranking: "priorizacao", cronograma: "overview" };
   const TAB_KEY = "altamar_painel_tab";
   // Rota atual. Telas de detalhamento: "setor/<área>" e "projeto/<id>" (pertencem à aba Kanban).
   let route = { view: "executivo", param: null };
@@ -13,11 +15,11 @@
   /* ---------- Renderização ---------- */
   function renderAll() {
     A.views.executive(S);
+    A.views.guia(S);
+    A.views.triagem(S);
+    A.views.priorizacao(S);
     A.views.overview(S);
-    A.views.portfolio(S);
     A.views.cadastros(S);
-    A.views.matrix(S);
-    A.views.ranking(S);
     A.views.kanban(S);
     A.views.waves(S);
     A.views.decisions(S);
@@ -61,7 +63,8 @@
 
   /* ---------- Abas ---------- */
   function parseRoute(hash) {
-    const [view, ...rest] = String(hash || "").split("/");
+    let [view, ...rest] = String(hash || "").split("/");
+    view = ALIASES[view] || view;
     const param = rest.length ? decodeURIComponent(rest.join("/")) : null;
     if (view === "setor" && S.findArea(param)) return { view, param };
     if (view === "projeto" && param) return { view, param };
@@ -80,7 +83,7 @@
     });
     document.querySelectorAll(".view").forEach((v) => v.classList.toggle("active", v.id === `view-${route.view}`));
     // Os filtros de área/status/onda não se aplicam a estas telas.
-    document.querySelector(".filter-bar").classList.toggle("hidden", ["executivo", "decisoes", "historico", "cadastros"].includes(route.view));
+    document.querySelector(".filter-bar").classList.toggle("hidden", ["executivo", "guia", "decisoes", "historico", "cadastros"].includes(route.view));
     if (route.view === "setor") A.views.sector(S, route.param);
     if (route.view === "projeto") A.views.project(S, route.param);
     if (route.view !== prev.view || route.param !== prev.param) window.scrollTo(0, 0);
@@ -111,7 +114,7 @@
     },
     "finish-project": (id) => A.board.moveCard(id, "done"),
     "delete-decision": (id) => A.forms.deleteDecision(id),
-    "go-tab": (tab) => switchTab(tab),
+    "go-tab": (tab) => { closeMenu(); switchTab(tab); },
     "close-modal": (id) => {
       const m = $(id);
       closeModal(id);
@@ -301,6 +304,7 @@
     A.drill.initActivityEvents();
     A.ficha.init();
     A.cadastros.init();
+    A.triagem.init();
     A.compromissos.init();
     A.google.init();
     $("menu-google").addEventListener("click", () => { closeMenu(); A.google.openSettings(); });
@@ -340,6 +344,8 @@
     if (!initialTab) { try { initialTab = sessionStorage.getItem(TAB_KEY); } catch {} }
     switchTab(initialTab || "executivo");
     renderAll();
+    // O navegador rola até o elemento cujo id coincide com o #endereço (ex.: #kanban); a aba sempre abre no topo.
+    window.addEventListener("load", () => window.scrollTo(0, 0));
 
     if (origin === "migrated") toast("Seus dados do painel anterior foram migrados automaticamente.", "ok", 6000);
     if (!S.state.settings.user) A.forms.openUserForm(true);
