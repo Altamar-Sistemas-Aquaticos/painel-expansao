@@ -5,13 +5,12 @@
   const ui = A.ui;
   const $ = (id) => document.getElementById(id);
 
-  const SIT_CLASS = { Rascunho: "warn", Validado: "accent", "Aprovado para onda": "ok" };
-  const NEXT_LABEL = { Rascunho: "Validar", Validado: "Aprovar p/ onda" };
+  const SIT_CLASS = { Rascunho: "warn", Validado: "ok" };
+  const NEXT_LABEL = { Rascunho: "Validar" };
   const FILTROS = [
     ["triar", "A triar"],
     ["semnota", "Sem nota"],
     ["Validado", "Validados"],
-    ["Aprovado para onda", "Aprovados"],
     ["ALL", "Todos"],
   ];
 
@@ -21,7 +20,6 @@
     triar: (it) => ativo(it) && (it.situacao === "Rascunho" || semNota(it)),
     semnota: (it) => ativo(it) && semNota(it),
     Validado: (it) => ativo(it) && it.situacao === "Validado",
-    "Aprovado para onda": (it) => ativo(it) && it.situacao === "Aprovado para onda",
     ALL: () => true,
   };
 

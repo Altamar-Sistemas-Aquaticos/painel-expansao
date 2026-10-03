@@ -8,7 +8,8 @@
   const PAD = { left: 40, right: 16, top: 16, bottom: 40 };
   const plotW = W - PAD.left - PAD.right;
   const plotH = H - PAD.top - PAD.bottom;
-  const x = (e) => PAD.left + ((e - 0.5) / 8) * plotW;
+  const EMAX = A.meta.ESFORCO_PONTOS.length; // esforço 1 a 5 (meses); valor segue 1, 2, 3, 5, 8
+  const x = (e) => PAD.left + ((e - 0.5) / EMAX) * plotW;
   const y = (v) => H - PAD.bottom - ((v - 0.5) / 8) * plotH;
 
   const ativo = (it) => it.status !== "Cancelado" && it.status !== "Concluído";
@@ -19,22 +20,24 @@
     const c = cutoff().value;
     const parts = [];
 
-    // Ganhos rápidos: esforço até 3, valor a partir de 5.
-    parts.push(`<rect class="qw-rect" x="${x(0.5)}" y="${y(8.5)}" width="${x(4) - x(0.5)}" height="${y(4) - y(8.5)}" rx="6"/>`);
+    // Ganhos rápidos: esforço até 2 meses, valor a partir de 5.
+    parts.push(`<rect class="qw-rect" x="${x(0.5)}" y="${y(8.5)}" width="${x(2.5) - x(0.5)}" height="${y(4) - y(8.5)}" rx="6"/>`);
     parts.push(`<text class="qw-text" x="${x(0.5) + 8}" y="${y(8.5) + 15}">★ GANHOS RÁPIDOS</text>`);
 
     A.meta.FIBONACCI.forEach((v) => {
       parts.push(`<line class="grid-line" x1="${PAD.left}" x2="${W - PAD.right}" y1="${y(v)}" y2="${y(v)}"/>`);
       parts.push(`<text class="axis-label" x="${PAD.left - 8}" y="${y(v) + 4}" text-anchor="end">${v}</text>`);
-      parts.push(`<line class="grid-line" x1="${x(v)}" x2="${x(v)}" y1="${PAD.top}" y2="${H - PAD.bottom}"/>`);
-      parts.push(`<text class="axis-label" x="${x(v)}" y="${H - PAD.bottom + 16}" text-anchor="middle">${v}</text>`);
+    });
+    A.meta.ESFORCO_PONTOS.forEach((e) => {
+      parts.push(`<line class="grid-line" x1="${x(e)}" x2="${x(e)}" y1="${PAD.top}" y2="${H - PAD.bottom}"/>`);
+      parts.push(`<text class="axis-label" x="${x(e)}" y="${H - PAD.bottom + 16}" text-anchor="middle">${e} · ${A.meta.tempoPorEsforco(e)}</text>`);
     });
 
     if (c > 0) {
-      const e1 = Math.max(0.5, 0.5 / c), e2 = Math.min(8.5, 8.5 / c);
+      const e1 = Math.max(0.5, 0.5 / c), e2 = Math.min(EMAX + 0.5, 8.5 / c);
       if (e2 > e1) parts.push(`<line class="cutoff" x1="${x(e1)}" y1="${y(c * e1)}" x2="${x(e2)}" y2="${y(c * e2)}"><title>Linha de corte V÷E = ${fmtNum(c)}</title></line>`);
     }
-    parts.push(`<text class="axis-title" x="${PAD.left + plotW / 2}" y="${H - 6}" text-anchor="middle">ESFORÇO →</text>`);
+    parts.push(`<text class="axis-title" x="${PAD.left + plotW / 2}" y="${H - 6}" text-anchor="middle">ESFORÇO (tempo) →</text>`);
     parts.push(`<text class="axis-title" x="${-(PAD.top + plotH / 2)}" y="12" transform="rotate(-90)" text-anchor="middle">VALOR →</text>`);
 
     // Pontos coincidentes são distribuídos em círculo para não se esconderem.
@@ -74,6 +77,8 @@
     const rows = ranked.filter((it) => S.matchesFilters(it));
     const above = ranked.filter((it) => isAboveCut(it, cut.value)).length;
 
+    const sp = S.sprintAtual();
+    const naSprint = new Set(S.sprintItems().map(({ it }) => it.id));
     let dividerDone = false;
     const list = rows.map((it) => {
       const isAbove = isAboveCut(it, cut.value);
@@ -88,7 +93,7 @@
           <span class="pr-id" style="--ac:${A.area(it.area).cor}">${esc(it.id)}</span>
           <span class="pr-name">${esc(it.nome)}</span>
           <span class="pr-ve" title="Valor ${it.valor} ÷ Esforço ${it.esforco}">${fmtNum(ve(it))}</span>
-          <span class="pr-onda">${esc(it.onda)}</span>
+          <span class="pr-onda">${esc(it.onda)}${naSprint.has(it.id) ? `<span class="sprint-tag" title="Tem atividades na sprint atual">${esc(sp.id.replace("S", "Sprint "))}</span>` : ""}</span>
         </li>`;
     }).join("");
 

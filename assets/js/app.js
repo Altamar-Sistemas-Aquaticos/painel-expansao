@@ -113,6 +113,9 @@
       if (it) location.hash = A.drill.sectorHref(it.area);
     },
     "finish-project": (id) => A.board.moveCard(id, "done"),
+    "open-activity": (key) => A.sprint.openActivity(key),
+    "plan-sprint": () => A.sprint.openPlan(),
+    "new-sprint": () => A.sprint.novaSprint(),
     "delete-decision": (id) => A.forms.deleteDecision(id),
     "go-tab": (tab) => { closeMenu(); switchTab(tab); },
     "close-modal": (id) => {
@@ -305,6 +308,7 @@
     A.ficha.init();
     A.cadastros.init();
     A.triagem.init();
+    A.sprint.init();
     A.compromissos.init();
     A.google.init();
     $("menu-google").addEventListener("click", () => { closeMenu(); A.google.openSettings(); });
@@ -348,6 +352,7 @@
     window.addEventListener("load", () => window.scrollTo(0, 0));
 
     if (origin === "migrated") toast("Seus dados do painel anterior foram migrados automaticamente.", "ok", 6000);
+    if (origin === "upgraded") toast("Painel atualizado: esforço agora em meses (1 a 5) e Kanban por sprint de 4 semanas. Confira a Sprint 1 no Kanban.", "ok", 9000);
     if (!S.state.settings.user) A.forms.openUserForm(true);
   }
 

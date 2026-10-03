@@ -122,7 +122,6 @@
       indicador: $("ini-indicador").value,
       investimento: $("ini-invest").checked ? "Sim" : "Não",
     };
-    const wasWip = editingId ? S.findInitiative(editingId)?.status === "Em andamento" : false;
     const r = S.saveInitiative(input, editingId);
     if (!r.ok) {
       $("ini-error").textContent = r.error;
@@ -131,9 +130,6 @@
     closeModal("modal-initiative");
     if (r.unchanged) return;
     toast(editingId ? `${r.item.id} atualizada.` : `${r.item.id} criada.`);
-    if (!wasWip && r.item.status === "Em andamento" && S.calc.overCapacity()) {
-      toast(`Atenção: carga de ${S.calc.carga()} pts para capacidade de ${S.calc.capacidade()} (${S.calc.wipCount()} projetos, trava ${S.calc.maxProjetos()}).`, "warn", 6000);
-    }
   }
 
   async function deleteInitiative(id) {
@@ -245,8 +241,10 @@
 
     let t = `${line}\nPAINEL DE EXPANSÃO ALTAMAR — RESUMO DA REUNIÃO\n`;
     t += `Data: ${new Date().toLocaleDateString("pt-BR")} · Gestão: Pedro | Diretoria: Maíra & Shei\n${line}\n\n`;
-    t += `1. STATUS DO FLUXO (CARGA)\n`;
-    t += `• Em andamento: ${inProgress.length} projeto(s) · carga de ${S.calc.carga()} de ${S.calc.capacidade()} pontos (trava de ${S.calc.maxProjetos()} projetos)\n`;
+    t += `1. STATUS DO FLUXO (SPRINT)\n`;
+    const si = A.sprintInfo(S);
+    t += `• Em andamento: ${inProgress.length} projeto(s)\n`;
+    if (si.sp) t += `• ${si.rotulo} (${si.periodo}): ${si.feitas} de ${si.total} atividades feitas${si.sp.objetivo ? ` · Objetivo: ${si.sp.objetivo}` : ""}\n`;
     t += `• Concluídas: ${done.length} de ${active.length} iniciativas ativas (${active.length ? Math.round((done.length / active.length) * 100) : 0}%)\n`;
     t += `• Linha de corte V÷E: ${fmtNum(cut)}\n\n`;
 

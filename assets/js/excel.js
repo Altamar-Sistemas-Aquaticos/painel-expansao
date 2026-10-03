@@ -196,7 +196,7 @@
         const valor = toNumber(row.valor) ?? toNumber(row.valorSugerido);
         if (valor) incoming.valor = calc.snapFib(valor);
         const esforco = toNumber(row.esforco);
-        if (esforco) incoming.esforco = calc.snapFib(esforco);
+        if (esforco) incoming.esforco = calc.snapEsforco(esforco);
         const resp = toText(row.responsavel);
         if (resp) incoming.responsavel = resp;
         const status = toStatus(row.status);
@@ -377,6 +377,8 @@
       Status: a.status,
       "% concluído": a.pct / 100,
       Observações: a.observacoes,
+      Sprint: a.sprint ? a.sprint.replace("S", "Sprint ") : "",
+      Checklist: a.checklist.map((x) => `${x.feito ? "[x]" : "[ ]"} ${x.texto}`).join(" | "),
     })));
     const decRows = S.state.data.decisions.map((d) => ({
       Data: d.data, "Quem decide": d.quem, Grupo: d.grupo, Descrição: d.pauta, Status: d.status, "O que foi decidido": d.resultado,
@@ -397,7 +399,7 @@
       XLSX.utils.book_append_sheet(wb, ws, name);
     };
     add(iniRows, "Iniciativas", [8, 6, 60, 12, 7, 8, 7, 12, 10, 14, 16, 9, 14, 10, 18, 14, 14, 12, 40, 40, 30, 12, 16, 14, 50]);
-    add(actRows, "Atividades", [8, 40, 5, 60, 40, 16, 16, 22, 22, 12, 12, 10, 13, 12, 40]);
+    add(actRows, "Atividades", [8, 40, 5, 60, 40, 16, 16, 22, 22, 12, 12, 10, 13, 12, 40, 10, 60]);
     // Cadastros (referência; a importação não lê estas abas)
     add(S.areas().map((a) => ({ Área: a.key, Código: a.code, Cor: a.cor })), "Areas", [20, 8, 10]);
     add(S.pessoas().map((p) => ({ Nome: p.nome, Função: p.funcao, Área: p.area, Ativa: p.ativo ? "Sim" : "Não" })), "Pessoas", [20, 24, 16, 8]);
@@ -414,8 +416,7 @@
       { Indicador: "Linha de corte (Σ Valor ÷ Σ Esforço)", Valor: Math.round(cut * 100) / 100 },
       { Indicador: "Iniciativas acima da linha", Valor: ranked.filter((i) => isAboveCut(i, cut)).length },
       { Indicador: "Projetos em andamento", Valor: S.calc.wipCount() },
-      { Indicador: "Carga em andamento (pontos de esforço)", Valor: S.calc.carga() },
-      { Indicador: "Capacidade (pontos) / trava de projetos", Valor: `${S.calc.capacidade()} / ${S.calc.maxProjetos()}` },
+      { Indicador: "Sprint atual", Valor: S.sprintAtual() ? `Sprint ${S.sprintAtual().numero} (${S.sprintItems().length} atividades)` : "—" },
       { Indicador: "Concluídas", Valor: ranked.filter((i) => i.status === "Concluído").length },
       { Indicador: "Decisões pendentes", Valor: S.state.data.decisions.filter((d) => d.status === "Pendente").length },
       { Indicador: "Exportado em", Valor: A.util.fmtDateTime(new Date().toISOString()) },

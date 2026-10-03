@@ -924,7 +924,7 @@ body.presentation .filter-bar { display: none; }
 .pr-matrix .matrix-svg { width: 100%; max-height: 430px; display: block; }
 .pr-legend { display: flex; flex-wrap: wrap; gap: 0.35rem; align-items: center; margin-top: 0.4rem; }
 .pr-rank { padding: 0; overflow: hidden; }
-.pr-rank-head, .pr-row { display: grid; grid-template-columns: 2rem 3.2rem minmax(0, 1fr) 3.4rem 4.2rem; gap: 0.5rem; align-items: center; padding: 0.42rem 0.8rem; }
+.pr-rank-head, .pr-row { display: grid; grid-template-columns: 2rem 3.2rem minmax(0, 1fr) 3.4rem 7.6rem; gap: 0.5rem; align-items: center; padding: 0.42rem 0.8rem; }
 .pr-rank-head { font-size: 0.72rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.04em; color: var(--text-muted); background: var(--surface-2); border-bottom: 1px solid var(--border); }
 .pr-list { list-style: none; margin: 0; padding: 0; max-height: 455px; overflow-y: auto; }
 .pr-row { border-bottom: 1px solid var(--border); cursor: pointer; font-size: 0.86rem; transition: background 0.1s; }
@@ -998,6 +998,67 @@ body.presentation .filter-bar { display: none; }
   .guia-nav { position: static; flex-direction: row; flex-wrap: wrap; }
   .guia-scales, .guia-raci { grid-template-columns: 1fr; }
 }
+
+/* ---------- Kanban da sprint ---------- */
+.kanban.sprint-board { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+.sprint-head { display: flex; justify-content: space-between; align-items: flex-start; gap: 1rem; flex-wrap: wrap; margin-bottom: 0.5rem; }
+.sprint-head-main { flex: 1; min-width: 280px; display: flex; flex-direction: column; gap: 0.4rem; }
+.sprint-head-title { display: flex; align-items: center; gap: 0.6rem; flex-wrap: wrap; }
+.sprint-head-title h2 { font-size: 1.25rem; margin: 0; }
+.sprint-goal { font-weight: 600; }
+.sprint-stats { display: flex; flex-wrap: wrap; gap: 0.4rem 1rem; align-items: center; font-size: 0.88rem; }
+.sprint-bar { height: 8px; border-radius: 4px; background: var(--surface-3); overflow: hidden; max-width: 520px; }
+.sprint-bar span { display: block; height: 100%; background: var(--ok); border-radius: 4px; }
+.sprint-head-actions { display: flex; gap: 0.5rem; flex-wrap: wrap; }
+.sprint-note { margin: 0 0 0.8rem; }
+.sprint-tag { display: inline-block; margin-left: 0.35rem; padding: 0.05rem 0.4rem; border-radius: 999px; background: var(--ok-soft); color: var(--ok-text); font-size: 0.7rem; font-weight: 800; white-space: nowrap; }
+.wchip .sprint-tag { margin-left: auto; flex: none; }
+.act-card { border-left: 4px solid var(--ac); }
+.act-card-proj { display: flex; align-items: center; gap: 0.4rem; font-size: 0.74rem; color: var(--text-muted); min-width: 0; }
+.act-card-id { flex: none; padding: 0.05rem 0.35rem; border-radius: 5px; background: var(--ac); color: #fff; font-weight: 800; font-size: 0.72rem; }
+.act-card-pname { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; flex: 1; min-width: 0; }
+.act-card-title { font-weight: 700; margin: 0.35rem 0 0.2rem; line-height: 1.3; }
+
+/* Planejamento da sprint */
+.plan-counter { margin: 0.2rem 0 0.7rem; }
+.plan-list { display: flex; flex-direction: column; gap: 0.45rem; max-height: 52vh; overflow-y: auto; padding-right: 0.2rem; }
+.plan-proj { border: 1px solid var(--border); border-left: 4px solid var(--ac); border-radius: 8px; background: var(--surface-2); }
+.plan-proj summary { display: flex; align-items: center; gap: 0.5rem; padding: 0.5rem 0.65rem; cursor: pointer; font-weight: 600; }
+.plan-proj-name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.plan-act { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; gap: 0.5rem; align-items: center; padding: 0.35rem 0.65rem 0.35rem 1.4rem; border-top: 1px solid var(--border); cursor: pointer; font-size: 0.88rem; }
+.plan-act:hover { background: var(--accent-soft); }
+.plan-act input { width: 16px; height: 16px; }
+
+/* Janela da atividade */
+.act-modal-proj { display: flex; align-items: center; gap: 0.45rem; min-width: 0; }
+.act-modal-proj a { color: var(--text-muted); font-size: 0.85rem; text-decoration: none; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.act-modal-proj a:hover { color: var(--accent); text-decoration: underline; }
+.act-modal-title { font-size: 1.2rem; margin: -0.3rem 0 0.4rem; }
+.act-modal-deliv { margin: 0 0 0.8rem; color: var(--text-muted); }
+.act-check { border: 1px solid var(--border); border-radius: 10px; padding: 0.7rem 0.8rem; margin: 0.4rem 0 0.9rem; background: var(--surface-2); }
+.act-check-head { display: flex; justify-content: space-between; align-items: baseline; gap: 0.5rem; }
+.act-check-bar { height: 6px; border-radius: 3px; background: var(--surface-3); overflow: hidden; margin: 0.45rem 0 0.2rem; }
+.act-check-bar span { display: block; height: 100%; background: var(--ok); }
+.act-check-list { list-style: none; margin: 0.4rem 0; padding: 0; display: flex; flex-direction: column; gap: 0.15rem; }
+.act-check-list li { display: flex; align-items: center; justify-content: space-between; gap: 0.5rem; padding: 0.25rem 0.3rem; border-radius: 6px; }
+.act-check-list li:hover { background: var(--surface); }
+.act-check-list label { display: flex; align-items: center; gap: 0.5rem; cursor: pointer; flex: 1; }
+.act-check-list li.done span { text-decoration: line-through; color: var(--text-muted); }
+.act-check-add { display: flex; gap: 0.4rem; margin-top: 0.3rem; }
+.act-check-add .input { flex: 1; }
+
+/* Guia: ritmo e reuniões */
+.guia-ritmo { display: grid; grid-template-columns: repeat(3, 1fr); gap: 0.6rem; margin-bottom: 0.6rem; }
+.guia-ritmo > div { display: flex; flex-direction: column; gap: 0.2rem; background: var(--surface-2); border: 1px solid var(--border); border-radius: 8px; padding: 0.7rem; }
+.guia-ritmo-tag { font-weight: 800; color: var(--accent); }
+.guia-meeting { border: 1px solid var(--border); border-radius: 10px; padding: 0.9rem 1rem; margin-top: 0.9rem; background: var(--surface-2); }
+.guia-meeting-head { display: flex; align-items: center; gap: 0.7rem; }
+.guia-meeting-head h4 { margin: 0; font-size: 1.02rem; }
+.guia-meeting-ico { font-size: 1.4rem; }
+.guia-meeting-dur { margin-left: auto; flex: none; background: var(--brand-bg); color: #fff; font-weight: 800; border-radius: 999px; padding: 0.25rem 0.75rem; font-size: 0.85rem; }
+.guia-meeting-goal { margin: 0.55rem 0 0.7rem; }
+@media (max-width: 1000px) { .kanban.sprint-board { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+@media (max-width: 900px) { .guia-ritmo { grid-template-columns: 1fr; } }
 
 /* ---------- Capacidade (Cadastros) ---------- */
 .cap-form { display: flex; flex-wrap: wrap; gap: 0.8rem; align-items: flex-end; }

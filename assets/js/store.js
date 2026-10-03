@@ -2,13 +2,13 @@
 (function () {
   const A = window.Altamar;
   const { clone, uid, norm } = A.util;
-  const { ONDAS, STATUS, SEMAFOROS, COLUNAS, FIBONACCI } = A.meta;
+  const { ONDAS, STATUS, SEMAFOROS, COLUNAS, FIBONACCI, ESFORCO_PONTOS } = A.meta;
 
   const DATA_KEY = "altamar_painel_v2";
   const SETTINGS_KEY = "altamar_painel_settings_v2";
   const LEGACY_INI = "altamar_expansao_iniciativas_v1";
   const LEGACY_DEC = "altamar_expansao_decisoes_v1";
-  const SCHEMA_VERSION = 3;
+  const SCHEMA_VERSION = 4; // 4: esforço em meses (1 a 5), sprints de 4 semanas e checklist nas atividades
   const PORTFOLIO_BASE_DATE = "2026-09-01T12:00:00.000Z"; // data-base dos 29 projetos iniciais
   const HISTORY_LIMIT = 2000;
 
@@ -16,7 +16,7 @@
   const SEMAFORO_KEYS = SEMAFOROS.map((s) => s.key);
   const COLUNA_KEYS = COLUNAS.map((c) => c.key);
   const STATUS_BY_COLUNA = Object.fromEntries(COLUNAS.map((c) => [c.key, c.status]));
-  const SITUACOES = ["Rascunho", "Validado", "Aprovado para onda"];
+  const SITUACOES = ["Rascunho", "Validado"]; // a onda é decidida em Ondas/Priorização, não na situação
   const RACI_ROLES = ["R", "A", "C", "I"];
   const NAO_PESSOA = new Set(["", "adefinir", "definir", "todos", "equipe"]);
 
@@ -30,6 +30,7 @@
   const ACTIVITY_FIELDS = {
     nome: "Atividade", entregavel: "Entregável", pct: "% concluído", status: "Status", raci: "RACI",
     inicio: "Início", prazo: "Prazo", dependeDe: "Depende de", observacoes: "Observações",
+    sprint: "Sprint", esperando: "Esperando / travada", checklist: "Checklist",
   };
   const DECISION_FIELDS = {
     data: "Data", quem: "Quem decide", grupo: "Iniciativa", pauta: "Pauta", status: "Status", resultado: "Decisão / encaminhamento",
@@ -90,21 +91,20 @@
     return Math.round(acts.reduce((s, a) => s + a.pct, 0) / acts.length);
   }
   const wipCount = () => store.data.initiatives.filter((i) => i.status === "Em andamento").length;
-  // Carga = soma do esforço (pontos) dos projetos em andamento. Projetos pequenos ocupam pouca capacidade.
-  const carga = () => store.data.initiatives.filter((i) => i.status === "Em andamento").reduce((s, i) => s + (i.esforco || 0), 0);
-  const capacidade = () => store.data.config.capacidade || A.meta.CAPACIDADE_PADRAO;
-  const maxProjetos = () => store.data.config.maxProjetos || A.meta.MAX_PROJETOS_PADRAO;
-  // Estoura a capacidade se a carga passar dos pontos OU a quantidade passar da trava.
-  const overCapacity = (extraPts = 0, extraQtd = 0) => carga() + extraPts > capacidade() || wipCount() + extraQtd > maxProjetos();
+  const sprintLimites = () => ({ min: store.data.config.sprintMin, max: store.data.config.sprintMax });
+  const projetosPorOnda = () => store.data.config.projetosPorOnda;
 
   // 0 = nota ainda "a definir" (ideias recém-cadastradas, antes da triagem).
-  const scoreOrZero = (v) => (v === 0 || v === "0" || v === "" || v == null ? 0 : snapFib(v));
-
-  function snapFib(v) {
+  const isBlank = (v) => v === 0 || v === "0" || v === "" || v == null;
+  const snapTo = (list) => (v) => {
     const n = Number(String(v ?? "").replace(",", "."));
-    if (!isFinite(n) || n <= 0) return 1;
-    return FIBONACCI.reduce((best, f) => (Math.abs(f - n) < Math.abs(best - n) ? f : best), FIBONACCI[0]);
-  }
+    if (!isFinite(n) || n <= 0) return list[0];
+    return list.reduce((best, f) => (Math.abs(f - n) < Math.abs(best - n) ? f : best), list[0]);
+  };
+  const snapFib = snapTo(FIBONACCI);          // valor: 1, 2, 3, 5, 8
+  const snapEsforco = snapTo(ESFORCO_PONTOS); // esforço: 1 a 5 (1 mês a 1 ano)
+  const scoreOrZero = (v) => (isBlank(v) ? 0 : snapFib(v));
+  const esforcoOrZero = (v) => (isBlank(v) ? 0 : snapEsforco(v));
 
   // Lê "dd/mm/aaaa" ou "15/Nov/2026"; textos como "Jan/2027" ou "2028" retornam null.
   const MESES = { jan: 0, fev: 1, mar: 2, abr: 3, mai: 4, jun: 5, jul: 6, ago: 7, set: 8, out: 9, nov: 10, dez: 11 };
@@ -156,8 +156,18 @@
     return out;
   }
 
+  function normalizeChecklist(raw) {
+    return (Array.isArray(raw) ? raw : [])
+      .map((x) => ({ id: x.id || uid("ck"), texto: String(x.texto ?? "").trim(), feito: !!x.feito }))
+      .filter((x) => x.texto);
+  }
+
   function normalizeActivity(raw) {
     const status = STATUS.includes(raw.status) ? raw.status : "A fazer";
+    const checklist = normalizeChecklist(raw.checklist);
+    // Com checklist, o % da atividade sai dos itens marcados (até ela ser concluída).
+    const pctChecklist = checklist.length && status !== "Concluído" && status !== "Cancelado"
+      ? Math.round((checklist.filter((x) => x.feito).length / checklist.length) * 100) : null;
     // RACI por atividade; dados antigos (responsável/envolvidos) viram R e C.
     let raci = normalizeRaci(raw.raci);
     if (!raw.raci) {
@@ -168,8 +178,11 @@
       id: raw.id || uid("atv"),
       nome: String(raw.nome ?? "").trim(),
       entregavel: String(raw.entregavel ?? "").trim(),
-      pct: clampPct(raw.pct ?? (status === "Concluído" ? 100 : 0)),
+      pct: pctChecklist ?? clampPct(raw.pct ?? (status === "Concluído" ? 100 : 0)),
       status,
+      sprint: String(raw.sprint ?? "").trim(),
+      esperando: status === "Em andamento" && !!raw.esperando,
+      checklist,
       raci,
       // Derivados da RACI (mantidos para exportação e telas resumidas).
       responsavel: raciPeople(raci, "R")[0] || "",
@@ -195,7 +208,7 @@
       nome: String(raw.nome ?? "").trim(),
       area: String(raw.area ?? "").trim() || (areas()[0] || {}).key || "Projetos",
       valor: scoreOrZero(raw.valor),
-      esforco: scoreOrZero(raw.esforco),
+      esforco: esforcoOrZero(raw.esforco),
       autor: String(raw.autor ?? "").trim(),
       onda: ONDA_KEYS.includes(raw.onda) ? raw.onda : "Fila",
       status,
@@ -208,9 +221,8 @@
       prontoQuando: String(raw.prontoQuando ?? "").trim(),
       indicador: String(raw.indicador ?? "").trim(),
       investimento: raw.investimento === "Sim" ? "Sim" : "Não",
-      // Projetos anteriores ao cadastro em etapas: em execução = aprovados; os demais = validados.
-      situacao: SITUACOES.includes(raw.situacao) ? raw.situacao
-        : (status === "Em andamento" || status === "Concluído" ? "Aprovado para onda" : "Validado"),
+      // "Aprovado para onda" (versão anterior) e projetos sem situação viram "Validado".
+      situacao: raw.situacao === "Rascunho" ? "Rascunho" : "Validado",
       coluna: COLUNA_KEYS.includes(raw.coluna) ? raw.coluna : null,
       atividades: Array.isArray(raw.atividades)
         ? raw.atividades.map(normalizeActivity).filter((a) => a.nome)
@@ -276,16 +288,45 @@
     };
   }
 
+  /* ---------- Sprints (4 semanas) ---------- */
+  const isoDay = (d) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+  const fromIso = (s) => { const [y, m, d] = String(s).split("-").map(Number); return new Date(y, m - 1, d); };
+  const addDays = (d, n) => { const x = new Date(d); x.setDate(x.getDate() + n); return x; };
+  // 1ª sprint: começa na segunda desta semana (de segunda a quarta) ou na próxima segunda.
+  function primeiraSegunda(hoje = new Date()) {
+    const d = new Date(hoje); d.setHours(0, 0, 0, 0);
+    const dow = (d.getDay() + 6) % 7; // 0 = segunda
+    return addDays(d, dow <= 2 ? -dow : 7 - dow);
+  }
+  function makeSprint(numero, inicio, objetivo = "") {
+    return { id: `S${numero}`, numero, inicio: isoDay(inicio), fim: isoDay(addDays(inicio, A.meta.SPRINT_SEMANAS * 7 - 1)), objetivo, encerrada: false };
+  }
+  function normalizeSprint(raw) {
+    return {
+      id: String(raw.id || `S${raw.numero}`), numero: Number(raw.numero) || 1,
+      inicio: /^\d{4}-\d{2}-\d{2}$/.test(raw.inicio) ? raw.inicio : isoDay(primeiraSegunda()),
+      fim: /^\d{4}-\d{2}-\d{2}$/.test(raw.fim) ? raw.fim : isoDay(addDays(primeiraSegunda(), 27)),
+      objetivo: String(raw.objetivo ?? "").trim(), encerrada: !!raw.encerrada,
+    };
+  }
+
   function normalizeData(raw) {
     const cfg = raw.config || {};
+    const posInt = (v, def) => (Number(v) > 0 ? Math.round(Number(v)) : def);
+    // Antes da versão 4 o esforço usava 1, 2, 3, 5 e 8 (1 semana a 3+ meses): converte para meses (1 a 5).
+    if (!(raw.version >= 4) && Array.isArray(raw.initiatives)) {
+      raw = { ...raw, initiatives: raw.initiatives.map((i) => ({ ...i, esforco: isBlank(i.esforco) ? 0 : (A.meta.ESFORCO_ANTIGO_PARA_NOVO[snapFib(i.esforco)] || 1) })) };
+    }
     const data = {
       version: SCHEMA_VERSION,
       config: {
         areas: (cfg.areas || A.defaults.areas).map(normalizeArea).filter((a) => a.key && a.code),
         pessoas: (cfg.pessoas || A.defaults.pessoas).map(normalizePessoa).filter((p) => p.nome),
-        capacidade: Number(cfg.capacidade) > 0 ? Number(cfg.capacidade) : A.meta.CAPACIDADE_PADRAO,
-        maxProjetos: Number(cfg.maxProjetos) > 0 ? Number(cfg.maxProjetos) : A.meta.MAX_PROJETOS_PADRAO,
+        sprintMin: posInt(cfg.sprintMin, A.meta.SPRINT_MIN_PADRAO),
+        sprintMax: posInt(cfg.sprintMax, A.meta.SPRINT_MAX_PADRAO),
+        projetosPorOnda: posInt(cfg.projetosPorOnda, A.meta.PROJETOS_POR_ONDA_PADRAO),
       },
+      sprints: (Array.isArray(raw.sprints) ? raw.sprints : []).map(normalizeSprint),
       initiatives: [],
       decisions: (raw.decisions || []).map(normalizeDecision).filter((d) => d.pauta),
       compromissos: (raw.compromissos || []).map(normalizeCompromisso).filter((c) => c.titulo && c.data),
@@ -310,6 +351,15 @@
       data.initiatives.forEach((it) => {
         if (!it.autor) it.autor = autorNoHistorico[it.id] || (iniciais.has(it.id) ? "Pedro" : "");
       });
+      // Sem sprints ainda: cria a Sprint 1 com a próxima atividade aberta de cada projeto em andamento.
+      if (!data.sprints.length) {
+        const s1 = makeSprint(1, primeiraSegunda());
+        data.sprints.push(s1);
+        data.initiatives.filter((it) => it.status === "Em andamento").forEach((it) => {
+          const a = it.atividades.find((x) => x.status === "Em andamento") || it.atividades.find((x) => x.status === "A fazer");
+          if (a) a.sprint = s1.id;
+        });
+      }
       registerMissing(data);
     } finally {
       store.data = prev;
@@ -351,7 +401,14 @@
     const saved = readJSON(DATA_KEY);
     if (saved && Array.isArray(saved.initiatives)) {
       store.data = normalizeData(saved);
-      if (saved.version !== SCHEMA_VERSION) persist();
+      if (saved.version !== SCHEMA_VERSION) {
+        if (!(saved.version >= 4)) {
+          store.data.history.unshift(entry("sistema", null, "migrou",
+            "Nova versão: esforço convertido para meses (1 = 1 mês … 5 = 1 ano), Sprint 1 de 4 semanas criada e “Aprovado para onda” passou a “Validado”", [], "Sistema"));
+        }
+        persist();
+        if (!(saved.version >= 4)) return "upgraded";
+      }
       return "saved";
     }
     // Migra dados da versão anterior (arquivo HTML único), se existirem neste navegador.
@@ -400,7 +457,8 @@
     return { id: uid("h"), ts: new Date().toISOString(), user: store.settings.user || "Anônimo", entity, refId, action, label, changes, source };
   }
 
-  const fmtValue = (v) => (v && typeof v === "object" ? raciText(v) : String(v ?? ""));
+  const fmtValue = (v) => (Array.isArray(v) ? v.map((x) => `${x.feito ? "☑" : "☐"} ${x.texto}`).join("; ")
+    : v && typeof v === "object" ? raciText(v) : typeof v === "boolean" ? (v ? "Sim" : "Não") : String(v ?? ""));
   function diff(before, after, fields) {
     const changes = [];
     Object.keys(fields).forEach((f) => {
@@ -527,18 +585,122 @@
     return { ok: true, item };
   }
 
+  const CONFIG_FIELDS = { sprintMin: "Mínimo de atividades por sprint", sprintMax: "Máximo de atividades por sprint", projetosPorOnda: "Projetos por onda" };
   function saveConfig(patch) {
-    const before = { capacidade: capacidade(), maxProjetos: maxProjetos() };
-    const after = {
-      capacidade: Math.max(1, Math.round(Number(patch.capacidade ?? before.capacidade)) || before.capacidade),
-      maxProjetos: Math.max(1, Math.round(Number(patch.maxProjetos ?? before.maxProjetos)) || before.maxProjetos),
-    };
-    const changes = diff(before, after, { capacidade: "Capacidade (pontos)", maxProjetos: "Máximo de projetos simultâneos" });
+    const cfg = store.data.config;
+    const before = Object.fromEntries(Object.keys(CONFIG_FIELDS).map((k) => [k, cfg[k]]));
+    const after = Object.fromEntries(Object.keys(CONFIG_FIELDS).map((k) => [k, Math.max(1, Math.round(Number(patch[k] ?? before[k])) || before[k])]));
+    if (after.sprintMin > after.sprintMax) return { ok: false, error: "O mínimo de atividades não pode passar do máximo." };
+    const changes = diff(before, after, CONFIG_FIELDS);
     if (!changes.length) return { ok: true, unchanged: true };
-    Object.assign(store.data.config, after);
+    Object.assign(cfg, after);
     commit([entry("cadastro", null, "editou", "Capacidade de execução", changes)]);
     return { ok: true };
   }
+
+  /* ---------- Sprint ---------- */
+  const sprints = () => store.data.sprints;
+  const sprintAtual = () => [...store.data.sprints].reverse().find((s) => !s.encerrada) || null;
+  const findSprint = (id) => store.data.sprints.find((s) => s.id === id) || null;
+  // Atividades (com o projeto) de uma sprint.
+  function sprintItems(sp = sprintAtual()) {
+    if (!sp) return [];
+    const out = [];
+    store.data.initiatives.forEach((it) => it.atividades.forEach((a) => {
+      if (a.sprint === sp.id && a.status !== "Cancelado" && it.status !== "Cancelado") out.push({ it, a });
+    }));
+    return out;
+  }
+  const activityCol = (a) => (a.status === "Concluído" ? "done" : a.status === "Em andamento" ? (a.esperando ? "waiting" : "doing") : "todo");
+  const sprintDates = (sp) => ({ inicio: fromIso(sp.inicio), fim: fromIso(sp.fim) });
+
+  // Planejamento: `selecionadas` = lista de "iniId|actId" que ficam na sprint atual (as demais saem).
+  function planSprint(selecionadas, objetivo) {
+    const sp = sprintAtual();
+    if (!sp) return { ok: false, error: "Nenhuma sprint aberta." };
+    const set = new Set(selecionadas);
+    const entries = [];
+    store.data.initiatives.forEach((it) => it.atividades.forEach((a) => {
+      const quer = set.has(`${it.id}|${a.id}`);
+      if (quer === (a.sprint === sp.id)) return;
+      const r = saveActivity(it.id, a.id, { sprint: quer ? sp.id : "" }, { source: "Sprint", silent: true });
+      if (r.entry) entries.push(r.entry);
+    }));
+    const changes = [];
+    if (objetivo != null && objetivo.trim() !== sp.objetivo) {
+      changes.push({ field: "objetivo", label: "Objetivo", from: sp.objetivo, to: objetivo.trim() });
+      sp.objetivo = objetivo.trim();
+    }
+    if (!entries.length && !changes.length) return { ok: true, unchanged: true };
+    entries.push(entry("sprint", sp.id, "planejou", `Sprint ${sp.numero}: ${set.size} atividade(s)`, changes, "Sprint"));
+    commit(entries.reverse());
+    return { ok: true, total: set.size };
+  }
+
+  // Move o card no Kanban da sprint: muda o status da atividade e, ao começar, coloca o projeto em andamento.
+  function moveActivity(iniId, actId, col) {
+    const it = findInitiative(iniId);
+    const a = findActivity(iniId, actId);
+    if (!it || !a) return { ok: false, error: "Atividade não encontrada." };
+    if (activityCol(a) === col) return { ok: true, unchanged: true };
+    const patch = {
+      todo: { status: "A fazer", esperando: false },
+      doing: { status: "Em andamento", esperando: false },
+      waiting: { status: "Em andamento", esperando: true },
+      done: { status: "Concluído", esperando: false },
+    }[col];
+    if (!patch) return { ok: false, error: "Coluna inválida." };
+    if (a.status === "Concluído" && col !== "done" && !a.checklist.length) patch.pct = Math.min(a.pct, 90);
+    const entries = [];
+    const r = saveActivity(iniId, actId, patch, { source: "Kanban", silent: true });
+    if (!r.ok) return r;
+    if (r.entry) entries.push(r.entry);
+    let iniciouProjeto = false;
+    if (col !== "todo" && it.status === "A fazer") {
+      const p = saveInitiative({ status: "Em andamento" }, iniId, { source: "Kanban", silent: true });
+      if (p.entry) { entries.push(p.entry); iniciouProjeto = true; }
+    }
+    const projetoPronto = findInitiative(iniId).atividades.filter((x) => x.status !== "Cancelado").every((x) => x.status === "Concluído");
+    commit(entries.reverse());
+    return { ok: true, iniciouProjeto, projetoPronto };
+  }
+
+  // Encerra a sprint atual e abre a próxima; o que não foi feito passa para a nova sprint.
+  function novaSprint() {
+    const atual = sprintAtual();
+    const numero = (Math.max(0, ...store.data.sprints.map((s) => s.numero)) || 0) + 1;
+    const inicio = atual ? addDays(fromIso(atual.fim), 1) : primeiraSegunda();
+    const nova = makeSprint(numero, inicio);
+    let levadas = 0, feitas = 0;
+    if (atual) {
+      sprintItems(atual).forEach(({ a }) => {
+        if (a.status === "Concluído") feitas++;
+        else { a.sprint = nova.id; levadas++; }
+      });
+      atual.encerrada = true;
+    }
+    store.data.sprints.push(nova);
+    const entries = [entry("sprint", nova.id, "abriu", `Sprint ${nova.numero} aberta (${nova.inicio} a ${nova.fim})`, [], "Sprint")];
+    if (atual) entries.push(entry("sprint", atual.id, "encerrou", `Sprint ${atual.numero} encerrada: ${feitas} feita(s), ${levadas} levada(s) para a Sprint ${nova.numero}`, [], "Sprint"));
+    commit(entries);
+    return { ok: true, sprint: nova, levadas, feitas };
+  }
+
+  function saveSprint(patch) {
+    const sp = sprintAtual();
+    if (!sp) return { ok: false, error: "Nenhuma sprint aberta." };
+    const after = { ...sp, ...patch };
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(after.inicio) || !/^\d{4}-\d{2}-\d{2}$/.test(after.fim) || after.fim < after.inicio) {
+      return { ok: false, error: "Datas da sprint inválidas." };
+    }
+    const changes = diff(sp, after, { objetivo: "Objetivo", inicio: "Início", fim: "Fim" });
+    if (!changes.length) return { ok: true, unchanged: true };
+    Object.assign(sp, after);
+    commit([entry("sprint", sp.id, "editou", `Sprint ${sp.numero}`, changes, "Sprint")]);
+    return { ok: true };
+  }
+
+  const saveChecklist = (iniId, actId, checklist) => saveActivity(iniId, actId, { checklist }, { source: "Checklist" });
 
   const canDelete = (it) => it && it.situacao === "Rascunho";
 
@@ -900,7 +1062,8 @@
 
   A.store = {
     state: store, load, persist, subscribe, emit, saveSettings,
-    calc: { ve, cutoff, isAboveCut, wipCount, snapFib, progress, parseDate, weekKey, carga, capacidade, maxProjetos, overCapacity },
+    calc: { ve, cutoff, isAboveCut, wipCount, snapFib, snapEsforco, progress, parseDate, weekKey, sprintLimites, projetosPorOnda },
+    sprints, sprintAtual, findSprint, sprintItems, activityCol, sprintDates, planSprint, moveActivity, novaSprint, saveSprint, saveChecklist,
     findInitiative, nextId, saveInitiative, createProject, quickIdea, saveConfig, deleteInitiative, canDelete, advanceSituacao,
     moveToColumn, setOnda, setStatus, warnings,
     saveActivity, setRaci, deleteActivity, findActivity, projectTeam, raciText, raciPeople, splitNames,

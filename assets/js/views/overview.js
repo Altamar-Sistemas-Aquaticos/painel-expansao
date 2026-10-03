@@ -125,7 +125,7 @@
       <span class="ov-bar-fill" style="width:${a.pct}%"></span></span></div>`;
   }
 
-  const SIT_CLASS = { Rascunho: "warn", Validado: "accent", "Aprovado para onda": "ok" };
+  const SIT_CLASS = { Rascunho: "warn", Validado: "ok" };
   const STATUS_CLASS = { "Em andamento": "accent", "Concluído": "ok", "Cancelado": "alert" };
 
   /* ---------- Render ---------- */

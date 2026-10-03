@@ -114,8 +114,9 @@
   const ACTION_LABEL = {
     criou: "criou", editou: "editou", excluiu: "excluiu", decidiu: "registrou decisão em",
     importou: "importou", restaurou: "restaurou", migrou: "migrou", limpou: "limpou",
+    planejou: "planejou", abriu: "abriu", encerrou: "encerrou",
   };
-  const ENTITY_LABEL = { iniciativa: "iniciativa", decisao: "decisão", atividade: "atividade", cadastro: "cadastro", compromisso: "compromisso", sistema: "" };
+  const ENTITY_LABEL = { iniciativa: "iniciativa", decisao: "decisão", atividade: "atividade", cadastro: "cadastro", compromisso: "compromisso", sprint: "", sistema: "" };
 
   function fmtValue(field, v) {
     if (v === true) return "Sim";

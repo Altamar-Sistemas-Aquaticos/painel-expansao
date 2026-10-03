@@ -230,7 +230,7 @@
         <div class="row" style="justify-content:space-between; align-items:flex-start">
           <div style="min-width:0">
             <div class="row">${ui.areaBadge(meta.key)} ${statusBadge(it.status)}
-              <span class="badge ${{ Rascunho: "warn", Validado: "accent", "Aprovado para onda": "ok" }[it.situacao] || ""}">${esc(it.situacao)}</span>
+              <span class="badge ${{ Rascunho: "warn", Validado: "ok" }[it.situacao] || ""}">${esc(it.situacao)}</span>
               ${it.enabler ? '<span class="badge enabler">★ Habilitadora</span>' : ""}</div>
             <h2 class="project-title"><span style="color:var(--accent)">${esc(it.id)}</span> · ${esc(it.nome)}</h2>
           </div>

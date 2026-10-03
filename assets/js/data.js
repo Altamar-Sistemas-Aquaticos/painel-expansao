@@ -49,27 +49,38 @@
     5: { curto: "Clientes ou receita", texto: "Impacto em clientes, receita ou em vários setores", exemplo: "Formulário padrão de requisitos" },
     8: { curto: "Estratégico", texto: "Estratégico: muda faturamento ou posicionamento", exemplo: "Prospecção por CNAE · oferta de fazenda completa" },
   };
+  // Esforço = tempo até a entrega final do projeto (escala própria, de 1 a 5).
+  const ESFORCO_PONTOS = [1, 2, 3, 4, 5];
   const ESFORCO_ESCALA = {
-    1: { curto: "Até 1 semana", texto: "Uma pessoa resolve sozinha" },
-    2: { curto: "2 semanas", texto: "Poucas etapas, sem dependência" },
-    3: { curto: "1 mês", texto: "Envolve outra área ou validação" },
-    5: { curto: "2 meses", texto: "Várias etapas, várias pessoas" },
-    8: { curto: "3 meses ou mais", texto: "Investimento, fornecedor externo ou muita incerteza" },
+    1: { curto: "1 mês", texto: "Entrega em até um mês" },
+    2: { curto: "2 meses", texto: "Algumas etapas, pouca dependência de outras áreas" },
+    3: { curto: "3 meses", texto: "Ocupa uma onda inteira (um trimestre)" },
+    4: { curto: "6 meses", texto: "Atravessa duas ondas: vale dividir em fases" },
+    5: { curto: "1 ano", texto: "Investimento, fornecedor externo ou muita incerteza: dividir em fases" },
   };
+  // Esforço da escala antiga (1, 2, 3, 5, 8 = 1 semana a 3+ meses) convertido para a nova (meses).
+  const ESFORCO_ANTIGO_PARA_NOVO = { 1: 1, 2: 1, 3: 1, 5: 2, 8: 3 };
 
-  // Capacidade de execução: soma do esforço dos projetos em andamento (pontos) e trava de quantidade.
-  const CAPACIDADE_PADRAO = 15;
-  const MAX_PROJETOS_PADRAO = 8;
-  const SPRINTS_POR_ONDA = 6; // trimestre ≈ 6 sprints de 2 semanas
+  // Sprint de 4 semanas (3 sprints por onda) com 5 a 8 atividades; cada onda com até 8 projetos.
+  const SPRINT_SEMANAS = 4;
+  const SPRINT_MIN_PADRAO = 5;
+  const SPRINT_MAX_PADRAO = 8;
+  const PROJETOS_POR_ONDA_PADRAO = 8;
+  const SPRINTS_POR_ONDA = 3;
+  // Colunas do Kanban da sprint (cada card é uma atividade).
+  const SPRINT_COLUNAS = [
+    { key: "todo", label: "A fazer", hint: "Combinado para esta sprint" },
+    { key: "doing", label: "Fazendo", hint: "Em execução" },
+    { key: "waiting", label: "Esperando / Travado", hint: "Depende de alguém ou de decisão" },
+    { key: "done", label: "Feito", hint: "Entregue" },
+  ];
   const WIP_MIN = 4;
   const WIP_MAX = 5;
   const PESSOAS = ["Pedro", "Maíra", "Shei"];
 
-  // Mesma regra da planilha (coluna "Tempo estimado").
   function tempoPorEsforco(esforco) {
-    return { 1: "1 semana", 2: "2 semanas", 3: "1 mês", 5: "2 meses", 8: "3 meses ou mais" }[esforco] || "—";
+    return ESFORCO_ESCALA[esforco]?.curto || "—";
   }
-
   const DEFAULT_INITIATIVES = [
     { id: "V1", nome: "Lista de prospecção por CNAE e outbound (incl. zoológicos do IBAMA)", area: "Vendas", valor: 8, esforco: 3, onda: "Onda 1", status: "Em andamento", responsavel: "Pedro", prazo: "15/Nov/2026", semaforo: "verde", observacoes: "Base de contatos e scripts frios estruturados" },
     { id: "M1", nome: "Larvicultura de tilápia: base de clientes e divulgação", area: "Marketing", valor: 8, esforco: 3, onda: "Onda 1", status: "Em andamento", responsavel: "Pedro", prazo: "20/Nov/2026", semaforo: "verde", observacoes: "Campanha inicial focada em produtores" },
@@ -113,13 +124,14 @@
 
   A.meta = {
     ONDAS, STATUS, SEMAFOROS, COLUNAS, FIBONACCI, WIP_MIN, WIP_MAX, PESSOAS, tempoPorEsforco,
-    VALOR_ESCALA, ESFORCO_ESCALA, CAPACIDADE_PADRAO, MAX_PROJETOS_PADRAO, SPRINTS_POR_ONDA,
+    VALOR_ESCALA, ESFORCO_ESCALA, ESFORCO_PONTOS, ESFORCO_ANTIGO_PARA_NOVO, SPRINTS_POR_ONDA, SPRINT_SEMANAS,
+    SPRINT_MIN_PADRAO, SPRINT_MAX_PADRAO, PROJETOS_POR_ONDA_PADRAO, SPRINT_COLUNAS,
   };
   // Opções de <select> com a descrição da escala ("5 · Clientes ou receita").
   A.meta.valorOptions = (sel, blank = "— A definir —") => `<option value="">${blank}</option>` +
     FIBONACCI.map((f) => `<option value="${f}" ${String(f) === String(sel) ? "selected" : ""}>${f} · ${VALOR_ESCALA[f].curto}</option>`).join("");
   A.meta.esforcoOptions = (sel, blank = "— A definir —") => `<option value="">${blank}</option>` +
-    FIBONACCI.map((f) => `<option value="${f}" ${String(f) === String(sel) ? "selected" : ""}>${f} · ${ESFORCO_ESCALA[f].curto}</option>`).join("");
+    ESFORCO_PONTOS.map((f) => `<option value="${f}" ${String(f) === String(sel) ? "selected" : ""}>${f} · ${ESFORCO_ESCALA[f].curto}</option>`).join("");
   A.defaults = { areas: AREAS, pessoas: PESSOAS_INICIAIS, initiatives: DEFAULT_INITIATIVES, decisions: DEFAULT_DECISIONS };
 
   A.onda = (key) => ONDAS.find((o) => o.key === key) || ONDAS[ONDAS.length - 1];

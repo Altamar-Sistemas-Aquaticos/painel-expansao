@@ -22,6 +22,27 @@
   ui.decisionBadge = (status) => `<span class="badge ${status === "Pendente" ? "alert" : "ok"}">${esc(status)}</span>`;
   ui.empty = (msg) => `<div class="empty">${msg}</div>`;
 
+  // Resumo da sprint atual, usado no topo, no painel executivo, no Kanban e no Guia.
+  A.sprintInfo = (S) => {
+    const sp = S.sprintAtual();
+    const { min, max } = S.calc.sprintLimites();
+    if (!sp) return { sp: null, items: [], total: 0, feitas: 0, min, max };
+    const items = S.sprintItems(sp);
+    const { inicio, fim } = S.sprintDates(sp);
+    const hoje = new Date(); hoje.setHours(0, 0, 0, 0);
+    const fmt = (d) => d.toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit" });
+    const total = items.length, feitas = items.filter(({ a }) => a.status === "Concluído").length;
+    return {
+      sp, items, total, feitas, min, max,
+      projetos: new Set(items.map(({ it }) => it.id)).size,
+      acima: total > max, abaixo: total < min,
+      terminou: hoje > fim, naoComecou: hoje < inicio,
+      diasRestantes: Math.max(0, Math.round((fim - hoje) / 86400000)),
+      periodo: `${fmt(inicio)} a ${fmt(fim)}`, fimTxt: fmt(fim),
+      rotulo: `Sprint ${sp.numero}`,
+    };
+  };
+
   /* ---------- Métricas ---------- */
   const DAY = 86400000;
   const today = () => { const t = new Date(); t.setHours(0, 0, 0, 0); return t; };
@@ -64,6 +85,12 @@
     return Array.from({ length: n }, (_, i) => new Date(start.getTime() - (n - 1 - i) * 7 * DAY));
   }
 
+  // % da sprint atual concluído (média do % das atividades).
+  function sprintPct(S) {
+    const items = S.sprintItems();
+    return items.length ? Math.round(items.reduce((s, { a }) => s + a.pct, 0) / items.length) : null;
+  }
+
   function series(S) {
     const ws = weeks();
     const keys = ws.map((w) => S.calc.weekKey(w));
@@ -77,14 +104,14 @@
       concluidas: keys.map((k) => done[k] || 0),
       // WIP e atraso só existem a partir das fotos semanais (semanas sem foto ficam sem ponto).
       wip: keys.map((k, i) => (i === keys.length - 1 ? S.calc.wipCount() : snaps[k]?.wip ?? null)),
-      carga: keys.map((k, i) => (i === keys.length - 1 ? S.calc.carga() : snaps[k]?.carga ?? null)),
+      sprintPct: keys.map((k, i) => (i === keys.length - 1 ? sprintPct(S) : snaps[k]?.sprintPct ?? null)),
       atraso: keys.map((k, i) => (i === keys.length - 1 ? overdue(S).total : snaps[k]?.atraso ?? null)),
     };
   }
 
   A.metrics = {
     overdue,
-    snapshot: (S) => ({ wip: S.calc.wipCount(), carga: S.calc.carga(), atraso: overdue(S).total, total: S.state.data.initiatives.length }),
+    snapshot: (S) => ({ wip: S.calc.wipCount(), sprintPct: sprintPct(S), atraso: overdue(S).total, total: S.state.data.initiatives.length }),
   };
 
   /* ---------- Fila "Para resolver" ---------- */
@@ -97,9 +124,11 @@
 
     if (od.projetos.length) items.push({ sev: "alert", text: `${od.projetos.length} projeto(s) com prazo vencido`, sub: od.projetos.slice(0, 4).map((i) => i.id).join(", "), go: "overview" });
     if (od.atividades.length) items.push({ sev: "alert", text: `${od.atividades.length} atividade(s) atrasada(s)`, sub: [...new Set(od.atividades.map((x) => x.it.id))].slice(0, 5).join(", "), go: "overview" });
-    const carga = S.calc.carga(), cap = S.calc.capacidade(), maxP = S.calc.maxProjetos();
-    if (carga > cap) items.push({ sev: "alert", text: `Carga de ${carga} pts acima da capacidade (${cap})`, sub: "Pausar ou concluir um projeto antes de puxar outro", go: "kanban" });
-    else if (wip > maxP) items.push({ sev: "alert", text: `${wip} projetos em andamento (trava: ${maxP})`, sub: "Muitas frentes ao mesmo tempo, concluir antes de puxar", go: "kanban" });
+    const si = A.sprintInfo(S);
+    if (!si.sp || si.terminou) items.push({ sev: "alert", text: si.sp ? `${si.rotulo} terminou em ${si.fimTxt}` : "Nenhuma sprint aberta", sub: "Encerrar e planejar a próxima sprint", go: "kanban" });
+    else if (!si.total) items.push({ sev: "alert", text: `Planejar a ${si.rotulo}`, sub: `Escolher de ${si.min} a ${si.max} atividades dos projetos da onda`, go: "kanban" });
+    else if (si.acima) items.push({ sev: "alert", text: `${si.rotulo} com ${si.total} atividades (máximo ${si.max})`, sub: "Tirar atividades da sprint ou ajustar o limite", go: "kanban" });
+    else if (si.abaixo) items.push({ sev: "warn", text: `${si.rotulo} com só ${si.total} atividade(s) (mínimo ${si.min})`, sub: "Dá para puxar mais atividades no planejamento", go: "kanban" });
 
     const active = all.filter((i) => i.status === "Em andamento");
     const semR = active.flatMap((it) => it.atividades.filter((a) => isOpen(a.status) && !S.raciPeople(a.raci, "R").length).map((a) => ({ it, a })));
@@ -341,23 +370,24 @@
 
   function summarySentence(S, od) {
     const parts = [];
-    const carga = S.calc.carga(), cap = S.calc.capacidade();
+    const si = A.sprintInfo(S);
     parts.push(od.total ? `${od.total} item(ns) em atraso.` : "Nada atrasado.");
     if (od.total) parts.push("O ponto da semana é recuperar os prazos.");
-    else if (S.calc.overCapacity()) parts.push(`O ponto da semana é a carga: ${carga} pontos em andamento para uma capacidade de ${cap}.`);
-    else parts.push("A carga está dentro da capacidade.");
+    else if (!si.sp || si.terminou || !si.total) parts.push("O ponto da semana é planejar a sprint.");
+    else parts.push(`${si.rotulo}: ${si.feitas} de ${si.total} atividades feitas, faltam ${si.diasRestantes} dia(s).`);
     return parts.join(" ");
   }
 
   /* ---------- Render ---------- */
   function renderHeader(S) {
-    const wip = S.calc.wipCount();
-    const carga = S.calc.carga(), cap = S.calc.capacidade();
+    const si = A.sprintInfo(S);
     const pill = document.getElementById("wip-pill");
-    const over = S.calc.overCapacity();
-    pill.className = `wip-pill ${over ? "warn" : "ok"}`;
-    pill.title = `Capacidade: ${cap} pontos de esforço · trava de ${S.calc.maxProjetos()} projetos`;
-    pill.innerHTML = `Carga: <strong>${carga}</strong> de ${cap} pts <span class="small">· ${wip} projeto${wip === 1 ? "" : "s"}</span>`;
+    const alerta = !si.sp || si.terminou || si.acima || !si.total;
+    pill.className = `wip-pill ${alerta ? "warn" : "ok"}`;
+    pill.title = si.sp ? `${si.rotulo}: ${si.periodo} · limite de ${si.min} a ${si.max} atividades` : "Nenhuma sprint aberta";
+    pill.innerHTML = si.sp
+      ? `${si.rotulo}: <strong>${si.feitas}</strong> de ${si.total} feitas <span class="small">· até ${si.fimTxt}</span>`
+      : "Sem sprint aberta";
 
     const pending = S.state.data.decisions.filter((d) => d.status === "Pendente").length;
     const decCount = document.getElementById("tab-count-decisoes");
@@ -379,7 +409,7 @@
     const s = series(S);
     const last = s.keys.length - 1;
     const wip = S.calc.wipCount();
-    const carga = S.calc.carga(), cap = S.calc.capacidade(), over = S.calc.overCapacity();
+    const si = A.sprintInfo(S);
     const { items, soon, od } = actionItems(S);
     const urgentes = items.filter((i) => i.sev === "alert").length;
     const user = S.state.settings.user;
@@ -423,10 +453,13 @@
           foot: `${od.projetos.length} projeto(s) · ${od.atividades.length} atividade(s)`, go: "overview",
         })}
         ${kpiCard({
-          label: `Carga · capacidade ${cap}`, value: carga, valueClass: over ? "bad" : "",
-          chipHtml: over ? `<span class="kchip bad">${carga > cap ? `+${carga - cap} pts` : "muitos projetos"}</span>` : `<span class="kchip good">${cap - carga} pts livres</span>`,
-          spark: sparkline(s.carga, over ? "#E24B4A" : "#378ADD", cap),
-          foot: `pontos de esforço · ${wip} de ${S.calc.maxProjetos()} projetos`, go: "kanban",
+          label: si.sp ? `${si.rotulo} · até ${si.fimTxt}` : "Sprint", value: si.sp ? `${si.feitas}/${si.total}` : "—",
+          valueClass: si.acima || si.terminou ? "bad" : "",
+          chipHtml: !si.sp || si.terminou ? `<span class="kchip bad">encerrar</span>`
+            : si.acima ? `<span class="kchip bad">acima de ${si.max}</span>`
+            : `<span class="kchip good">${si.diasRestantes} dia(s)</span>`,
+          spark: sparkline(s.sprintPct, "#378ADD"),
+          foot: `atividades feitas · ${si.projetos || 0} projeto(s) na sprint`, go: "kanban",
         })}
       </div>
 

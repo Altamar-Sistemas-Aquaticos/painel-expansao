@@ -83,30 +83,34 @@
   }
 
   function capacidadePanel(S) {
-    const { carga, capacidade, maxProjetos, wipCount } = S.calc;
+    const { min, max } = S.calc.sprintLimites();
+    const si = A.sprintInfo(S);
     return `
       <div class="panel-head">
         <div>
           <h3 class="panel-title">Capacidade de execução</h3>
-          <div class="muted small">Cada projeto em andamento ocupa o seu esforço em pontos. Hoje: <strong>${carga()} de ${capacidade()} pontos</strong> · ${wipCount()} projeto(s).
+          <div class="muted small">Sprints de 4 semanas (3 por onda). ${si.sp ? `Hoje: <strong>${esc(si.rotulo)}</strong> com ${si.total} atividade(s).` : ""}
           Calibre depois de 2 ou 3 sprints, comparando com o que foi entregue.</div>
         </div>
       </div>
       <div class="cap-form">
         <div class="field">
-          <label for="cap-pontos">Capacidade (pontos de esforço)</label>
-          <input type="number" min="1" max="99" id="cap-pontos" class="input input-sm" value="${capacidade()}" data-cap="capacidade">
+          <label for="cap-min">Mínimo de atividades por sprint</label>
+          <input type="number" min="1" max="50" id="cap-min" class="input input-sm" value="${min}" data-cap="sprintMin">
         </div>
         <div class="field">
-          <label for="cap-max">Trava de projetos simultâneos</label>
-          <input type="number" min="1" max="30" id="cap-max" class="input input-sm" value="${maxProjetos()}" data-cap="maxProjetos">
+          <label for="cap-max">Máximo de atividades por sprint</label>
+          <input type="number" min="1" max="50" id="cap-max" class="input input-sm" value="${max}" data-cap="sprintMax">
         </div>
-        <div class="muted small">Cada onda (trimestre) comporta cerca de ${A.board.capOnda(S)} pontos.</div>
+        <div class="field">
+          <label for="cap-onda">Projetos por onda</label>
+          <input type="number" min="1" max="50" id="cap-onda" class="input input-sm" value="${S.calc.projetosPorOnda()}" data-cap="projetosPorOnda">
+        </div>
       </div>`;
   }
 
   A.views.cadastros = function (S) {
-    const sig = JSON.stringify([S.state.data.config, showInactive, S.state.data.initiatives.length, S.calc.carga(), S.calc.wipCount()]);
+    const sig = JSON.stringify([S.state.data.config, showInactive, S.state.data.initiatives.length, S.sprintItems().length, S.sprintAtual()?.id]);
     const editing = document.activeElement?.closest?.("#view-cadastros");
     if (sig === lastSig && editing) return; // não redesenha sob quem está digitando
     lastSig = sig;
@@ -126,7 +130,8 @@
       if (el.id === "cad-show-inactive") { showInactive = el.checked; return rerender(); }
       if (el.dataset.cap) {
         const r = S.saveConfig({ [el.dataset.cap]: el.value });
-        if (!r.unchanged) toast("Capacidade atualizada.");
+        if (!r.ok) toast(r.error, "error");
+        else if (!r.unchanged) toast("Capacidade atualizada.");
         return rerender();
       }
       if (!el.dataset.cad) return;
