@@ -69,6 +69,7 @@
     $("ini-area").innerHTML = A.ui.areaOptions(data.area);
     $("ini-responsavel").innerHTML = A.ui.peopleOptions(data.responsavel, { blank: "A definir" });
     $("ini-autor").innerHTML = A.ui.peopleOptions(data.autor, { blank: "Não informado" });
+    $("ini-eixo").innerHTML = A.ui.eixoOptions(data.eixo || "", "— A definir —");
     $("ini-situacao").value = data.situacao;
     $("ini-objetivo").value = data.objetivo || "";
     $("ini-pronto").value = data.prontoQuando || "";
@@ -106,6 +107,7 @@
       nome: $("ini-nome").value,
       area: $("ini-area").value,
       autor: $("ini-autor").value,
+      eixo: $("ini-eixo").value,
       valor: Number($("ini-valor").value),
       esforco: Number($("ini-esforco").value),
       status: $("ini-status").value,

@@ -7,6 +7,7 @@
     ["guia-o-que-e", "O que é"],
     ["guia-escalas", "Valor e esforço"],
     ["guia-corte", "V÷E e linha de corte"],
+    ["guia-eixos", "Eixos"],
     ["guia-ritmo", "Onda e sprint"],
     ["guia-regras", "Regras"],
     ["guia-raci", "RACI"],
@@ -99,10 +100,29 @@
             (por exemplo, destravar outro projeto) e esse motivo deve ficar escrito nas observações.</p>
           </section>
 
+          <section class="panel guia-sec" id="guia-eixos">
+            <h3>Eixos: o que o projeto melhora na Altamar</h3>
+            <p>O V÷E sozinho sempre favorece o que é rápido. Se toda ideia competir com todas, os projetos que levam tempo
+            (abrir um mercado, montar uma estrutura comercial) nunca entram em pauta. Por isso cada projeto tem um <strong>eixo</strong>,
+            e <strong>cada onda reserva vagas para cada eixo</strong>.</p>
+            <div class="table-wrap">
+              <table class="data">
+                <thead><tr><th>Eixo</th><th>O que melhora</th><th class="num">Vagas por onda</th></tr></thead>
+                <tbody>${S.eixos().map((e) => `<tr><td class="nowrap"><strong>${esc(e.icone)} ${esc(e.key)}</strong></td><td>${esc(e.descricao)}</td><td class="num"><strong>${e.vagas}</strong></td></tr>`).join("")}</tbody>
+              </table>
+            </div>
+            <ul class="guia-rules" style="margin-top:0.7rem">
+              <li><strong>O V÷E compara só dentro do eixo.</strong> A internacionalização compete com outros projetos de novos mercados, não com um ganho rápido de vendas. Na Priorização, cada eixo tem sua aba e sua linha de corte.</li>
+              <li><strong>As vagas garantem espaço para todos os eixos.</strong> Em toda onda, o melhor projeto de cada eixo entra, mesmo que o V÷E dele seja baixo comparado ao resto.</li>
+              <li><strong>Projeto longo começa por uma fase.</strong> Esforço de 6 meses ou 1 ano: na Triagem, use “✂ Fase” para criar uma primeira entrega menor (diagnóstico, piloto), que ocupa a vaga e mostra resultado no trimestre.</li>
+              <li><strong>O eixo não é a área.</strong> A área diz quem executa; o eixo diz o que melhora. Eixos e vagas se ajustam em ⚙️ Dados → Cadastros e capacidade.</li>
+            </ul>
+          </section>
+
           <section class="panel guia-sec" id="guia-ritmo">
             <h3>Onda e sprint: qual a diferença</h3>
             <div class="guia-ritmo">
-              <div><span class="guia-ritmo-tag">🌊 Onda</span><strong>Trimestre</strong><span class="muted small">Decide <em>quais projetos</em> entram nos próximos 3 meses. Até ${porOnda} projetos por onda.</span></div>
+              <div><span class="guia-ritmo-tag">🌊 Onda</span><strong>Trimestre</strong><span class="muted small">Decide <em>quais projetos</em> entram nos próximos 3 meses. Até ${porOnda} projetos por onda, distribuídos pelas vagas de cada eixo.</span></div>
               <div><span class="guia-ritmo-tag">📋 Sprint</span><strong>4 semanas</strong><span class="muted small">Decide <em>quais atividades</em> desses projetos andam neste mês. De ${min} a ${max} atividades. São 3 sprints por onda.</span></div>
               <div><span class="guia-ritmo-tag">✔️ Checklist</span><strong>Dia a dia</strong><span class="muted small">Os passos de cada atividade. Marcar os itens atualiza o % da atividade e do projeto.</span></div>
             </div>
@@ -113,7 +133,7 @@
             <h3>Regras do jogo</h3>
             <ul class="guia-rules">
               <li><strong>Sprint de 4 semanas com ${min} a ${max} atividades.</strong> O Kanban mostra só as atividades da sprint. Ao fim, o que não terminou passa para a próxima.</li>
-              <li><strong>Até ${porOnda} projetos por onda.</strong> Onda 1, 2 e 3 são os próximos trimestres; a Fila é o que ainda não tem data. Os limites se ajustam em ⚙️ Dados → Cadastros e capacidade.</li>
+              <li><strong>Até ${porOnda} projetos por onda, divididos por eixo.</strong> Onda 1, 2 e 3 são os próximos trimestres; a Fila é o que ainda não tem data. Os limites se ajustam em ⚙️ Dados → Cadastros e capacidade.</li>
               <li><strong>Semáforo.</strong> 🟢 no prazo · 🟡 atenção, precisa de alinhamento · 🔴 travado, precisa de decisão.</li>
               <li><strong>Situação do cadastro.</strong> <span class="badge warn">Rascunho</span> acabou de entrar ·
                 <span class="badge ok">Validado</span> passou pela triagem. Rascunho pode ser excluído; depois de validado, use o status Cancelado.
@@ -174,7 +194,7 @@
               [
                 passo(1, "Fechar a onda (20 min)", "O que foi concluído, o que continua e o que volta para a Fila.", ["ondas", "Ondas"]),
                 passo(2, "Revisar notas (20 min)", "Projetos da Fila e das próximas ondas: o valor ou o esforço mudou com o que aprendemos?", ["triagem", "Triagem"]),
-                passo(3, "Montar a próxima onda (40 min)", `Maior V÷E primeiro, até ${porOnda} projetos. Arrastar na aba Ondas.`, ["priorizacao", "Priorização"]),
+                passo(3, "Montar a próxima onda (40 min)", "Na Priorização, eixo por eixo: os melhores V÷E de cada eixo ocupam as vagas dele. Depois, arrastar na aba Ondas.", ["priorizacao", "Priorização"]),
                 passo(4, "Calibrar a capacidade (10 min)", "Comparar o que foi entregue com o planejado e ajustar os limites em ⚙️ Dados → Cadastros e capacidade.", ["cadastros", "Cadastros"]),
               ])}
 
@@ -182,9 +202,9 @@
               "Dar nota a todas as ideias, validar as que fazem sentido e montar a Onda 1 e a Sprint 1.",
               [
                 passo(1, "Combinar as escalas (10 min)", "Leiam juntos “Como dar valor e esforço” e ajustem as descrições se algo não fizer sentido."),
-                passo(2, "Dar nota a todas as ideias (45 min)", "Na Triagem, filtro “Sem nota”: primeiro o valor, depois o esforço, no máximo 2 minutos por ideia. Se travar, deixe “a definir” e siga.", ["triagem", "Triagem"]),
+                passo(2, "Dar nota a todas as ideias (45 min)", "Na Triagem, filtro “A triar”: primeiro o eixo, depois o valor e o esforço, no máximo 2 minutos por ideia. Se travar, deixe “a definir” e siga.", ["triagem", "Triagem"]),
                 passo(3, "Validar ou descartar (10 min)", "O que faz sentido vira “Validado”; o que não faz, exclua (rascunho) ou cancele.", ["triagem", "Triagem"]),
-                passo(4, "Montar a Onda 1 (15 min)", `Na Priorização, veja quem ficou acima da linha de corte e arraste até ${porOnda} projetos para a Onda 1.`, ["ondas", "Ondas"]),
+                passo(4, "Montar a Onda 1 (15 min)", "Na Priorização, eixo por eixo, os melhores V÷E ocupam as vagas do eixo. Arraste-os para a Onda 1 na aba Ondas.", ["ondas", "Ondas"]),
                 passo(5, "Planejar a Sprint 1 (10 min)", `Escolher de ${min} a ${max} atividades dos projetos da Onda 1.`, ["kanban", "Kanban"]),
               ])}
           </section>

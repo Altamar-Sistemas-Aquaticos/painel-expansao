@@ -33,9 +33,10 @@
     const { settings } = S.state;
     $("user-chip-name").textContent = settings.user || "Identificar-se";
     $("user-chip-avatar").textContent = settings.user ? initials(settings.user) : "?";
-    $("save-status").textContent = S.state.saveError
-      ? "⚠️ Falha ao salvar no navegador"
+    $("save-status").textContent = A.nuvem.configurado ? A.nuvem.status()
+      : S.state.saveError ? "⚠️ Falha ao salvar no navegador"
       : settings.lastSavedAt ? `Salvo automaticamente às ${A.util.fmtTime(settings.lastSavedAt)}` : "";
+    $("user-chip-name").title = A.nuvem.conectado() ? `Perfil: ${A.nuvem.perfilLabel()}` : "";
     const overdue = S.backupOverdue();
     $("backup-dot").classList.toggle("hidden", !overdue);
     $("backup-note").textContent = settings.lastBackupAt
@@ -115,6 +116,11 @@
     "finish-project": (id) => A.board.moveCard(id, "done"),
     "open-activity": (key) => A.sprint.openActivity(key),
     "act-quick": (key, el) => A.board.quick(key, el.dataset.q),
+    "criar-fase": (id) => {
+      const r = S.criarFase(id);
+      if (!r.ok) return toast(r.error, "error");
+      toast(`${r.item.id} criado como “Fase” de ${id}, na Triagem. Defina o esforço e as atividades dessa fase.`, "ok", 6000);
+    },
     "plan-sprint": () => A.sprint.openPlan(),
     "new-sprint": () => A.sprint.novaSprint(),
     "delete-decision": (id) => A.forms.deleteDecision(id),
@@ -127,7 +133,14 @@
     "meeting-summary": () => A.forms.openMeetingSummary(),
     "boletim": () => A.boletim.open(),
     "print": () => window.print(),
-    "change-user": () => A.forms.openUserForm(false),
+    "change-user": async () => {
+      // Com o banco compartilhado, quem está mexendo vem do login; trocar de pessoa = sair da conta.
+      if (A.nuvem.conectado()) {
+        if (await confirmDialog(`Você está conectado como ${S.state.settings.user} (${A.nuvem.perfilLabel()}). Sair da conta?`, { title: "Conta", okLabel: "Sair" })) A.nuvem.sair();
+        return;
+      }
+      A.forms.openUserForm(false);
+    },
   };
 
   function onClick(e) {
@@ -313,6 +326,7 @@
     A.triagem.init();
     A.sprint.init();
     A.boletim.init();
+    A.nuvem.init();
     A.compromissos.init();
     A.google.init();
     $("menu-google").addEventListener("click", () => { closeMenu(); A.google.openSettings(); });
@@ -356,8 +370,9 @@
     window.addEventListener("load", () => window.scrollTo(0, 0));
 
     if (origin === "migrated") toast("Seus dados do painel anterior foram migrados automaticamente.", "ok", 6000);
-    if (origin === "upgraded") toast("Painel atualizado: esforço agora em meses (1 a 5) e Kanban por sprint de 4 semanas. Confira a Sprint 1 no Kanban.", "ok", 9000);
-    if (!S.state.settings.user) A.forms.openUserForm(true);
+    if (origin === "upgraded") toast("Painel atualizado: projetos organizados por eixo (veja o Guia) e esforço em meses, com os convertidos marcados na Triagem.", "ok", 9000);
+    if (A.nuvem.configurado) A.nuvem.iniciar(); // login e dados compartilhados
+    else if (!S.state.settings.user) A.forms.openUserForm(true);
   }
 
   if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", boot);

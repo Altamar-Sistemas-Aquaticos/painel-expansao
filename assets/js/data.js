@@ -61,6 +61,26 @@
   // Esforço da escala antiga (1, 2, 3, 5, 8) renumerado nível a nível para a nova (1 a 5), mantendo a proporção entre projetos.
   const ESFORCO_ANTIGO_PARA_NOVO = { 1: 1, 2: 2, 3: 3, 5: 4, 8: 5 };
 
+  // Eixos do negócio: "o que o projeto melhora na Altamar". Cada onda reserva vagas por eixo, e o V÷E
+  // compara projetos só dentro do mesmo eixo (assim os de longo prazo não ficam eternamente na fila).
+  const EIXOS_PADRAO = [
+    { key: "Receita e vendas", icone: "💰", vagas: 3, descricao: "Faturar mais: prospecção, funil, produtos e ofertas" },
+    { key: "Gestão e processos", icone: "⚙️", vagas: 2, descricao: "Organizar, padronizar e medir a casa" },
+    { key: "Engenharia e ferramentas", icone: "🛠️", vagas: 1, descricao: "Projetar e orçar mais rápido e com menos erro" },
+    { key: "Marca e relacionamento", icone: "📣", vagas: 1, descricao: "Ser lembrado, gerar demanda e parcerias" },
+    { key: "Novos mercados e inovação", icone: "🌍", vagas: 1, descricao: "Abrir o que ainda não existe: país, setor, P&D" },
+  ];
+  // Classificação inicial dos projetos (ponto de partida para a reunião com a diretoria).
+  const EIXO_INICIAL = {
+    V1: "Receita e vendas", V5: "Receita e vendas", V7: "Receita e vendas", M1: "Receita e vendas", V4: "Receita e vendas",
+    V2: "Receita e vendas", V3: "Receita e vendas", V6: "Receita e vendas", M3: "Receita e vendas",
+    P1: "Gestão e processos", P2: "Gestão e processos", P3: "Gestão e processos", P4: "Gestão e processos", P8: "Gestão e processos",
+    P9: "Gestão e processos", E1: "Gestão e processos", E2: "Gestão e processos", V9: "Gestão e processos",
+    P5: "Engenharia e ferramentas", P6: "Engenharia e ferramentas", P7: "Engenharia e ferramentas",
+    M2: "Marca e relacionamento", M4: "Marca e relacionamento", M5: "Marca e relacionamento", M6: "Marca e relacionamento", M7: "Marca e relacionamento",
+    P10: "Novos mercados e inovação", V8: "Novos mercados e inovação", E3: "Novos mercados e inovação", E4: "Novos mercados e inovação",
+  };
+
   // Sprint de 4 semanas (3 sprints por onda) com 5 a 8 atividades; cada onda com até 8 projetos.
   const SPRINT_SEMANAS = 4;
   const SPRINT_MIN_PADRAO = 5;
@@ -125,7 +145,7 @@
   A.meta = {
     ONDAS, STATUS, SEMAFOROS, COLUNAS, FIBONACCI, WIP_MIN, WIP_MAX, PESSOAS, tempoPorEsforco,
     VALOR_ESCALA, ESFORCO_ESCALA, ESFORCO_PONTOS, ESFORCO_ANTIGO_PARA_NOVO, SPRINTS_POR_ONDA, SPRINT_SEMANAS,
-    SPRINT_MIN_PADRAO, SPRINT_MAX_PADRAO, PROJETOS_POR_ONDA_PADRAO, SPRINT_COLUNAS,
+    SPRINT_MIN_PADRAO, SPRINT_MAX_PADRAO, PROJETOS_POR_ONDA_PADRAO, SPRINT_COLUNAS, EIXOS_PADRAO, EIXO_INICIAL,
   };
   // Opções de <select> com a descrição da escala ("5 · Clientes ou receita").
   A.meta.valorOptions = (sel, blank = "— A definir —") => `<option value="">${blank}</option>` +

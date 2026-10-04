@@ -30,20 +30,19 @@
     };
   }
 
-  function bolha(S, it, cx, cy) {
+  function bolha(S, it, cx, cy, emFoco) {
     const { ve } = S.calc;
     const doing = it.status === "Em andamento";
-    const cls = ["bubble", doing ? "doing" : "", !S.matchesFilters(it) ? "faded" : ""].join(" ");
+    const cls = ["bubble", doing ? "doing" : "", !S.matchesFilters(it) || !emFoco(it) ? "faded" : ""].join(" ");
     return `
       <g class="${cls}" data-hl="${esc(it.id)}" data-action="edit-initiative" data-id="${esc(it.id)}" tabindex="0" role="button" aria-label="${esc(it.id + " " + it.nome)}">
-        <title>${esc(`${it.id} — ${it.nome}\nValor ${it.valor} · Esforço ${it.esforco} (${A.meta.tempoPorEsforco(it.esforco)}) · V÷E ${fmtNum(ve(it))}\n${it.status} · ${it.onda}`)}</title>
+        <title>${esc(`${it.id} — ${it.nome}\n${it.eixo ? `${A.eixo(it.eixo).icone} ${it.eixo}\n` : ""}Valor ${it.valor} · Esforço ${it.esforco} (${A.meta.tempoPorEsforco(it.esforco)}) · V÷E ${fmtNum(ve(it))}\n${it.status} · ${it.onda}`)}</title>
         <circle cx="${cx}" cy="${cy}" r="${R}" style="fill:${A.area(it.area).cor}"/>
         <text x="${cx}" y="${cy + 3}" text-anchor="middle">${esc(it.id)}</text>
       </g>`;
   }
 
-  function matrixSvg(S, items) {
-    const c = S.calc.cutoff().value;
+  function matrixSvg(S, items, c, emFoco) {
     const parts = [];
 
     // Ganhos rápidos: esforço até 2 meses, valor a partir de 5. O rótulo fica acima da área, fora das bolhas.
@@ -83,7 +82,7 @@
         cx: x(list[0].esforco) + ((k % cols) - (usadasCols - 1) / 2) * PITCH,
         cy: cy0 + Math.floor(k / cols) * PITCH,
       });
-      mostrar.forEach((it, k) => { const p = pos(k); parts.push(bolha(S, it, p.cx, p.cy)); });
+      mostrar.forEach((it, k) => { const p = pos(k); parts.push(bolha(S, it, p.cx, p.cy, emFoco)); });
       if (resto.length) {
         const p = pos(mostrar.length);
         parts.push(`
@@ -96,62 +95,86 @@
     });
     return parts.join("");
   }
+
+  // Aba escolhida no ranking: "ALL" ou o nome de um eixo.
+  document.addEventListener("click", (e) => {
+    const b = e.target.closest("[data-pr-eixo]");
+    if (!b) return;
+    A.store.state.ui.prioEixo = b.dataset.prEixo;
+    A.store.emit();
+  });
+
   A.views.priorizacao = function (S) {
     const el = document.getElementById("priorizacao-root");
     if (!el) return;
     const { ve, cutoff, isAboveCut } = S.calc;
-    const cut = cutoff();
     const all = S.state.data.initiatives.filter(ativo);
     const items = all.filter(pontuado);
     const pend = all.filter((i) => !pontuado(i)).length;
-    const ranked = [...items].sort((a, b) => ve(b) - ve(a) || b.valor - a.valor || a.id.localeCompare(b.id, "pt-BR", { numeric: true }));
+    let aba = S.state.ui.prioEixo || "ALL";
+    if (aba !== "ALL" && aba !== "" && !S.findEixo(aba)) aba = "ALL";
+    const eixo = aba === "ALL" ? null : A.eixo(aba);
+    const doEixo = (it) => aba === "ALL" || (it.eixo || "") === aba;
+    // Dentro de um eixo, a linha de corte é a média do próprio eixo: só se compara projeto com projeto parecido.
+    const base = items.filter(doEixo);
+    const cut = cutoff(base);
+    const ranked = [...base].sort((a, b) => ve(b) - ve(a) || b.valor - a.valor || a.id.localeCompare(b.id, "pt-BR", { numeric: true }));
     const rows = ranked.filter((it) => S.matchesFilters(it));
     const above = ranked.filter((it) => isAboveCut(it, cut.value)).length;
 
     const sp = S.sprintAtual();
     const naSprint = new Set(S.sprintItems().map(({ it }) => it.id));
-    let dividerDone = false;
-    const list = rows.map((it) => {
+    const vagas = eixo ? eixo.vagas : 0;
+    let cutDone = false;
+    const list = rows.map((it, idx) => {
       const isAbove = isAboveCut(it, cut.value);
       let divider = "";
-      if (!isAbove && !dividerDone) {
-        dividerDone = true;
-        divider = `<li class="pr-cut">Linha de corte · ${fmtNum(cut.value)}</li>`;
-      }
+      if (!eixo && !isAbove && !cutDone) { cutDone = true; divider = `<li class="pr-cut">Linha de corte · ${fmtNum(cut.value)}</li>`; }
+      if (eixo && idx === vagas && vagas > 0) divider = `<li class="pr-cut vagas">${vagas === 1 ? "Acima desta linha: a vaga do eixo na onda" : `Acima desta linha: as ${vagas} vagas do eixo na onda`}</li>`;
       return `${divider}
-        <li class="pr-row ${isAbove ? "above" : ""}" data-hl="${esc(it.id)}" data-action="edit-initiative" data-id="${esc(it.id)}" tabindex="0" role="button">
+        <li class="pr-row ${eixo ? (idx < vagas ? "above" : "") : isAbove ? "above" : ""}" data-hl="${esc(it.id)}" data-action="edit-initiative" data-id="${esc(it.id)}" tabindex="0" role="button">
           <span class="pr-pos">${ranked.indexOf(it) + 1}</span>
           <span class="pr-id" style="--ac:${A.area(it.area).cor}">${esc(it.id)}</span>
-          <span class="pr-name">${esc(it.nome)}</span>
+          <span class="pr-name">${aba === "ALL" ? ui.eixoIcon(it.eixo) : ""}${esc(it.nome)}</span>
           <span class="pr-ve" title="Valor ${it.valor} ÷ Esforço ${it.esforco}">${fmtNum(ve(it))}</span>
           <span class="pr-onda">${esc(it.onda)}${naSprint.has(it.id) ? `<span class="sprint-tag" title="Tem atividades na sprint atual">${esc(sp.id.replace("S", "Sprint "))}</span>` : ""}</span>
         </li>`;
     }).join("");
 
+    const conta = (k) => items.filter((it) => (it.eixo || "") === k).length;
+    const semEixo = conta("");
+    const abas = [
+      `<button class="seg-btn ${aba === "ALL" ? "active" : ""}" data-pr-eixo="ALL">Todos <span class="muted">${items.length}</span></button>`,
+      ...S.eixos().map((e) => `<button class="seg-btn ${aba === e.key ? "active" : ""}" data-pr-eixo="${esc(e.key)}" title="${esc(e.descricao)}">${esc(e.icone)} ${esc(e.key)} <span class="muted">${conta(e.key)}</span></button>`),
+      semEixo ? `<button class="seg-btn ${aba === "" ? "active" : ""}" data-pr-eixo="">❔ Sem eixo <span class="muted">${semEixo}</span></button>` : "",
+    ].join("");
+
     el.innerHTML = `
       <div class="page-head">
         <div>
           <h2>Priorização</h2>
-          <div class="muted">Quanto mais para cima e para a esquerda, melhor. Passe o mouse num projeto para ver onde ele está nos dois lados.</div>
+          <div class="muted">${eixo
+            ? `${esc(eixo.icone)} <strong>${esc(eixo.key)}</strong>: ${esc(eixo.descricao)}. O V÷E compara só os projetos deste eixo, e a onda reserva <strong>${vagas} vaga(s)</strong> para eles.`
+            : "Escolha um eixo para comparar projetos parecidos entre si. Cada eixo tem vagas garantidas em toda onda."}</div>
         </div>
         <div class="row">
-          <span class="badge ok">${above} acima do corte</span>
-          <span class="badge">Linha de corte ${fmtNum(cut.value)}</span>
+          ${eixo ? `<span class="badge ok">${Math.min(vagas, ranked.length)} na disputa pelas vagas</span>` : `<span class="badge ok">${above} acima do corte</span>`}
+          <span class="badge" title="Σ Valor ÷ Σ Esforço ${eixo ? "dos projetos deste eixo" : "de todos os projetos"}">Linha de corte ${fmtNum(cut.value)}</span>
           ${pend ? `<button class="btn btn-xs btn-outline" data-action="go-tab" data-tab="triagem">${pend} sem nota → Triagem</button>` : ""}
         </div>
       </div>
+      <div class="seg pr-tabs no-print">${abas}</div>
       <div class="pr-grid">
         <section class="panel pr-matrix">
-          <svg class="matrix-svg" viewBox="0 0 ${W} ${H}" preserveAspectRatio="xMidYMid meet" role="img" aria-label="Matriz valor por esforço">${matrixSvg(S, items)}</svg>
+          <svg class="matrix-svg" viewBox="0 0 ${W} ${H}" preserveAspectRatio="xMidYMid meet" role="img" aria-label="Matriz valor por esforço">${matrixSvg(S, items, cut.value, doEixo)}</svg>
           <div class="pr-legend">${S.areas().map((a) => ui.areaBadge(a.key)).join("")}<span class="muted small"><span class="legend-ring"></span> em andamento</span></div>
         </section>
         <section class="panel pr-rank">
           <div class="pr-rank-head"><span>#</span><span>ID</span><span>Projeto</span><span>V÷E</span><span>Onda</span></div>
-          <ol class="pr-list">${list || `<li>${ui.empty("Nenhum projeto com nota corresponde aos filtros.")}</li>`}</ol>
+          <ol class="pr-list">${list || `<li>${ui.empty("Nenhum projeto com nota neste eixo.")}</li>`}</ol>
         </section>
       </div>`;
   };
-
   // Destaque sincronizado entre matriz e ranking.
   function highlight(id) {
     const root = document.getElementById("priorizacao-root");

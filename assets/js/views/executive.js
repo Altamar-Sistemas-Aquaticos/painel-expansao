@@ -21,6 +21,12 @@
   };
   ui.decisionBadge = (status) => `<span class="badge ${status === "Pendente" ? "alert" : "ok"}">${esc(status)}</span>`;
   ui.empty = (msg) => `<div class="empty">${msg}</div>`;
+  ui.eixoOptions = (selected, blank = "— Eixo —") => `<option value="">${esc(blank)}</option>` +
+    A.store.eixos().map((e) => `<option value="${esc(e.key)}" ${e.key === selected ? "selected" : ""}>${esc(e.icone)} ${esc(e.key)}</option>`).join("");
+  ui.eixoIcon = (key) => {
+    const e = A.eixo(key);
+    return `<span class="eixo-ico" title="${esc(e.key ? `Eixo: ${e.key}` : "Eixo a definir")}">${esc(e.icone)}</span>`;
+  };
 
   // Resumo da sprint atual, usado no topo, no painel executivo, no Kanban e no Guia.
   A.sprintInfo = (S) => {

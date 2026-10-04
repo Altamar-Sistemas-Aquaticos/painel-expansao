@@ -102,11 +102,43 @@
           <label for="cap-max">Máximo de atividades por sprint</label>
           <input type="number" min="1" max="50" id="cap-max" class="input input-sm" value="${max}" data-cap="sprintMax">
         </div>
-        <div class="field">
-          <label for="cap-onda">Projetos por onda</label>
-          <input type="number" min="1" max="50" id="cap-onda" class="input input-sm" value="${S.calc.projetosPorOnda()}" data-cap="projetosPorOnda">
-        </div>
+        <div class="muted small">Projetos por onda: <strong>${S.calc.projetosPorOnda()}</strong> (soma das vagas dos eixos, abaixo).</div>
       </div>`;
+  }
+
+  function eixosPanel(S) {
+    const rows = S.eixos().map((e) => {
+      const k = `data-cad="eixo" data-key="${esc(e.key)}"`;
+      const uso = S.eixoUso(e.key);
+      return `
+        <tr>
+          <td><input class="input input-sm cad-ico" value="${esc(e.icone)}" maxlength="4" ${k} data-field="icone" aria-label="Ícone do eixo ${esc(e.key)}"></td>
+          <td><input class="input input-sm" value="${esc(e.key)}" ${k} data-field="key" aria-label="Nome do eixo"></td>
+          <td><input class="input input-sm" value="${esc(e.descricao)}" ${k} data-field="descricao" aria-label="O que o eixo melhora"></td>
+          <td><input type="number" min="0" max="20" class="input input-sm cad-vagas" value="${e.vagas}" ${k} data-field="vagas" aria-label="Vagas por onda"></td>
+          <td class="num">${uso}</td>
+          <td class="center"><button class="btn btn-xs btn-danger-ghost icon-btn" data-cad-del="eixo" data-key="${esc(e.key)}" ${uso ? "disabled title=\"Eixo com projetos\"" : ""} aria-label="Excluir eixo ${esc(e.key)}">✕</button></td>
+        </tr>`;
+    }).join("");
+    return `
+      <div class="panel-head">
+        <div>
+          <h3 class="panel-title">Eixos e vagas por onda</h3>
+          <div class="muted small">O eixo diz o que o projeto melhora na Altamar. Cada onda reserva vagas por eixo, e o V÷E compara projetos só dentro do mesmo eixo.</div>
+        </div>
+      </div>
+      <div class="table-wrap">
+        <table class="data">
+          <thead><tr><th>Ícone</th><th>Eixo</th><th>O que melhora</th><th class="num">Vagas</th><th class="num">Projetos</th><th></th></tr></thead>
+          <tbody>${rows}</tbody>
+        </table>
+      </div>
+      <form class="cad-add" id="cad-eixo-form">
+        <input class="input input-sm cad-ico" id="cad-eixo-ico" placeholder="🎯" maxlength="4" aria-label="Ícone do novo eixo">
+        <input class="input input-sm" id="cad-eixo-nome" placeholder="Novo eixo" autocomplete="off" aria-label="Nome do novo eixo">
+        <input type="number" min="0" max="20" class="input input-sm cad-vagas" id="cad-eixo-vagas" value="1" aria-label="Vagas por onda">
+        <button class="btn btn-sm btn-primary" type="submit">+ Adicionar eixo</button>
+      </form>`;
   }
 
   A.views.cadastros = function (S) {
@@ -115,6 +147,8 @@
     if (sig === lastSig && editing) return; // não redesenha sob quem está digitando
     lastSig = sig;
     document.getElementById("cad-capacidade").innerHTML = capacidadePanel(S);
+    document.getElementById("cad-eixos").innerHTML = eixosPanel(S);
+    A.nuvem?.renderMembros();
     document.getElementById("cad-areas").innerHTML = areasPanel(S);
     document.getElementById("cad-pessoas").innerHTML = pessoasPanel(S);
   };
@@ -138,6 +172,7 @@
       const value = el.type === "checkbox" ? el.checked : el.value;
       const r = el.dataset.cad === "area"
         ? S.saveArea({ [el.dataset.field]: el.dataset.field === "code" ? String(value).toUpperCase() : value }, el.dataset.key)
+        : el.dataset.cad === "eixo" ? S.saveEixo({ [el.dataset.field]: value }, el.dataset.key)
         : S.savePessoa({ [el.dataset.field]: value }, el.dataset.key);
       if (!r.ok) { toast(r.error, "error", 5000); rerender(); return; }
       if (!r.unchanged) toast("Cadastro atualizado.");
@@ -147,9 +182,9 @@
       const b = e.target.closest("[data-cad-del]");
       if (!b || b.disabled) return;
       const tipo = b.dataset.cadDel, key = b.dataset.key;
-      const ok = await confirmDialog(`Excluir ${tipo === "area" ? "a área" : ""} “${key}” dos cadastros?`, { title: "Excluir cadastro", okLabel: "Excluir", danger: true });
+      const ok = await confirmDialog(`Excluir ${tipo === "area" ? "a área" : tipo === "eixo" ? "o eixo" : ""} “${key}” dos cadastros?`, { title: "Excluir cadastro", okLabel: "Excluir", danger: true });
       if (!ok) return;
-      const r = tipo === "area" ? S.deleteArea(key) : S.deletePessoa(key);
+      const r = tipo === "area" ? S.deleteArea(key) : tipo === "eixo" ? S.deleteEixo(key) : S.deletePessoa(key);
       if (!r.ok) return toast(r.error, "error", 5000);
       toast(`“${key}” excluído.`, "warn");
     });
@@ -165,6 +200,16 @@
 
     root.addEventListener("submit", (e) => {
       e.preventDefault();
+      if (e.target.id === "cad-eixo-form") {
+        const r = S.saveEixo({
+          key: document.getElementById("cad-eixo-nome").value,
+          icone: document.getElementById("cad-eixo-ico").value,
+          vagas: document.getElementById("cad-eixo-vagas").value,
+        });
+        if (!r.ok) return toast(r.error, "error", 5000);
+        toast(`Eixo ${r.item.key} criado com ${r.item.vagas} vaga(s) por onda.`);
+        rerender();
+      }
       if (e.target.id === "cad-area-form") {
         const r = S.saveArea({
           key: document.getElementById("cad-area-nome").value,

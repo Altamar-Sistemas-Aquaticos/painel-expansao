@@ -17,7 +17,7 @@
     const S = A.store;
     const user = S.findPessoa(S.state.settings.user || "")?.nome || "";
     return {
-      nome: "", area: area || (S.state.ui.area !== "ALL" ? S.state.ui.area : S.areas()[0].key), responsavel: user, autor: user,
+      nome: "", area: area || (S.state.ui.area !== "ALL" ? S.state.ui.area : S.areas()[0].key), responsavel: user, autor: user, eixo: "",
       valor: "", esforco: "", onda: "", prazo: "", objetivo: "", prontoQuando: "", indicador: "", investimento: false, observacoes: "",
       equipe: user ? [user] : [],
       atividades: [blankActivity(), blankActivity()].map((a) => ({ ...a, raci: user ? { [user]: "R" } : {} })),
@@ -97,6 +97,7 @@
           <div class="field"><label>Área *</label><select ${f("area")}>${opt(S.areas().map((a) => [a.key, `${a.key} (${a.code})`]), draft.area)}</select></div>
           <div class="field"><label>Responsável pelo projeto *</label><select ${f("responsavel")}>${opt(S.pessoas({ ativas: true }).map((p) => [p.nome, p.funcao ? `${p.nome} — ${p.funcao}` : p.nome]), draft.responsavel)}</select></div>
           <div class="field"><label>Prazo final</label><input type="date" ${f("prazo")} value="${esc(draft.prazo)}"></div>
+          <div class="field"><label>Eixo</label><select ${f("eixo")}>${A.ui.eixoOptions(draft.eixo || "", "— A definir —")}</select></div>
           <div class="field"><label>Autor da ideia</label><select ${f("autor")}>${A.ui.peopleOptions(draft.autor || "", { blank: "Não informado" })}</select></div>
           <div class="field"><label>Valor *</label><select ${f("valor")}>${A.meta.valorOptions(draft.valor, "— Escolha —")}</select></div>
           <div class="field"><label>Esforço *</label><select ${f("esforco")}>${A.meta.esforcoOptions(draft.esforco, "— Escolha —")}</select></div>
@@ -230,7 +231,7 @@
     }
     const S = A.store;
     const input = {
-      nome: draft.nome.trim(), area: draft.area, responsavel: draft.responsavel, autor: draft.autor || "",
+      nome: draft.nome.trim(), area: draft.area, responsavel: draft.responsavel, autor: draft.autor || "", eixo: draft.eixo || "",
       valor: Number(draft.valor), esforco: Number(draft.esforco), onda: "Fila", prazo: isoToBR(draft.prazo),
       objetivo: draft.objetivo.trim(), prontoQuando: draft.prontoQuando.trim(), indicador: draft.indicador.trim(),
       investimento: draft.investimento ? "Sim" : "Não", observacoes: draft.observacoes.trim(),

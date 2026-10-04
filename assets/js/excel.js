@@ -36,6 +36,7 @@
     investimento: ["investimento", "exigeinvestimento"],
     situacao: ["situacaodocadastro", "situacao"],
     autor: ["autor", "autordaideia", "quemtrouxe"],
+    eixo: ["eixo", "eixodonegocio"],
   };
   const DECISION_COLUMNS = {
     data: ["data"],
@@ -209,6 +210,8 @@
         if (prazo) incoming.prazo = prazo;
         const obs = toText(row.observacoes);
         if (obs) incoming.observacoes = obs;
+        const eixo = toText(row.eixo);
+        if (eixo && S.findEixo(eixo)) incoming.eixo = eixo;
         ["objetivo", "prontoQuando", "indicador", "autor"].forEach((k) => {
           const v = toText(row[k]);
           if (v) incoming[k] = v;
@@ -357,6 +360,8 @@
       "Investimento?": it.investimento,
       "Situação do cadastro": it.situacao,
       "Autor da ideia": it.autor,
+      Eixo: it.eixo,
+      "Fase de": it.faseDe,
       Observações: it.observacoes,
     }));
     const actRows = [];
@@ -398,7 +403,7 @@
       ws["!cols"] = widths.map((w) => ({ wch: w }));
       XLSX.utils.book_append_sheet(wb, ws, name);
     };
-    add(iniRows, "Iniciativas", [8, 6, 60, 12, 7, 8, 7, 12, 10, 14, 16, 9, 14, 10, 18, 14, 14, 12, 40, 40, 30, 12, 16, 14, 50]);
+    add(iniRows, "Iniciativas", [8, 6, 60, 12, 7, 8, 7, 12, 10, 14, 16, 9, 14, 10, 18, 14, 14, 12, 40, 40, 30, 12, 16, 14, 24, 8, 50]);
     add(actRows, "Atividades", [8, 40, 5, 60, 40, 16, 16, 22, 22, 12, 12, 10, 13, 12, 40, 10, 60]);
     // Cadastros (referência; a importação não lê estas abas)
     add(S.areas().map((a) => ({ Área: a.key, Código: a.code, Cor: a.cor })), "Areas", [20, 8, 10]);

@@ -7,7 +7,7 @@
   <meta name="theme-color" content="#026488">
   <title>Painel de Expansão · Altamar</title>
   <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%23026488'/%3E%3Ctext x='32' y='44' font-family='Segoe UI,Arial' font-size='36' font-weight='800' fill='white' text-anchor='middle'%3EA%3C/text%3E%3C/svg%3E">
-  <link rel="stylesheet" href="assets/css/app.css?v=20261003d">
+  <link rel="stylesheet" href="assets/css/app.css?v=20261004d">
   <script>
     // Aplica o tema antes da pintura para evitar "piscar" claro → escuro.
     (function () {
@@ -26,7 +26,7 @@
   <header class="app-header">
     <div class="header-bar">
       <a class="brand" href="#executivo" data-action="go-tab" data-tab="executivo" title="Ir para o Painel executivo">
-        <span class="brand-logo-wrap"><img class="brand-img" src="assets/img/logo-altamar-branco.png?v=20261003d" alt="Altamar Sistemas Aquáticos" width="217" height="54"></span>
+        <span class="brand-logo-wrap"><img class="brand-img" src="assets/img/logo-altamar-branco.png?v=20261004d" alt="Altamar Sistemas Aquáticos" width="217" height="54"></span>
         <span class="brand-divider" aria-hidden="true"></span>
         <span class="brand-sub">Painel de Gestão<br>Projeto de Expansão</span>
       </a>
@@ -51,6 +51,7 @@
             <button id="menu-import-json" role="menuitem">📂 Restaurar backup (JSON)…</button>
             <hr>
             <button id="btn-theme" role="menuitem">🌓 Tema</button>
+            <button id="menu-sair" class="hidden" role="menuitem">🚪 Sair da conta</button>
             <hr>
             <button id="menu-clear-history" class="danger" role="menuitem">🧹 Limpar histórico</button>
             <button id="menu-reset" class="danger" role="menuitem">🔄 Restaurar dados padrão</button>
@@ -124,6 +125,7 @@
         <div class="tri-quick-title">💡 Nova ideia</div>
         <input id="tri-nome" class="input tri-q-nome" placeholder="Qual é a ideia ou projeto?" aria-label="Ideia">
         <select id="tri-area" class="input" aria-label="Área"></select>
+        <select id="tri-eixo" class="input" aria-label="Eixo"></select>
         <select id="tri-autor" class="input" aria-label="Quem trouxe a ideia"></select>
         <input id="tri-prazo" class="input tri-q-prazo" placeholder="Prazo pensado" aria-label="Prazo pensado">
         <select id="tri-valor" class="input" aria-label="Valor prévio"></select>
@@ -136,7 +138,7 @@
         <table class="data tri-table">
           <thead>
             <tr>
-              <th>ID</th><th>Ideia / projeto</th><th>Área</th><th>Autor</th><th>Criado</th>
+              <th>ID</th><th>Ideia / projeto</th><th>Área</th><th>Eixo</th><th>Autor</th>
               <th>Valor</th><th>Esforço</th><th class="num">V÷E</th><th>Prazo</th><th>Situação</th><th class="no-print"></th>
             </tr>
           </thead>
@@ -229,7 +231,9 @@
           <div class="muted">Capacidade da equipe, áreas que organizam os projetos e pessoas que podem receber papéis na matriz RACI.</div>
         </div>
       </div>
+      <div class="panel hidden" id="cad-acesso" style="margin-bottom:1rem"></div>
       <div class="panel" id="cad-capacidade" style="margin-bottom:1rem"></div>
+      <div class="panel" id="cad-eixos" style="margin-bottom:1rem"></div>
       <div class="cad-grid">
         <div class="panel" id="cad-areas"></div>
         <div class="panel" id="cad-pessoas"></div>
@@ -245,6 +249,28 @@
   </footer>
 
   <!-- ================= Modais ================= -->
+
+  <!-- Login no painel compartilhado -->
+  <div class="modal-backdrop" id="modal-login" role="dialog" aria-modal="true" aria-labelledby="login-titulo" data-required="1">
+    <div class="modal sm login-modal">
+      <div class="login-brand"><img src="assets/img/logo-altamar.png" alt="Altamar" onerror="this.remove()"><span>Painel de Gestão · Projeto de Expansão</span></div>
+      <h3 id="login-titulo">Entrar no painel</h3>
+      <p class="muted small" id="login-msg"></p>
+      <form id="login-form" novalidate>
+        <div class="field" id="login-email-campo">
+          <label for="login-email">E-mail</label>
+          <input id="login-email" class="input" type="email" autocomplete="username" placeholder="nome@altamar.com.br">
+        </div>
+        <div class="field" id="login-senha-campo">
+          <label for="login-senha">Senha</label>
+          <input id="login-senha" class="input" type="password" autocomplete="current-password" placeholder="mínimo de 8 caracteres">
+        </div>
+        <div class="field-error" id="login-erro" role="alert"></div>
+        <button type="submit" class="btn btn-primary login-btn" id="login-enviar">Entrar</button>
+      </form>
+      <div class="login-links small" id="login-links"></div>
+    </div>
+  </div>
 
   <!-- Boletim semanal (prévia + baixar, abrir, imprimir, copiar resumo) -->
   <div class="modal-backdrop" id="modal-boletim" role="dialog" aria-modal="true" aria-labelledby="boletim-title">
@@ -307,6 +333,10 @@
           <div class="field">
             <label for="ini-esforco">Esforço</label>
             <select id="ini-esforco" class="input"></select>
+          </div>
+          <div class="field">
+            <label for="ini-eixo">Eixo</label>
+            <select id="ini-eixo" class="input"></select>
           </div>
           <div class="field">
             <label>Onda</label>
@@ -553,26 +583,28 @@
   <datalist id="people-list"></datalist>
   <div class="toasts" id="toasts" aria-live="polite"></div>
 
-  <script src="assets/js/utils.js?v=20261003d"></script>
-  <script src="assets/js/data.js?v=20261003d"></script>
-  <script src="assets/js/activities-seed.js?v=20261003d"></script>
-  <script src="assets/js/store.js?v=20261003d"></script>
-  <script src="assets/js/excel.js?v=20261003d"></script>
-  <script src="assets/js/views/executive.js?v=20261003d"></script>
-  <script src="assets/js/views/matrix.js?v=20261003d"></script>
-  <script src="assets/js/views/tables.js?v=20261003d"></script>
-  <script src="assets/js/views/board.js?v=20261003d"></script>
-  <script src="assets/js/views/drilldown.js?v=20261003d"></script>
-  <script src="assets/js/views/triagem.js?v=20261003d"></script>
-  <script src="assets/js/views/guia.js?v=20261003d"></script>
-  <script src="assets/js/boletim.js?v=20261003d"></script>
-  <script src="assets/js/views/sprint.js?v=20261003d"></script>
-  <script src="assets/js/views/overview.js?v=20261003d"></script>
-  <script src="assets/js/views/cadastros.js?v=20261003d"></script>
-  <script src="assets/js/google.js?v=20261003d"></script>
-  <script src="assets/js/compromissos.js?v=20261003d"></script>
-  <script src="assets/js/forms.js?v=20261003d"></script>
-  <script src="assets/js/ficha.js?v=20261003d"></script>
-  <script src="assets/js/app.js?v=20261003d"></script>
+  <script src="assets/js/config.js?v=20261004d"></script>
+  <script src="assets/js/utils.js?v=20261004d"></script>
+  <script src="assets/js/data.js?v=20261004d"></script>
+  <script src="assets/js/activities-seed.js?v=20261004d"></script>
+  <script src="assets/js/store.js?v=20261004d"></script>
+  <script src="assets/js/excel.js?v=20261004d"></script>
+  <script src="assets/js/views/executive.js?v=20261004d"></script>
+  <script src="assets/js/views/matrix.js?v=20261004d"></script>
+  <script src="assets/js/views/tables.js?v=20261004d"></script>
+  <script src="assets/js/views/board.js?v=20261004d"></script>
+  <script src="assets/js/views/drilldown.js?v=20261004d"></script>
+  <script src="assets/js/views/triagem.js?v=20261004d"></script>
+  <script src="assets/js/views/guia.js?v=20261004d"></script>
+  <script src="assets/js/boletim.js?v=20261004d"></script>
+  <script src="assets/js/views/sprint.js?v=20261004d"></script>
+  <script src="assets/js/views/overview.js?v=20261004d"></script>
+  <script src="assets/js/views/cadastros.js?v=20261004d"></script>
+  <script src="assets/js/google.js?v=20261004d"></script>
+  <script src="assets/js/compromissos.js?v=20261004d"></script>
+  <script src="assets/js/forms.js?v=20261004d"></script>
+  <script src="assets/js/ficha.js?v=20261004d"></script>
+  <script src="assets/js/nuvem.js?v=20261004d"></script>
+  <script src="assets/js/app.js?v=20261004d"></script>
 </body>
 </html>

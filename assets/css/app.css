@@ -891,7 +891,7 @@ body.presentation .filter-bar { display: none; }
 /* ---------- Triagem ---------- */
 .tab-count.accent { background: var(--accent-soft); color: var(--accent); font-weight: 700; }
 .tri-quick {
-  display: grid; grid-template-columns: auto minmax(220px, 2.4fr) repeat(2, minmax(120px, 1fr)) minmax(110px, 0.9fr) repeat(2, minmax(150px, 1.1fr)) auto;
+  display: grid; grid-template-columns: auto minmax(200px, 2.2fr) repeat(3, minmax(110px, 1fr)) minmax(100px, 0.8fr) repeat(2, minmax(140px, 1fr)) auto;
   gap: 0.5rem; align-items: center; background: var(--surface); border: 2px solid color-mix(in srgb, var(--accent) 45%, transparent);
   border-radius: var(--radius); padding: 0.8rem 0.9rem; box-shadow: var(--shadow); margin-bottom: 0.9rem;
 }
@@ -908,7 +908,8 @@ body.presentation .filter-bar { display: none; }
 .tri-name a:hover { color: var(--accent); text-decoration: underline; }
 .tri-sel { border: 1px solid var(--border); border-radius: 6px; background: var(--surface); color: var(--text); padding: 0.3rem 0.35rem; font: inherit; font-size: 0.84rem; max-width: 165px; cursor: pointer; }
 .tri-sel.tri-autor { max-width: 120px; }
-.tri-score.empty { border: 1.5px dashed var(--warn); background: var(--warn-soft); color: var(--warn-text); font-weight: 700; }
+.tri-eixo { max-width: 175px; }
+.tri-eixo.empty, .tri-score.empty { border: 1.5px dashed var(--warn); background: var(--warn-soft); color: var(--warn-text); font-weight: 700; }
 .tri-score.revisar { border: 1.5px solid var(--accent); background: var(--accent-soft); font-weight: 700; }
 .tri-ok { margin-left: 0.25rem; border: 1px solid var(--accent); background: var(--surface); color: var(--accent); border-radius: 6px; font-weight: 800; cursor: pointer; padding: 0.15rem 0.45rem; }
 .tri-ok:hover { background: var(--accent); color: #fff; }
@@ -1120,6 +1121,26 @@ body.presentation .filter-bar { display: none; }
 
 .ini-onda-ro { display: flex; align-items: baseline; gap: 0.5rem; padding: 0.5rem 0; flex-wrap: wrap; }
 
+.eixo-ico { display: inline-block; width: 1.2em; text-align: center; }
+
+.pr-tabs { display: flex; flex-wrap: wrap; margin-bottom: 0.8rem; width: fit-content; max-width: 100%; }
+.pr-tabs .seg-btn { white-space: nowrap; }
+.pr-cut.vagas { color: var(--ok-text); background: var(--ok-soft); }
+
+.wave-eixos { display: flex; flex-wrap: wrap; gap: 0.25rem; margin-top: 0.45rem; }
+.wave-eixos .kchip { font-size: 0.72rem; padding: 0.1rem 0.4rem; }
+.wchip .eixo-ico { flex: none; font-size: 0.8rem; }
+
+/* ---------- Login ---------- */
+.login-modal { max-width: 400px; }
+.login-brand { display: flex; flex-direction: column; align-items: center; gap: 0.3rem; margin-bottom: 0.8rem; color: var(--text-muted); font-size: 0.8rem; }
+.login-brand img { height: 44px; }
+.login-modal h3 { text-align: center; margin: 0 0 0.2rem; }
+.login-modal #login-msg { text-align: center; }
+.login-btn { width: 100%; margin-top: 0.4rem; }
+.login-links { text-align: center; margin-top: 0.8rem; color: var(--text-muted); }
+#modal-login.open { background: color-mix(in srgb, var(--brand-bg) 88%, transparent); }
+
 /* ---------- Boletim ---------- */
 .boletim-actions { margin-bottom: 0.7rem; flex-wrap: wrap; }
 .boletim-frame { width: 100%; height: 65vh; border: 1px solid var(--border); border-radius: 10px; background: #e9eef3; }
@@ -1128,6 +1149,8 @@ body.presentation .filter-bar { display: none; }
 .cap-form { display: flex; flex-wrap: wrap; gap: 0.8rem; align-items: flex-end; }
 .cap-form .field { margin: 0; }
 .cap-form .input { width: 120px; }
+.cad-ico { width: 3.2rem; text-align: center; }
+.cad-vagas { width: 4.5rem; }
 
 /* ---------- Print ---------- */
 @media print {

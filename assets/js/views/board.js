@@ -198,7 +198,12 @@
             <div class="wave-cap ${over ? "over" : ""}" title="Projetos em aberto nesta onda × limite por onda (${limite})">
               <div class="wave-cap-bar"><span style="width:${pct}%"></span></div>
               <div class="wave-col-load">${abertos} de ${limite} projetos</div>
-            </div>`}
+            </div>
+            <div class="wave-eixos">${S.eixos().map((e) => {
+              const n = list.filter((i) => i.status !== "Concluído" && i.eixo === e.key).length;
+              const cls = n > e.vagas ? "bad" : !n && e.vagas ? "warnc" : n === e.vagas ? "good" : "neutral";
+              return `<span class="kchip ${cls}" title="${esc(e.key)}: ${n} projeto(s) para ${e.vagas} vaga(s)">${esc(e.icone)} ${n}/${e.vagas}</span>`;
+            }).join("")}</div>`}
           </header>
           <div class="wave-col-list">
             ${list.length ? list.map((it) => `
@@ -207,6 +212,7 @@
                    title="${esc(it.nome)} · ${esc(it.status)} · V÷E ${A.util.fmtNum(ve(it))} · esforço ${esc(A.meta.tempoPorEsforco(it.esforco))}"
                    style="--ac:${A.area(it.area).cor}">
                 <span class="wchip-id">${esc(it.id)}</span>
+                ${ui.eixoIcon(it.eixo)}
                 <span class="wchip-name">${esc(it.nome)}</span>
                 ${naSprint.has(it.id) ? `<span class="sprint-tag" title="Tem atividades na sprint atual">${esc(sp.id.replace("S", "Sprint "))}</span>` : ""}
               </div>`).join("")
@@ -292,7 +298,10 @@
     S.setOnda(id, onda);
     const limite = S.calc.projetosPorOnda();
     const abertos = S.state.data.initiatives.filter((i) => i.onda === onda && i.status !== "Concluído" && i.status !== "Cancelado").length;
-    if (onda !== "Fila" && abertos > limite) toast(`${id} movido para ${onda}. Atenção: ${abertos} projetos para um limite de ${limite}.`, "warn", 5000);
+    const eixo = S.findEixo(it.eixo);
+    const doEixo = eixo ? S.state.data.initiatives.filter((i) => i.onda === onda && i.eixo === eixo.key && i.status !== "Concluído" && i.status !== "Cancelado").length : 0;
+    if (onda !== "Fila" && eixo && doEixo > eixo.vagas) toast(`${id} movido para ${onda}. Atenção: o eixo ${eixo.icone} ${eixo.key} ficou com ${doEixo} projetos para ${eixo.vagas} vaga(s).`, "warn", 6000);
+    else if (onda !== "Fila" && abertos > limite) toast(`${id} movido para ${onda}. Atenção: ${abertos} projetos para um limite de ${limite}.`, "warn", 5000);
     else toast(`${id} movido para ${onda}.`);
   }
 

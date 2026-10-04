@@ -8,7 +8,7 @@
   const SETTINGS_KEY = "altamar_painel_settings_v2";
   const LEGACY_INI = "altamar_expansao_iniciativas_v1";
   const LEGACY_DEC = "altamar_expansao_decisoes_v1";
-  const SCHEMA_VERSION = 5; // 4: esforço em meses, sprints e checklist · 5: marca "esforço a revisar"
+  const SCHEMA_VERSION = 6; // 4: esforço em meses, sprints e checklist · 5: "esforço a revisar" · 6: eixos e fases
   const PORTFOLIO_BASE_DATE = "2026-09-01T12:00:00.000Z"; // data-base dos 29 projetos iniciais
   const HISTORY_LIMIT = 2000;
 
@@ -25,7 +25,7 @@
     status: "Status", semaforo: "Semáforo", responsavel: "Responsável", prazo: "Prazo",
     observacoes: "Observações", enabler: "Habilitadora", coluna: "Coluna do Kanban",
     objetivo: "Objetivo", prontoQuando: "Pronto quando", indicador: "Indicador de sucesso",
-    investimento: "Exige investimento", situacao: "Situação do cadastro", autor: "Autor da ideia", esforcoRevisar: "Esforço a revisar",
+    investimento: "Exige investimento", situacao: "Situação do cadastro", autor: "Autor da ideia", esforcoRevisar: "Esforço a revisar", eixo: "Eixo", faseDe: "Fase do projeto",
   };
   const ACTIVITY_FIELDS = {
     nome: "Atividade", entregavel: "Entregável", pct: "% concluído", status: "Status", raci: "RACI",
@@ -36,6 +36,7 @@
     data: "Data", quem: "Quem decide", grupo: "Iniciativa", pauta: "Pauta", status: "Status", resultado: "Decisão / encaminhamento",
   };
   const AREA_FIELDS = { key: "Nome", code: "Código", cor: "Cor" };
+  const EIXO_FIELDS = { key: "Nome", icone: "Ícone", vagas: "Vagas por onda", descricao: "Descrição" };
   const PESSOA_FIELDS = { nome: "Nome", funcao: "Função", email: "E-mail", area: "Área", ativo: "Ativa" };
   const COMPROMISSO_FIELDS = {
     titulo: "Título", data: "Data", horaInicio: "Início", horaFim: "Fim", projeto: "Projeto",
@@ -58,6 +59,10 @@
   const areas = () => store.data.config.areas;
   const pessoas = ({ ativas = false } = {}) => store.data.config.pessoas.filter((p) => !ativas || p.ativo);
   const findArea = (key) => areas().find((a) => a.key === key);
+  const eixos = () => store.data.config.eixos;
+  const findEixo = (key) => eixos().find((e) => e.key === key);
+  // Eixo para exibição (projetos sem eixo aparecem como "A definir").
+  A.eixo = (key) => findEixo(key) || { key: key || "", icone: "❔", vagas: 0, descricao: "" };
   // Substitui o A.area estático de data.js: as áreas agora vêm dos cadastros.
   A.area = (key) => findArea(key) || { key: key || "—", code: "?", cor: "#64748b" };
 
@@ -92,7 +97,8 @@
   }
   const wipCount = () => store.data.initiatives.filter((i) => i.status === "Em andamento").length;
   const sprintLimites = () => ({ min: store.data.config.sprintMin, max: store.data.config.sprintMax });
-  const projetosPorOnda = () => store.data.config.projetosPorOnda;
+  // Vagas de uma onda = soma das vagas dos eixos.
+  const projetosPorOnda = () => eixos().reduce((s, e) => s + e.vagas, 0) || A.meta.PROJETOS_POR_ONDA_PADRAO;
 
   // 0 = nota ainda "a definir" (ideias recém-cadastradas, antes da triagem).
   const isBlank = (v) => v === 0 || v === "0" || v === "" || v == null;
@@ -212,6 +218,8 @@
       // Esforço convertido automaticamente da escala antiga: fica marcado até alguém confirmar ou mudar.
       esforcoRevisar: !!raw.esforcoRevisar && !isBlank(raw.esforco),
       autor: String(raw.autor ?? "").trim(),
+      eixo: String(raw.eixo ?? "").trim(),
+      faseDe: String(raw.faseDe ?? "").trim().toUpperCase(), // projeto principal, quando este é uma fase dele
       onda: ONDA_KEYS.includes(raw.onda) ? raw.onda : "Fila",
       status,
       semaforo: SEMAFORO_KEYS.includes(raw.semaforo) ? raw.semaforo : "verde",
@@ -246,6 +254,15 @@
       pauta: String(raw.pauta ?? "").trim(),
       status: raw.status === "Decidido" ? "Decidido" : "Pendente",
       resultado: String(raw.resultado ?? "").trim(),
+    };
+  }
+
+  function normalizeEixo(raw) {
+    return {
+      key: String(raw.key ?? "").trim(),
+      icone: String(raw.icone ?? "").trim().slice(0, 4) || "•",
+      vagas: Math.max(0, Math.round(Number(raw.vagas)) || 0),
+      descricao: String(raw.descricao ?? "").trim(),
     };
   }
 
@@ -326,7 +343,7 @@
         pessoas: (cfg.pessoas || A.defaults.pessoas).map(normalizePessoa).filter((p) => p.nome),
         sprintMin: posInt(cfg.sprintMin, A.meta.SPRINT_MIN_PADRAO),
         sprintMax: posInt(cfg.sprintMax, A.meta.SPRINT_MAX_PADRAO),
-        projetosPorOnda: posInt(cfg.projetosPorOnda, A.meta.PROJETOS_POR_ONDA_PADRAO),
+        eixos: (Array.isArray(cfg.eixos) ? cfg.eixos : clone(A.meta.EIXOS_PADRAO)).map(normalizeEixo).filter((e) => e.key),
       },
       sprints: (Array.isArray(raw.sprints) ? raw.sprints : []).map(normalizeSprint),
       initiatives: [],
@@ -377,6 +394,12 @@
           it.esforcoRevisar = true;
         });
       }
+      // Antes da versão 6 não havia eixos: aplica a classificação inicial combinada com a diretoria.
+      if (!(raw.version >= 6)) {
+        data.initiatives.forEach((it) => {
+          if (!it.eixo && A.meta.EIXO_INICIAL[it.id] && data.config.eixos.some((e) => e.key === A.meta.EIXO_INICIAL[it.id])) it.eixo = A.meta.EIXO_INICIAL[it.id];
+        });
+      }
       // Sem sprints ainda: cria a Sprint 1 com a próxima atividade aberta de cada projeto em andamento.
       if (!data.sprints.length) {
         const s1 = makeSprint(1, primeiraSegunda());
@@ -420,26 +443,43 @@
     try { localStorage.setItem(key, JSON.stringify(value)); return true; } catch { return false; }
   }
 
+  // Adota um conjunto de dados salvo (do navegador ou da nuvem), aplicando as migrações de versão.
+  // Retorna "upgraded" quando houve migração com novidades a avisar, senão "saved".
+  function adotar(saved) {
+    store.data = normalizeData(saved);
+    if (saved.version === SCHEMA_VERSION) return "saved";
+    if (!(saved.version >= 4)) {
+      store.data.history.unshift(entry("sistema", null, "migrou",
+        "Nova versão: esforço convertido para meses (1 = 1 mês … 5 = 1 ano), Sprint 1 de 4 semanas criada e “Aprovado para onda” passou a “Validado”", [], "Sistema"));
+    }
+    if (saved.version === 4) {
+      store.data.history.unshift(entry("sistema", null, "migrou",
+        "Esforço renumerado mantendo a proporção da escala antiga (1, 2, 3, 5, 8 → 1, 2, 3, 4, 5); projetos marcados como “esforço a revisar” na Triagem", [], "Sistema"));
+    }
+    if (saved.version >= 4 && saved.version < 6) {
+      store.data.history.unshift(entry("sistema", null, "migrou",
+        "Eixos criados (Receita e vendas, Gestão e processos, Engenharia e ferramentas, Marca e relacionamento, Novos mercados e inovação) e projetos classificados", [], "Sistema"));
+    }
+    return saved.version >= 6 ? "saved" : "upgraded";
+  }
+
+  // Dados vindos da nuvem (carga inicial ou alteração de outra pessoa): substitui os locais sem reenviar.
+  function adotarDaNuvem(raw) {
+    const origem = adotar(raw);
+    persist();
+    emit();
+    return origem;
+  }
+
   function load() {
     const settings = readJSON(SETTINGS_KEY);
     if (settings) Object.assign(store.settings, settings);
 
     const saved = readJSON(DATA_KEY);
     if (saved && Array.isArray(saved.initiatives)) {
-      store.data = normalizeData(saved);
-      if (saved.version !== SCHEMA_VERSION) {
-        if (!(saved.version >= 4)) {
-          store.data.history.unshift(entry("sistema", null, "migrou",
-            "Nova versão: esforço convertido para meses (1 = 1 mês … 5 = 1 ano), Sprint 1 de 4 semanas criada e “Aprovado para onda” passou a “Validado”", [], "Sistema"));
-        }
-        if (saved.version === 4) {
-          store.data.history.unshift(entry("sistema", null, "migrou",
-            "Esforço renumerado mantendo a proporção da escala antiga (1, 2, 3, 5, 8 → 1, 2, 3, 4, 5); projetos marcados como “esforço a revisar” na Triagem", [], "Sistema"));
-        }
-        persist();
-        if (!(saved.version >= 5)) return "upgraded";
-      }
-      return "saved";
+      const origem = adotar(saved);
+      persist();
+      return origem;
     }
     // Migra dados da versão anterior (arquivo HTML único), se existirem neste navegador.
     const legacyIni = readJSON(LEGACY_INI);
@@ -505,6 +545,7 @@
       if (store.data.history.length > HISTORY_LIMIT) store.data.history.length = HISTORY_LIMIT;
     }
     const ok = persist();
+    A.nuvem?.agendar(); // envia ao banco compartilhado (se conectado)
     emit();
     if (!ok) A.util.toast("Não foi possível salvar no navegador. Exporte um backup agora.", "error", 6000);
     A.google?.schedule(); // leva prazos e compromissos para o Google Agenda (se conectado)
@@ -605,7 +646,7 @@
     if (dup) return { ok: false, error: `Já existe um projeto com esse nome (${dup.id}).` };
     const id = nextId(input.area);
     const item = normalizeInitiative({
-      id, nome: input.nome, area: input.area, autor: input.autor || store.settings.user || "",
+      id, nome: input.nome, area: input.area, autor: input.autor || store.settings.user || "", eixo: input.eixo || "",
       prazo: input.prazo || "", valor: input.valor, esforco: input.esforco, objetivo: input.objetivo || "",
       onda: "Fila", situacao: "Rascunho", status: "A fazer", semaforo: "verde", atividades: [],
       criadoEm: new Date().toISOString(),
@@ -616,7 +657,7 @@
     return { ok: true, item };
   }
 
-  const CONFIG_FIELDS = { sprintMin: "Mínimo de atividades por sprint", sprintMax: "Máximo de atividades por sprint", projetosPorOnda: "Projetos por onda" };
+  const CONFIG_FIELDS = { sprintMin: "Mínimo de atividades por sprint", sprintMax: "Máximo de atividades por sprint" };
   function saveConfig(patch) {
     const cfg = store.data.config;
     const before = Object.fromEntries(Object.keys(CONFIG_FIELDS).map((k) => [k, cfg[k]]));
@@ -907,6 +948,55 @@
     return { ok: true };
   }
 
+  /* ---------- Cadastros: eixos ---------- */
+  const eixoUso = (key) => store.data.initiatives.filter((i) => i.eixo === key).length;
+
+  function saveEixo(input, originalKey = null) {
+    const before = originalKey ? findEixo(originalKey) : null;
+    const after = normalizeEixo({ ...(before || {}), ...input });
+    if (!after.key) return { ok: false, error: "Informe o nome do eixo." };
+    if (eixos().some((e) => e !== before && norm(e.key) === norm(after.key))) return { ok: false, error: "Já existe um eixo com esse nome." };
+    if (!before) {
+      eixos().push(after);
+      commit([entry("cadastro", null, "criou", `Eixo ${after.icone} ${after.key} (${after.vagas} vaga(s) por onda)`)]);
+      return { ok: true, item: after };
+    }
+    const changes = diff(before, after, EIXO_FIELDS);
+    if (!changes.length) return { ok: true, unchanged: true };
+    if (after.key !== before.key) store.data.initiatives.forEach((i) => { if (i.eixo === before.key) i.eixo = after.key; });
+    Object.assign(before, after);
+    commit([entry("cadastro", null, "editou", `Eixo ${after.key}`, changes)]);
+    return { ok: true, item: before };
+  }
+
+  function deleteEixo(key) {
+    const uso = eixoUso(key);
+    if (uso) return { ok: false, error: `O eixo tem ${uso} projeto(s). Mude o eixo deles antes de excluir.` };
+    store.data.config.eixos = eixos().filter((e) => e.key !== key);
+    commit([entry("cadastro", null, "excluiu", `Eixo ${key}`)]);
+    return { ok: true };
+  }
+
+  /* ---------- Fases de projetos longos ---------- */
+  const fasesDe = (id) => store.data.initiatives.filter((i) => i.faseDe === id);
+
+  // Cria a próxima fase de um projeto (ex.: "Internacionalização · Fase 1"), que entra na Triagem como rascunho
+  // com o mesmo eixo e valor; o esforço da fase fica a definir.
+  function criarFase(id) {
+    const mae = findInitiative(id);
+    if (!mae) return { ok: false, error: "Projeto não encontrado." };
+    const n = fasesDe(id).length + 1;
+    const novoId = nextId(mae.area);
+    const item = normalizeInitiative({
+      id: novoId, nome: `${mae.nome} · Fase ${n}`, area: mae.area, eixo: mae.eixo, autor: store.settings.user || mae.autor,
+      valor: mae.valor, esforco: 0, onda: "Fila", situacao: "Rascunho", status: "A fazer", semaforo: "verde",
+      objetivo: n === 1 ? `Primeira entrega de ${mae.id}: diagnóstico ou piloto que reduz a incerteza do projeto.` : "",
+      faseDe: mae.id, atividades: [], criadoEm: new Date().toISOString(),
+    });
+    store.data.initiatives.push(item);
+    commit([entry("iniciativa", novoId, "criou", `${novoId} · ${item.nome}`, [{ field: "faseDe", label: "Fase do projeto", from: "", to: mae.id }], "Fases")]);
+    return { ok: true, item };
+  }
   /* ---------- Cadastros: pessoas ---------- */
   const findPessoa = (nome) => store.data.config.pessoas.find((p) => norm(p.nome) === norm(nome));
 
@@ -1093,8 +1183,9 @@
   const hasActiveFilters = () => store.ui.area !== "ALL" || store.ui.status !== "ALL" || store.ui.onda !== "ALL" || !!store.ui.search;
 
   A.store = {
-    state: store, load, persist, subscribe, emit, saveSettings,
+    state: store, load, persist, subscribe, emit, saveSettings, adotarDaNuvem, SCHEMA_VERSION,
     calc: { ve, cutoff, isAboveCut, wipCount, snapFib, snapEsforco, progress, parseDate, weekKey, sprintLimites, projetosPorOnda },
+    eixos, findEixo, saveEixo, deleteEixo, eixoUso, criarFase, fasesDe,
     sprints, sprintAtual, findSprint, sprintItems, activityCol, sprintDates, planSprint, moveActivity, novaSprint, saveSprint, saveChecklist,
     findInitiative, nextId, saveInitiative, createProject, quickIdea, saveConfig, deleteInitiative, canDelete, advanceSituacao,
     moveToColumn, setOnda, setStatus, warnings, confirmarEsforco,
