@@ -3,16 +3,23 @@
   const A = (window.Altamar = window.Altamar || {});
 
   // Áreas iniciais. A lista definitiva fica nos Cadastros (podem ser criadas novas áreas).
+  // Setores do Programa de Expansão, cada um com o seu líder (o "setor" é o que o painel chamava de "área").
   const AREAS = [
-    { key: "Projetos", code: "P", cor: "#0b7285" },
-    { key: "Vendas", code: "V", cor: "#2b8a3e" },
-    { key: "Marketing", code: "M", cor: "#6741d9" },
-    { key: "Estratégia", code: "E", cor: "#c2410c" },
+    { key: "Projetos de infraestrutura", code: "P", cor: "#0b7285", lider: "Pedro" },
+    { key: "Produtos (engenharia mecânica)", code: "PD", cor: "#e67700", lider: "Matheus" },
+    { key: "Vendas", code: "V", cor: "#2b8a3e", lider: "Isabela" },
+    { key: "Marketing", code: "M", cor: "#6741d9", lider: "Pedro" },
+    { key: "Estratégia", code: "E", cor: "#c2410c", lider: "Pedro" },
+    { key: "Financeiro", code: "F", cor: "#a61e4d", lider: "Maíra" },
+    { key: "Administrativo", code: "AD", cor: "#1971c2", lider: "Bia" },
   ];
   const PESSOAS_INICIAIS = [
-    { nome: "Pedro", funcao: "Gestor de projetos", area: "Projetos" },
-    { nome: "Maíra", funcao: "Diretoria", area: "Estratégia" },
+    { nome: "Pedro", funcao: "Gestor do programa", area: "Projetos de infraestrutura" },
+    { nome: "Maíra", funcao: "Diretoria", area: "Financeiro" },
     { nome: "Shei", funcao: "Diretoria", area: "Estratégia" },
+    { nome: "Isabela", funcao: "Líder de Vendas", area: "Vendas" },
+    { nome: "Matheus", funcao: "Líder de Produtos (engenharia mecânica)", area: "Produtos (engenharia mecânica)" },
+    { nome: "Bia", funcao: "Líder do Administrativo", area: "Administrativo" },
   ];
 
   const ONDAS = [
@@ -32,8 +39,8 @@
 
   // Colunas do Kanban e o status que cada uma implica.
   const COLUNAS = [
-    { key: "backlog", label: "Backlog", hint: "Fora da sprint atual", status: "A fazer" },
-    { key: "todo", label: "A fazer na sprint", hint: "Comprometido nesta sprint", status: "A fazer" },
+    { key: "backlog", label: "Backlog", hint: "Fora do ciclo atual", status: "A fazer" },
+    { key: "todo", label: "A fazer no ciclo", hint: "Comprometido neste ciclo", status: "A fazer" },
     { key: "doing", label: "Fazendo", hint: "Em execução", status: "Em andamento" },
     { key: "waiting", label: "Esperando / Travado", hint: "Depende de alguém", status: "Em andamento" },
     { key: "done", label: "Feito", hint: "Concluído", status: "Concluído" },
@@ -89,7 +96,7 @@
   const SPRINTS_POR_ONDA = 3;
   // Colunas do Kanban da sprint (cada card é uma atividade).
   const SPRINT_COLUNAS = [
-    { key: "todo", label: "A fazer", hint: "Combinado para esta sprint" },
+    { key: "todo", label: "A fazer", hint: "Combinado para este ciclo" },
     { key: "doing", label: "Fazendo", hint: "Em execução" },
     { key: "waiting", label: "Esperando / Travado", hint: "Depende de alguém ou de decisão" },
     { key: "done", label: "Feito", hint: "Entregue" },
@@ -152,6 +159,8 @@
     FIBONACCI.map((f) => `<option value="${f}" ${String(f) === String(sel) ? "selected" : ""}>${f} · ${VALOR_ESCALA[f].curto}</option>`).join("");
   A.meta.esforcoOptions = (sel, blank = "— A definir —") => `<option value="">${blank}</option>` +
     ESFORCO_PONTOS.map((f) => `<option value="${f}" ${String(f) === String(sel) ? "selected" : ""}>${f} · ${ESFORCO_ESCALA[f].curto}</option>`).join("");
+  A.meta.SETORES_PADRAO = AREAS;
+  A.meta.LIMITE_PROJETOS_SETOR = 4; // projetos ativos ao mesmo tempo em cada setor
   A.defaults = { areas: AREAS, pessoas: PESSOAS_INICIAIS, initiatives: DEFAULT_INITIATIVES, decisions: DEFAULT_DECISIONS };
 
   A.onda = (key) => ONDAS.find((o) => o.key === key) || ONDAS[ONDAS.length - 1];

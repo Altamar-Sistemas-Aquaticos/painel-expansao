@@ -8,7 +8,7 @@
   const SETTINGS_KEY = "altamar_painel_settings_v2";
   const LEGACY_INI = "altamar_expansao_iniciativas_v1";
   const LEGACY_DEC = "altamar_expansao_decisoes_v1";
-  const SCHEMA_VERSION = 6; // 4: esforço em meses, sprints e checklist · 5: "esforço a revisar" · 6: eixos e fases
+  const SCHEMA_VERSION = 7; // 4: esforço em meses, sprints e checklist · 5: "esforço a revisar" · 6: eixos e fases · 7: setores com líder e ciclo mensal
   const PORTFOLIO_BASE_DATE = "2026-09-01T12:00:00.000Z"; // data-base dos 29 projetos iniciais
   const HISTORY_LIMIT = 2000;
 
@@ -30,12 +30,12 @@
   const ACTIVITY_FIELDS = {
     nome: "Atividade", entregavel: "Entregável", pct: "% concluído", status: "Status", raci: "RACI",
     inicio: "Início", prazo: "Prazo", dependeDe: "Depende de", observacoes: "Observações",
-    sprint: "Sprint", esperando: "Esperando / travada", checklist: "Checklist",
+    sprint: "Ciclo", esperando: "Esperando / travada", checklist: "Checklist",
   };
   const DECISION_FIELDS = {
     data: "Data", quem: "Quem decide", grupo: "Projeto", pauta: "Pauta", status: "Status", resultado: "Decisão / encaminhamento",
   };
-  const AREA_FIELDS = { key: "Nome", code: "Código", cor: "Cor" };
+  const AREA_FIELDS = { key: "Nome", code: "Código", cor: "Cor", lider: "Líder" };
   const EIXO_FIELDS = { key: "Nome", icone: "Ícone", vagas: "Vagas por onda", descricao: "Descrição" };
   const PESSOA_FIELDS = { nome: "Nome", funcao: "Função", email: "E-mail", area: "Área", ativo: "Ativa" };
   const COMPROMISSO_FIELDS = {
@@ -271,6 +271,7 @@
       key: String(raw.key ?? "").trim(),
       code: String(raw.code ?? "").trim().toUpperCase(),
       cor: /^#[0-9a-f]{6}$/i.test(raw.cor) ? raw.cor : "#64748b",
+      lider: String(raw.lider ?? "").trim(), // líder do setor (nome igual ao do cadastro de pessoas)
     };
   }
   // Call ou reunião marcada no painel (vai para o Google Agenda com horário).
@@ -307,29 +308,50 @@
     };
   }
 
-  /* ---------- Sprints (4 semanas) ---------- */
+  /* ---------- Ciclos (mês do calendário; internamente ainda chamados de "sprints") ---------- */
   const isoDay = (d) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
   const fromIso = (s) => { const [y, m, d] = String(s).split("-").map(Number); return new Date(y, m - 1, d); };
   const addDays = (d, n) => { const x = new Date(d); x.setDate(x.getDate() + n); return x; };
-  // 1ª sprint: começa na segunda desta semana (de segunda a quarta) ou na próxima segunda.
-  function primeiraSegunda(hoje = new Date()) {
-    const d = new Date(hoje); d.setHours(0, 0, 0, 0);
-    const dow = (d.getDay() + 6) % 7; // 0 = segunda
-    return addDays(d, dow <= 2 ? -dow : 7 - dow);
-  }
+  // O ciclo é o mês do calendário: "Ciclo de outubro" vai do dia 1 ao último dia (3 ciclos por onda).
+  const inicioDoMes = (d = new Date()) => new Date(d.getFullYear(), d.getMonth(), 1);
+  const fimDoMes = (d) => new Date(d.getFullYear(), d.getMonth() + 1, 0);
+  const primeiraSegunda = (hoje = new Date()) => inicioDoMes(hoje); // nome antigo, mantido para os chamadores
   function makeSprint(numero, inicio, objetivo = "") {
-    return { id: `S${numero}`, numero, inicio: isoDay(inicio), fim: isoDay(addDays(inicio, A.meta.SPRINT_SEMANAS * 7 - 1)), objetivo, encerrada: false };
+    const ini = inicioDoMes(inicio);
+    return { id: `S${numero}`, numero, inicio: isoDay(ini), fim: isoDay(fimDoMes(ini)), objetivo, encerrada: false };
+  }
+  const MESES_NOME = ["janeiro", "fevereiro", "março", "abril", "maio", "junho", "julho", "agosto", "setembro", "outubro", "novembro", "dezembro"];
+  // "Ciclo de outubro" (curto: "Ciclo out").
+  function nomeCiclo(sp, { curto = false } = {}) {
+    if (!sp) return "";
+    const m = MESES_NOME[fromIso(sp.inicio).getMonth()];
+    return curto ? `Ciclo ${m.slice(0, 3)}` : `Ciclo de ${m}`;
   }
   function normalizeSprint(raw) {
     return {
       id: String(raw.id || `S${raw.numero}`), numero: Number(raw.numero) || 1,
       inicio: /^\d{4}-\d{2}-\d{2}$/.test(raw.inicio) ? raw.inicio : isoDay(primeiraSegunda()),
-      fim: /^\d{4}-\d{2}-\d{2}$/.test(raw.fim) ? raw.fim : isoDay(addDays(primeiraSegunda(), 27)),
+      fim: /^\d{4}-\d{2}-\d{2}$/.test(raw.fim) ? raw.fim : isoDay(fimDoMes(primeiraSegunda())),
       objetivo: String(raw.objetivo ?? "").trim(), encerrada: !!raw.encerrada,
     };
   }
 
+  // Versão 7: o setor "Projetos" passa a ser "Projetos de infraestrutura" (os projetos atuais são todos de infraestrutura).
+  const renomearSetor = (a) => (a === "Projetos" ? "Projetos de infraestrutura" : a);
+
   function normalizeData(raw) {
+    if (!(raw.version >= 7)) {
+      const c0 = raw.config || {};
+      raw = {
+        ...raw,
+        initiatives: (raw.initiatives || []).map((i) => ({ ...i, area: renomearSetor(i.area) })),
+        config: {
+          ...c0,
+          areas: c0.areas ? c0.areas.map((a) => ({ ...a, key: renomearSetor(a.key) })) : undefined,
+          pessoas: c0.pessoas ? c0.pessoas.map((p) => ({ ...p, area: renomearSetor(p.area) })) : undefined,
+        },
+      };
+    }
     const cfg = raw.config || {};
     const posInt = (v, def) => (Number(v) > 0 ? Math.round(Number(v)) : def);
     // Antes da versão 4 o esforço usava 1, 2, 3, 5 e 8 (1 semana a 3+ meses): converte para meses (1 a 5).
@@ -394,7 +416,25 @@
           it.esforcoRevisar = true;
         });
       }
-      // Antes da versão 6 não havia eixos: aplica a classificação inicial combinada com a diretoria.
+      if (!(raw.version >= 7)) {
+        // Setores do programa que ainda não existem entram com o líder combinado; setores sem líder recebem o padrão.
+        A.meta.SETORES_PADRAO.forEach((sp) => {
+          const atual = data.config.areas.find((a) => a.key === sp.key);
+          if (!atual) {
+            const code = data.config.areas.some((a) => a.code === sp.code) ? suggestAreaCode(sp.key) : sp.code;
+            data.config.areas.push(normalizeArea({ ...sp, code }));
+          } else if (!atual.lider) atual.lider = sp.lider;
+        });
+        A.defaults.pessoas.forEach((p) => {
+          if (!data.config.pessoas.some((x) => norm(x.nome) === norm(p.nome))) data.config.pessoas.push(normalizePessoa(p));
+        });
+        // Ciclos abertos passam a seguir o mês do calendário.
+        data.sprints.forEach((s) => {
+          if (s.encerrada) return;
+          const ini = inicioDoMes(fromIso(s.inicio));
+          s.inicio = isoDay(ini); s.fim = isoDay(fimDoMes(ini));
+        });
+      }      // Antes da versão 6 não havia eixos: aplica a classificação inicial combinada com a diretoria.
       if (!(raw.version >= 6)) {
         data.initiatives.forEach((it) => {
           if (!it.eixo && A.meta.EIXO_INICIAL[it.id] && data.config.eixos.some((e) => e.key === A.meta.EIXO_INICIAL[it.id])) it.eixo = A.meta.EIXO_INICIAL[it.id];
@@ -460,7 +500,11 @@
       store.data.history.unshift(entry("sistema", null, "migrou",
         "Eixos criados (Receita e vendas, Gestão e processos, Engenharia e ferramentas, Marca e relacionamento, Novos mercados e inovação) e projetos classificados", [], "Sistema"));
     }
-    return saved.version >= 6 ? "saved" : "upgraded";
+    if (!(saved.version >= 7)) {
+      store.data.history.unshift(entry("sistema", null, "migrou",
+        "Programa organizado por setores com líder (Projetos de infraestrutura, Produtos, Vendas, Marketing, Estratégia, Financeiro, Administrativo) e ciclo mensal no lugar da sprint", [], "Sistema"));
+    }
+    return saved.version >= 7 ? "saved" : "upgraded";
   }
 
   // Dados vindos da nuvem (carga inicial ou alteração de outra pessoa): substitui os locais sem reenviar.
@@ -658,7 +702,7 @@
     return { ok: true, item };
   }
 
-  const CONFIG_FIELDS = { sprintMin: "Mínimo de atividades por sprint", sprintMax: "Máximo de atividades por sprint" };
+  const CONFIG_FIELDS = { sprintMin: "Mínimo de atividades por ciclo", sprintMax: "Máximo de atividades por ciclo" };
   function saveConfig(patch) {
     const cfg = store.data.config;
     const before = Object.fromEntries(Object.keys(CONFIG_FIELDS).map((k) => [k, cfg[k]]));
@@ -690,13 +734,13 @@
   // Planejamento: `selecionadas` = lista de "iniId|actId" que ficam na sprint atual (as demais saem).
   function planSprint(selecionadas, objetivo) {
     const sp = sprintAtual();
-    if (!sp) return { ok: false, error: "Nenhuma sprint aberta." };
+    if (!sp) return { ok: false, error: "Nenhum ciclo aberto." };
     const set = new Set(selecionadas);
     const entries = [];
     store.data.initiatives.forEach((it) => it.atividades.forEach((a) => {
       const quer = set.has(`${it.id}|${a.id}`);
       if (quer === (a.sprint === sp.id)) return;
-      const r = saveActivity(it.id, a.id, { sprint: quer ? sp.id : "" }, { source: "Sprint", silent: true });
+      const r = saveActivity(it.id, a.id, { sprint: quer ? sp.id : "" }, { source: "Ciclo", silent: true });
       if (r.entry) entries.push(r.entry);
     }));
     const changes = [];
@@ -705,7 +749,7 @@
       sp.objetivo = objetivo.trim();
     }
     if (!entries.length && !changes.length) return { ok: true, unchanged: true };
-    entries.push(entry("sprint", sp.id, "planejou", `Sprint ${sp.numero}: ${set.size} atividade(s)`, changes, "Sprint"));
+    entries.push(entry("sprint", sp.id, "planejou", `${nomeCiclo(sp)}: ${set.size} atividade(s)`, changes, "Ciclo"));
     commit(entries.reverse());
     return { ok: true, total: set.size };
   }
@@ -753,23 +797,23 @@
       atual.encerrada = true;
     }
     store.data.sprints.push(nova);
-    const entries = [entry("sprint", nova.id, "abriu", `Sprint ${nova.numero} aberta (${nova.inicio} a ${nova.fim})`, [], "Sprint")];
-    if (atual) entries.push(entry("sprint", atual.id, "encerrou", `Sprint ${atual.numero} encerrada: ${feitas} feita(s), ${levadas} levada(s) para a Sprint ${nova.numero}`, [], "Sprint"));
+    const entries = [entry("sprint", nova.id, "abriu", `${nomeCiclo(nova)} aberto (${nova.inicio} a ${nova.fim})`, [], "Ciclo")];
+    if (atual) entries.push(entry("sprint", atual.id, "encerrou", `${nomeCiclo(atual)} encerrado: ${feitas} feita(s), ${levadas} levada(s) para o ${nomeCiclo(nova)}`, [], "Ciclo"));
     commit(entries);
     return { ok: true, sprint: nova, levadas, feitas };
   }
 
   function saveSprint(patch) {
     const sp = sprintAtual();
-    if (!sp) return { ok: false, error: "Nenhuma sprint aberta." };
+    if (!sp) return { ok: false, error: "Nenhum ciclo aberto." };
     const after = { ...sp, ...patch };
     if (!/^\d{4}-\d{2}-\d{2}$/.test(after.inicio) || !/^\d{4}-\d{2}-\d{2}$/.test(after.fim) || after.fim < after.inicio) {
-      return { ok: false, error: "Datas da sprint inválidas." };
+      return { ok: false, error: "Datas do ciclo inválidas." };
     }
     const changes = diff(sp, after, { objetivo: "Objetivo", inicio: "Início", fim: "Fim" });
     if (!changes.length) return { ok: true, unchanged: true };
     Object.assign(sp, after);
-    commit([entry("sprint", sp.id, "editou", `Sprint ${sp.numero}`, changes, "Sprint")]);
+    commit([entry("sprint", sp.id, "editou", nomeCiclo(sp), changes, "Ciclo")]);
     return { ok: true };
   }
 
@@ -1212,7 +1256,7 @@
     state: store, load, persist, subscribe, emit, saveSettings, adotarDaNuvem, SCHEMA_VERSION,
     calc: { ve, cutoff, isAboveCut, wipCount, snapFib, snapEsforco, progress, parseDate, weekKey, sprintLimites, projetosPorOnda },
     eixos, findEixo, saveEixo, deleteEixo, eixoUso, criarFase, fasesDe,
-    sprints, sprintAtual, findSprint, sprintItems, activityCol, sprintDates, planSprint, moveActivity, novaSprint, saveSprint, saveChecklist,
+    sprints, sprintAtual, findSprint, nomeCiclo, sprintItems, activityCol, sprintDates, planSprint, moveActivity, novaSprint, saveSprint, saveChecklist,
     findInitiative, nextId, saveInitiative, createProject, quickIdea, saveConfig, deleteInitiative, canDelete, advanceSituacao,
     moveToColumn, setOnda, setStatus, warnings, confirmarEsforco,
     saveActivity, setRaci, deleteActivity, findActivity, projectTeam, raciText, raciPeople, splitNames,

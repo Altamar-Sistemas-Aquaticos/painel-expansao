@@ -43,8 +43,8 @@
 
   function sprintHead(S, si) {
     if (!si.sp) {
-      return `<div class="sprint-head panel"><div><h2>Nenhuma sprint aberta</h2></div>
-        <button class="btn btn-primary" data-action="new-sprint">Abrir sprint</button></div>`;
+      return `<div class="sprint-head panel"><div><h2>Nenhum ciclo aberto</h2></div>
+        <button class="btn btn-primary" data-action="new-sprint">Abrir ciclo</button></div>`;
     }
     const { inicio, fim } = S.sprintDates(si.sp);
     const hoje = new Date(); hoje.setHours(0, 0, 0, 0);
@@ -59,7 +59,7 @@
           <div class="sprint-head-title">
             <h2>${esc(si.rotulo)} <span class="muted">· ${esc(si.periodo)}</span></h2>
             ${si.terminou ? `<span class="kchip bad">terminou</span>` : si.naoComecou ? `<span class="kchip warnc">começa em breve</span>` : `<span class="kchip good">faltam ${si.diasRestantes} dia(s)</span>`}
-            <span class="kchip ${limiteCls}" title="Limite combinado para cada sprint: de ${si.min} a ${si.max} atividades">${si.total} atividades · ${si.projetos} projeto(s)</span>
+            <span class="kchip ${limiteCls}" title="Limite combinado para cada ciclo: de ${si.min} a ${si.max} atividades">${si.total} atividades · ${si.projetos} projeto(s)</span>
           </div>
           <div class="sprint-goal">${si.sp.objetivo ? `🎯 ${esc(si.sp.objetivo)}` : `<span class="muted">Sem objetivo definido. Defina no planejamento.</span>`}</div>
           <div class="sprint-meter ${atrasada ? "late" : ""}">
@@ -69,8 +69,8 @@
           </div>
         </div>
         <div class="sprint-head-actions no-print">
-          <button class="btn btn-primary" data-action="plan-sprint">🗓️ Planejar sprint</button>
-          <button class="btn btn-outline" data-action="new-sprint" title="Encerra esta sprint e abre a próxima; o que não foi feito passa para ela">Encerrar e abrir a ${si.sp.numero + 1}</button>
+          <button class="btn btn-primary" data-action="plan-sprint">🗓️ Planejar ciclo</button>
+          <button class="btn btn-outline" data-action="new-sprint" title="Encerra este ciclo e abre o próximo; o que não foi feito passa para ele">Encerrar e abrir o próximo</button>
         </div>
       </div>`;
   }
@@ -100,7 +100,7 @@
           <span class="badge ${c.key === "doing" ? "accent" : c.key === "waiting" && cols[c.key].length ? "warn" : ""}">${cols[c.key].length}</span></div>` : ""}
         <div class="k-list">
           ${cols[c.key].length ? cols[c.key].map(({ it, a }) => actCard(S, it, a)).join("")
-            : comCabecalho ? `<div class="muted small k-empty">${c.key === "todo" && !si.total ? "Use “Planejar sprint” para escolher as atividades" : "Arraste atividades para cá"}</div>` : ""}
+            : comCabecalho ? `<div class="muted small k-empty">${c.key === "todo" && !si.total ? "Use “Planejar ciclo” para escolher as atividades" : "Arraste atividades para cá"}</div>` : ""}
         </div>
       </section>`).join("");
   }
@@ -110,7 +110,8 @@
     const ui_ = S.state.ui;
     document.getElementById("sprint-head").innerHTML = sprintHead(S, si) + toolbar(S);
     const user = S.state.settings.user;
-    const items = si.items.filter(({ it, a }) => S.matchesFilters(it) && (!ui_.kanbanMine || S.raciPeople(a.raci, "R")[0] === user));
+    // O líder de setor vê só os projetos do próprio setor.
+    const items = si.items.filter(({ it, a }) => A.visao.veProjeto(it) && S.matchesFilters(it) && (!ui_.kanbanMine || S.raciPeople(a.raci, "R")[0] === user));
     const board = document.getElementById("kanban-board");
     const g = ui_.kanbanGroup || "none";
     if (g === "none") {
@@ -138,7 +139,7 @@
             <div class="lane-head">${titulo}<span class="muted small">${feitas}/${list.length} feitas · ${pct}%</span></div>
             <div class="lane-cols">${colunas(S, list, si, false)}</div>
           </div>`;
-      }).join("") || `<div class="empty">Nenhuma atividade na sprint com esses filtros.</div>`}`;
+      }).join("") || `<div class="empty">Nenhuma atividade no ciclo com esses filtros.</div>`}`;
   };
 
   // Ações rápidas do card (sem abrir a atividade).
@@ -216,7 +217,7 @@
                 <span class="wchip-id">${esc(it.id)}</span>
                 ${ui.eixoIcon(it.eixo)}
                 <span class="wchip-name">${esc(it.nome)}</span>
-                ${naSprint.has(it.id) ? `<span class="sprint-tag" title="Tem atividades na sprint atual">${esc(sp.id.replace("S", "Sprint "))}</span>` : ""}
+                ${naSprint.has(it.id) ? `<span class="sprint-tag" title="Tem atividades no ciclo atual">${esc(S.nomeCiclo(sp, { curto: true }))}</span>` : ""}
               </div>`).join("")
               : `<div class="wave-empty">Arraste projetos para cá</div>`}
           </div>

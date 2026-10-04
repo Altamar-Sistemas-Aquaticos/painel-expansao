@@ -1131,6 +1131,81 @@ body.presentation .filter-bar { display: none; }
 .wave-eixos .kchip { font-size: 0.72rem; padding: 0.1rem 0.4rem; }
 .wchip .eixo-ico { flex: none; font-size: 0.8rem; }
 
+/* ---------- Visão (gestor, diretoria, líder) ---------- */
+.ver-como { font: inherit; font-size: 0.78rem; padding: 0.28rem 0.4rem; border-radius: 8px; border: 1px solid rgba(255, 255, 255, 0.3); background: rgba(255, 255, 255, 0.1); color: #fff; width: 150px; cursor: pointer; }
+.ver-como option { color: #14171f; }
+.visao-banner { background: #fff4d6; color: #7a4b00; border-bottom: 1px solid #f0d58a; padding: 0.45rem 1rem; font-size: 0.85rem; display: flex; gap: 0.6rem; align-items: center; justify-content: center; flex-wrap: wrap; }
+/* Líder de setor: Programa, Kanban do setor e Guia */
+body[data-visao="lider"] .tab-btn:not([data-tab="programa"]):not([data-tab="kanban"]):not([data-tab="guia"]),
+body[data-visao="lider"] :is(#btn-share, .filter-bar, [data-action="plan-sprint"], [data-action="new-sprint"], #menu-import-excel, #menu-export-excel,
+  #menu-import-json, #menu-export-json, #menu-clear-history, #menu-zerar, #menu-reset, #data-menu [data-tab="cadastros"], #menu-google, [data-action="new-initiative"]) { display: none !important; }
+body[data-visao="diretoria"] :is(#menu-import-excel, #menu-import-json, #menu-clear-history, #menu-zerar, #menu-reset, #data-menu [data-tab="cadastros"]) { display: none !important; }
+
+/* ---------- Programa (porta de entrada visual) ---------- */
+.prog { display: grid; grid-template-columns: minmax(0, 1.35fr) minmax(280px, 0.9fr); gap: 1.2rem; align-items: center; }
+.prog:fullscreen { background: var(--bg); padding: 2rem; align-content: center; }
+.prog-orbita { position: relative; width: 100%; max-width: min(640px, calc(100vh - 230px)); min-width: 300px; aspect-ratio: 1 / 1; margin: 0 auto; }
+.prog:fullscreen .prog-orbita { max-width: min(860px, calc(100vh - 80px)); }
+.prog-linhas { position: absolute; inset: 0; width: 100%; height: 100%; overflow: visible; }
+.prog-linhas line { stroke-linecap: round; stroke-dasharray: 1.4 1.6; opacity: 0.55; animation: prog-fluxo 2.4s linear infinite; transition: opacity 0.2s; }
+.prog-linhas line.vazia { opacity: 0.18; animation: none; }
+.prog-linhas line.foco { opacity: 1; }
+@keyframes prog-fluxo { to { stroke-dashoffset: 3; } } /* os traços correm do setor para o centro */
+.prog-centro { position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); width: 30%; aspect-ratio: 1 / 1; border-radius: 50%;
+  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 0.25rem; text-align: center; padding: 0.6rem;
+  background: radial-gradient(circle, var(--surface) 62%, transparent 63%), conic-gradient(var(--brand-accent) calc(var(--p) * 1%), var(--surface-3) 0);
+  box-shadow: 0 10px 30px -10px rgba(19, 63, 88, 0.45); z-index: 2; }
+.prog-centro img { width: 72%; height: auto; }
+.prog-centro-tit { font-size: 0.72rem; font-weight: 800; color: var(--brand-bg); text-transform: uppercase; letter-spacing: 0.04em; }
+.prog-centro-pct { font-size: 1rem; font-weight: 800; color: var(--brand-bg); line-height: 1.1; }
+.prog-centro-pct small { display: block; font-size: 0.6rem; font-weight: 500; color: var(--text-muted); }
+:root[data-theme="dark"] .prog-centro-tit, :root[data-theme="dark"] .prog-centro-pct { color: #fff; }
+.prog-setor { position: absolute; transform: translate(-50%, -50%); width: 21%; display: flex; flex-direction: column; align-items: center; gap: 0.2rem;
+  background: none; border: none; cursor: pointer; padding: 0; color: var(--text); z-index: 3; animation: prog-flutua 6s ease-in-out infinite; font: inherit; }
+@keyframes prog-flutua { 0%, 100% { margin-top: 0; } 50% { margin-top: -5px; } }
+.prog-setor-anel { width: 64%; aspect-ratio: 1 / 1; border-radius: 50%; padding: 6%; display: block;
+  background: conic-gradient(var(--ac) calc(var(--p) * 1%), color-mix(in srgb, var(--ac) 22%, var(--surface)) 0);
+  box-shadow: 0 6px 18px -8px color-mix(in srgb, var(--ac) 70%, transparent); transition: transform 0.2s, box-shadow 0.2s; }
+.prog-setor-miolo { width: 100%; height: 100%; border-radius: 50%; background: var(--ac); color: #fff; display: flex; flex-direction: column; align-items: center; justify-content: center; line-height: 1; }
+.prog-setor-num { font-size: clamp(1rem, 2.6vw, 1.6rem); font-weight: 800; }
+.prog-setor-sub { font-size: clamp(0.5rem, 1vw, 0.62rem); opacity: 0.9; text-transform: uppercase; letter-spacing: 0.04em; }
+.prog-setor-nome { font-weight: 800; font-size: clamp(0.66rem, 1.15vw, 0.82rem); line-height: 1.15; text-align: center; color: var(--ac); }
+:root[data-theme="dark"] .prog-setor-nome { color: color-mix(in srgb, var(--ac) 55%, #fff); }
+.prog-setor-lider { display: flex; align-items: center; gap: 0.25rem; font-size: 0.68rem; color: var(--text-muted); }
+.prog-setor-lider .act-av { width: 18px; height: 18px; font-size: 0.55rem; margin: 0; }
+.prog-setor:hover .prog-setor-anel, .prog-setor.foco .prog-setor-anel, .prog-setor:focus-visible .prog-setor-anel { transform: scale(1.12); box-shadow: 0 10px 26px -6px color-mix(in srgb, var(--ac) 85%, transparent); }
+.prog-setor.vazio .prog-setor-anel { opacity: 0.45; }
+.prog-setor.vazio .prog-setor-miolo { background: color-mix(in srgb, var(--ac) 55%, var(--surface)); }
+.prog-detalhe { min-height: 320px; }
+.prog-detalhe h3 { margin: 0 0 0.3rem; font-size: 1.15rem; }
+.prog-detalhe h4 { margin: 0.9rem 0 0.35rem; font-size: 0.8rem; text-transform: uppercase; letter-spacing: 0.04em; color: var(--text-muted); }
+.prog-det-head { display: flex; gap: 0.6rem; align-items: center; }
+.prog-det-cor { width: 14px; align-self: stretch; border-radius: 6px; background: var(--ac); }
+.prog-det-nums { display: grid; grid-template-columns: repeat(3, 1fr); gap: 0.5rem; margin: 0.8rem 0 0.2rem; }
+.prog-det-nums div { background: var(--surface-2); border: 1px solid var(--border); border-radius: 10px; padding: 0.5rem; text-align: center; display: flex; flex-direction: column; }
+.prog-det-nums strong { font-size: 1.35rem; line-height: 1.1; }
+.prog-det-nums small { font-size: 0.8rem; color: var(--text-muted); font-weight: 600; }
+.prog-det-nums span { font-size: 0.72rem; color: var(--text-muted); }
+.prog-lista { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 0.35rem; }
+.prog-proj { all: unset; display: flex; align-items: center; gap: 0.45rem; width: 100%; cursor: pointer; font-size: 0.86rem; }
+.prog-proj[disabled] { cursor: default; }
+.prog-proj:not([disabled]):hover .prog-proj-nome { color: var(--accent); text-decoration: underline; }
+.prog-proj-id { flex: none; background: var(--ac); color: #fff; font-weight: 800; font-size: 0.7rem; border-radius: 5px; padding: 0.08rem 0.35rem; }
+.prog-proj-nome { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.prog-proj-bar { display: flex; align-items: center; gap: 0.4rem; margin: 0.2rem 0 0 2.3rem; }
+.prog-proj-bar i { display: block; height: 5px; border-radius: 3px; flex: none; max-width: 70%; min-width: 2px; }
+.prog-proj-bar span { font-size: 0.7rem; color: var(--text-muted); }
+.prog-lista.fila .prog-proj { opacity: 0.75; }
+.prog-det-btn { margin-top: 1rem; width: 100%; }
+.prog-legenda { list-style: none; padding: 0; margin: 0.8rem 0 0; display: flex; flex-direction: column; gap: 0.25rem; }
+.prog-legenda button { all: unset; display: flex; align-items: center; gap: 0.5rem; width: 100%; cursor: pointer; padding: 0.3rem 0.4rem; border-radius: 7px; font-size: 0.88rem; }
+.prog-legenda button:hover { background: var(--surface-3); }
+.prog-legenda span { width: 12px; height: 12px; border-radius: 50%; flex: none; }
+.prog-legenda em { margin-left: auto; font-style: normal; font-size: 0.75rem; color: var(--text-muted); }
+.prog-acoes { display: flex; gap: 0.5rem; justify-content: center; margin-top: 0.6rem; }
+@media (max-width: 900px) { .prog { grid-template-columns: 1fr; } .prog-setor-lider { display: none; } }
+@media (prefers-reduced-motion: reduce) { .prog-linhas line, .prog-setor { animation: none; } }
+
 /* ---------- Perfis (definidos no login: body[data-perfil]) ---------- */
 /* Diretoria e Visualização: sem funções de administração */
 body[data-perfil="diretoria"] :is(#menu-import-excel, #menu-import-json, #menu-clear-history, #menu-zerar, #menu-reset, #data-menu [data-tab="cadastros"]),

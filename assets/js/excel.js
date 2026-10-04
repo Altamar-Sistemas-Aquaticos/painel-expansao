@@ -382,7 +382,7 @@
       Status: a.status,
       "% concluído": a.pct / 100,
       Observações: a.observacoes,
-      Sprint: a.sprint ? a.sprint.replace("S", "Sprint ") : "",
+      Ciclo: a.sprint ? S.nomeCiclo(S.findSprint(a.sprint)) : "",
       Checklist: a.checklist.map((x) => `${x.feito ? "[x]" : "[ ]"} ${x.texto}`).join(" | "),
     })));
     const decRows = S.state.data.decisions.map((d) => ({
@@ -421,7 +421,7 @@
       { Indicador: "Linha de corte (Σ Valor ÷ Σ Esforço)", Valor: Math.round(cut * 100) / 100 },
       { Indicador: "Projetos acima da linha", Valor: ranked.filter((i) => isAboveCut(i, cut)).length },
       { Indicador: "Projetos em andamento", Valor: S.calc.wipCount() },
-      { Indicador: "Sprint atual", Valor: S.sprintAtual() ? `Sprint ${S.sprintAtual().numero} (${S.sprintItems().length} atividades)` : "—" },
+      { Indicador: "Ciclo atual", Valor: S.sprintAtual() ? `${S.nomeCiclo(S.sprintAtual())} (${S.sprintItems().length} atividades)` : "—" },
       { Indicador: "Concluídas", Valor: ranked.filter((i) => i.status === "Concluído").length },
       { Indicador: "Decisões pendentes", Valor: S.state.data.decisions.filter((d) => d.status === "Pendente").length },
       { Indicador: "Exportado em", Valor: A.util.fmtDateTime(new Date().toISOString()) },

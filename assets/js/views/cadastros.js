@@ -15,6 +15,7 @@
           <td><input type="color" class="cad-color" value="${esc(a.cor)}" ${k} data-field="cor" aria-label="Cor da área ${esc(a.key)}"></td>
           <td><input class="input input-sm" value="${esc(a.key)}" ${k} data-field="key" aria-label="Nome da área"></td>
           <td><input class="input input-sm cad-code" value="${esc(a.code)}" maxlength="3" ${k} data-field="code" ${uso ? "readonly title=\"O código não pode mudar: já há projetos com IDs desta área\"" : ""} aria-label="Código da área"></td>
+          <td><select class="input input-sm" ${k} data-field="lider" aria-label="Líder do setor ${esc(a.key)}">${A.ui.peopleOptions(a.lider, { blank: "— Líder —" })}</select></td>
           <td class="num">${uso}</td>
           <td class="center"><button class="btn btn-xs btn-danger-ghost icon-btn" data-cad-del="area" data-key="${esc(a.key)}" ${uso ? "disabled title=\"Área com projetos\"" : ""} aria-label="Excluir área ${esc(a.key)}">✕</button></td>
         </tr>`;
@@ -22,21 +23,21 @@
     return `
       <div class="panel-head">
         <div>
-          <h3 class="panel-title">Áreas</h3>
-          <div class="muted small">O código vira o prefixo do ID dos projetos (ex.: Vendas → V9).</div>
+          <h3 class="panel-title">Setores e líderes</h3>
+          <div class="muted small">O código vira o prefixo do ID dos projetos (ex.: Vendas → V9). O líder vê e atualiza o Kanban do próprio setor.</div>
         </div>
       </div>
       <div class="table-wrap">
         <table class="data">
-          <thead><tr><th>Cor</th><th>Área</th><th>Código</th><th class="num">Projetos</th><th></th></tr></thead>
+          <thead><tr><th>Cor</th><th>Setor</th><th>Código</th><th>Líder</th><th class="num">Projetos</th><th></th></tr></thead>
           <tbody>${rows}</tbody>
         </table>
       </div>
       <form class="cad-add" id="cad-area-form">
         <input type="color" class="cad-color" id="cad-area-cor" value="${esc(S.nextAreaColor())}" aria-label="Cor da nova área">
-        <input class="input input-sm" id="cad-area-nome" placeholder="Nova área (ex.: Financeiro)" autocomplete="off" aria-label="Nome da nova área">
+        <input class="input input-sm" id="cad-area-nome" placeholder="Novo setor (ex.: Compras)" autocomplete="off" aria-label="Nome da nova área">
         <input class="input input-sm cad-code" id="cad-area-code" placeholder="Cód." maxlength="3" autocomplete="off" aria-label="Código da nova área">
-        <button class="btn btn-sm btn-primary" type="submit">+ Adicionar área</button>
+        <button class="btn btn-sm btn-primary" type="submit">+ Adicionar setor</button>
       </form>`;
   }
 
@@ -89,17 +90,17 @@
       <div class="panel-head">
         <div>
           <h3 class="panel-title">Capacidade de execução</h3>
-          <div class="muted small">Sprints de 4 semanas (3 por onda). ${si.sp ? `Hoje: <strong>${esc(si.rotulo)}</strong> com ${si.total} atividade(s).` : ""}
-          Calibre depois de 2 ou 3 sprints, comparando com o que foi entregue.</div>
+          <div class="muted small">Ciclos mensais (3 por onda). ${si.sp ? `Hoje: <strong>${esc(si.rotulo)}</strong> com ${si.total} atividade(s).` : ""}
+          Calibre depois de 2 ou 3 ciclos, comparando com o que foi entregue.</div>
         </div>
       </div>
       <div class="cap-form">
         <div class="field">
-          <label for="cap-min">Mínimo de atividades por sprint</label>
+          <label for="cap-min">Mínimo de atividades por ciclo</label>
           <input type="number" min="1" max="50" id="cap-min" class="input input-sm" value="${min}" data-cap="sprintMin">
         </div>
         <div class="field">
-          <label for="cap-max">Máximo de atividades por sprint</label>
+          <label for="cap-max">Máximo de atividades por ciclo</label>
           <input type="number" min="1" max="50" id="cap-max" class="input input-sm" value="${max}" data-cap="sprintMax">
         </div>
         <div class="muted small">Projetos por onda: <strong>${S.calc.projetosPorOnda()}</strong> (soma das vagas dos eixos, abaixo).</div>

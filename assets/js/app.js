@@ -5,7 +5,7 @@
   const { toast, closeModal, closeTopModal, confirmDialog, downloadBlob, esc, initials } = A.util;
   const $ = (id) => document.getElementById(id);
 
-  const TABS = ["executivo", "guia", "triagem", "priorizacao", "ondas", "kanban", "overview", "decisoes", "historico", "cadastros"];
+  const TABS = ["programa", "executivo", "guia", "triagem", "priorizacao", "ondas", "kanban", "overview", "decisoes", "historico", "cadastros"];
   // Endereços antigos (favoritos e links salvos) continuam funcionando.
   const ALIASES = { portfolio: "triagem", matriz: "priorizacao", ranking: "priorizacao", cronograma: "overview" };
   const TAB_KEY = "altamar_painel_tab";
@@ -15,6 +15,7 @@
   /* ---------- Renderização ---------- */
   function renderAll() {
     A.views.executive(S);
+    A.views.programa(S);
     A.views.guia(S);
     A.views.triagem(S);
     A.views.priorizacao(S);
@@ -27,10 +28,13 @@
     if (route.view === "setor") A.views.sector(S, route.param);
     if (route.view === "projeto") A.views.project(S, route.param);
     renderChrome();
+    // Depois do login (ou ao trocar o "Ver como…"), a aba aberta pode não fazer parte da visão.
+    if (!A.visao.podeVerAba(route.view)) switchTab(A.visao.abaInicial());
   }
 
   function renderChrome() {
     const { settings } = S.state;
+    A.visao.aplicar();
     $("user-chip-name").textContent = settings.user || "Identificar-se";
     $("user-chip-avatar").textContent = settings.user ? initials(settings.user) : "?";
     $("save-status").textContent = A.nuvem.configurado ? A.nuvem.status()
@@ -76,6 +80,8 @@
     const prev = route;
     route = parseRoute(name);
     // Cadastros e acessos são só do administrador (com o banco compartilhado ligado).
+    // Cada visão vê só as suas abas (o líder: Programa, Kanban do setor e Guia).
+    if (!A.visao.podeVerAba(route.view)) { route = parseRoute(A.visao.abaInicial()); push = true; }
     if (route.view === "cadastros" && A.nuvem.perfil() && A.nuvem.perfil() !== "admin") {
       route = { view: "executivo", param: null };
       push = true; // corrige também o endereço
@@ -89,7 +95,7 @@
     });
     document.querySelectorAll(".view").forEach((v) => v.classList.toggle("active", v.id === `view-${route.view}`));
     // Os filtros de área/status/onda não se aplicam a estas telas.
-    document.querySelector(".filter-bar").classList.toggle("hidden", ["executivo", "guia", "decisoes", "historico", "cadastros"].includes(route.view));
+    document.querySelector(".filter-bar").classList.toggle("hidden", ["programa", "executivo", "guia", "decisoes", "historico", "cadastros"].includes(route.view));
     if (route.view === "setor") A.views.sector(S, route.param);
     if (route.view === "projeto") A.views.project(S, route.param);
     if (route.view !== prev.view || route.param !== prev.param) window.scrollTo(0, 0);
@@ -313,7 +319,7 @@
     $("menu-zerar").addEventListener("click", async () => {
       closeMenu();
       const ok = await confirmDialog(
-        "Zerar o painel para começar o uso real? Ficam os 29 projetos (nome, área, eixo e nomes das atividades), todos como Rascunho e sem nota, na Fila. Saem: notas de valor e esforço, status, prazos, RACI, checklists, sprints, decisões, compromissos e todo o histórico. Antes, um backup completo será baixado.",
+        "Zerar o painel para começar o uso real? Ficam os 29 projetos (nome, área, eixo e nomes das atividades), todos como Rascunho e sem nota, na Fila. Saem: notas de valor e esforço, status, prazos, RACI, checklists, ciclos, decisões, compromissos e todo o histórico. Antes, um backup completo será baixado.",
         { title: "Zerar para uso real", okLabel: "Baixar backup e zerar", danger: true });
       if (!ok) return;
       exportJSON();
@@ -347,6 +353,8 @@
     A.triagem.init();
     A.sprint.init();
     A.boletim.init();
+    A.visao.init();
+    A.programa.init();
     A.nuvem.init();
     A.compromissos.init();
     A.google.init();

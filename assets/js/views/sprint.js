@@ -21,7 +21,7 @@
   function openPlan() {
     const S = A.store;
     const sp = S.sprintAtual();
-    if (!sp) return toast("Abra uma sprint primeiro.", "warn");
+    if (!sp) return toast("Abra um ciclo primeiro.", "warn");
     plano = new Set(S.sprintItems(sp).map(({ it, a }) => `${it.id}|${a.id}`));
     const si = A.sprintInfo(S);
     const projetos = S.state.data.initiatives
@@ -31,12 +31,12 @@
 
     $("plan-body").innerHTML = `
       <div class="modal-head">
-        <h3>Planejar a ${esc(si.rotulo)} <span class="muted small">· ${esc(si.periodo)}</span></h3>
+        <h3>Planejar o ${esc(si.rotulo)} <span class="muted small">· ${esc(si.periodo)}</span></h3>
         <button class="btn btn-xs btn-ghost" data-action="close-modal" data-target="modal-sprint" aria-label="Fechar">✕</button>
       </div>
       <p class="muted small" style="margin-top:0">Escolha as atividades que vão andar nestas 4 semanas. Comece pelos projetos da onda atual e pelos que já estão em andamento.</p>
       <div class="field">
-        <label for="plan-objetivo">Objetivo da sprint</label>
+        <label for="plan-objetivo">Objetivo do ciclo</label>
         <input id="plan-objetivo" class="input" value="${esc(sp.objetivo)}" placeholder="ex.: primeiras entregas de Vendas e o formulário de requisitos rodando" autocomplete="off">
       </div>
       <div id="plan-counter" class="plan-counter"></div>
@@ -47,7 +47,7 @@
               <span class="act-card-id">${esc(it.id)}</span>
               <span class="plan-proj-name">${esc(it.nome)}</span>
               <span class="badge">${esc(it.onda)}</span>
-              <span class="muted small" data-plan-count="${esc(it.id)}">${sel ? `${sel} na sprint` : ""}</span>
+              <span class="muted small" data-plan-count="${esc(it.id)}">${sel ? `${sel} no ciclo` : ""}</span>
             </summary>
             ${it.atividades.filter(aberta).map((a) => {
               const k = `${it.id}|${a.id}`;
@@ -62,7 +62,7 @@
           </details>`).join("") || `<div class="empty">Nenhum projeto validado com atividades em aberto.</div>`}
       </div>
       <div class="modal-foot">
-        <span class="muted small">Atividades fora da sprint continuam no projeto, só não aparecem no Kanban.</span>
+        <span class="muted small">Atividades fora do ciclo continuam no projeto, só não aparecem no Kanban.</span>
         <div class="right">
           <button type="button" class="btn btn-outline" data-action="close-modal" data-target="modal-sprint">Cancelar</button>
           <button type="button" class="btn btn-primary" id="plan-save">Salvar planejamento</button>
@@ -76,7 +76,7 @@
     const r = A.store.planSprint([...plano], $("plan-objetivo").value);
     if (!r.ok) return toast(r.error, "error");
     closeModal("modal-sprint");
-    if (!r.unchanged) toast(`Sprint planejada com ${r.total} atividade(s).`);
+    if (!r.unchanged) toast(`Ciclo planejado com ${r.total} atividade(s).`);
   }
 
   async function novaSprint() {
@@ -85,12 +85,12 @@
     if (si.sp) {
       const pend = si.total - si.feitas;
       const ok = await confirmDialog(
-        `Encerrar a ${si.rotulo} (${si.feitas} de ${si.total} feitas) e abrir a Sprint ${si.sp.numero + 1}?${pend ? ` As ${pend} atividade(s) não terminadas passam para a nova sprint.` : ""}`,
-        { title: "Encerrar sprint", okLabel: "Encerrar e abrir" });
+        `Encerrar o ${si.rotulo} (${si.feitas} de ${si.total} feitas) e abrir o próximo ciclo?${pend ? ` As ${pend} atividade(s) não terminadas passam para o novo ciclo.` : ""}`,
+        { title: "Encerrar ciclo", okLabel: "Encerrar e abrir" });
       if (!ok) return;
     }
     const r = S.novaSprint();
-    toast(`Sprint ${r.sprint.numero} aberta${r.levadas ? ` com ${r.levadas} atividade(s) da anterior` : ""}. Agora é planejar.`, "ok", 5000);
+    toast(`${S.nomeCiclo(r.sprint)} aberto${r.levadas ? ` com ${r.levadas} atividade(s) da anterior` : ""}. Agora é planejar.`, "ok", 5000);
     openPlan();
   }
 
@@ -169,7 +169,7 @@
 
       <div class="modal-foot">
         <div class="row">
-          ${sp ? `<button type="button" class="btn btn-sm ${naSprint ? "btn-danger-ghost" : "btn-outline"}" id="act-sprint-toggle">${naSprint ? "Tirar da sprint" : `Incluir na ${esc(sp.id.replace("S", "Sprint "))}`}</button>` : ""}
+          ${sp ? `<button type="button" class="btn btn-sm ${naSprint ? "btn-danger-ghost" : "btn-outline"}" id="act-sprint-toggle">${naSprint ? "Tirar do ciclo" : `Incluir no ${esc(A.store.nomeCiclo(sp))}`}</button>` : ""}
         </div>
         <div class="right"><button type="button" class="btn btn-primary" data-action="close-modal" data-target="modal-activity">Fechar</button></div>
       </div>`;
@@ -197,7 +197,7 @@
       const ini = cb.dataset.plan.split("|")[0];
       const n = [...plano].filter((k) => k.startsWith(`${ini}|`)).length;
       const el = $("plan-body").querySelector(`[data-plan-count="${CSS.escape(ini)}"]`);
-      if (el) el.textContent = n ? `${n} na sprint` : "";
+      if (el) el.textContent = n ? `${n} no ciclo` : "";
       planCounter();
     });
     $("plan-body").addEventListener("click", (e) => { if (e.target.id === "plan-save") savePlan(); });
@@ -224,7 +224,7 @@
         const sp = A.store.sprintAtual();
         const dentro = cur().sprint === sp.id;
         Promise.resolve(saveAct({ sprint: dentro ? "" : sp.id }))
-          .then((r) => { if (r?.ok) toast(dentro ? "Atividade tirada da sprint." : "Atividade incluída na sprint."); });
+          .then((r) => { if (r?.ok) toast(dentro ? "Atividade tirada do ciclo." : "Atividade incluída no ciclo."); });
       }
       if (e.target.closest("[data-close-act]")) closeModal("modal-activity");
     });

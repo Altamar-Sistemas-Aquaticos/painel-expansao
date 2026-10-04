@@ -99,7 +99,7 @@
       const r = await call("sync", { events: buildEvents(S), ...w });
       // Seus compromissos: desta segunda até 3 semanas à frente.
       const mon = new Date(); mon.setHours(0, 0, 0, 0); mon.setDate(mon.getDate() - ((mon.getDay() + 6) % 7));
-      const l = await call("list", { from: isoDay(mon), to: isoDay(new Date(mon.getTime() + 21 * DAY)) });
+      const l = await call("list", { from: isoDay(mon), to: isoDay(new Date(mon.getTime() + 35 * DAY)) });
       events = l.eventos || [];
       S.saveSettings({ google: { ...cfg(), lastSync: new Date().toISOString(), lastError: "", lastResult: r.resultado, cache: events } });
       if (!silent) {

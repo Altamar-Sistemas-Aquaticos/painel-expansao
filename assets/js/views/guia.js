@@ -8,7 +8,7 @@
     ["guia-escalas", "Valor e esforço"],
     ["guia-corte", "V÷E e linha de corte"],
     ["guia-eixos", "Eixos"],
-    ["guia-ritmo", "Onda e sprint"],
+    ["guia-ritmo", "Onda e ciclo"],
     ["guia-regras", "Regras"],
     ["guia-raci", "RACI"],
     ["guia-abas", "Mapa das abas"],
@@ -72,7 +72,7 @@
             <div class="guia-flow">
               <span>💡 Ideia</span><span>→</span><span>📝 Triagem<br><small>valor e esforço</small></span><span>→</span>
               <span>🎯 Priorização<br><small>V÷E</small></span><span>→</span><span>🌊 Onda<br><small>trimestre</small></span><span>→</span>
-              <span>📋 Sprint<br><small>atividades do mês</small></span><span>→</span><span>✅ Feito</span>
+              <span>📋 Ciclo<br><small>entregas do mês</small></span><span>→</span><span>✅ Feito</span>
             </div>
             <p class="muted small">Quem trouxe a ideia fica registrado como <strong>autor</strong>. Tudo o que muda fica no Histórico, com nome e data.</p>
           </section>
@@ -120,19 +120,19 @@
           </section>
 
           <section class="panel guia-sec" id="guia-ritmo">
-            <h3>Onda e sprint: qual a diferença</h3>
+            <h3>Onda e ciclo: qual a diferença</h3>
             <div class="guia-ritmo">
               <div><span class="guia-ritmo-tag">🌊 Onda</span><strong>Trimestre</strong><span class="muted small">Decide <em>quais projetos</em> entram nos próximos 3 meses. Até ${porOnda} projetos por onda, distribuídos pelas vagas de cada eixo.</span></div>
-              <div><span class="guia-ritmo-tag">📋 Sprint</span><strong>4 semanas</strong><span class="muted small">Decide <em>quais atividades</em> desses projetos andam neste mês. De ${min} a ${max} atividades. São 3 sprints por onda.</span></div>
+              <div><span class="guia-ritmo-tag">📋 Ciclo</span><strong>1 mês</strong><span class="muted small">Decide <em>quais atividades</em> desses projetos andam neste mês. De ${min} a ${max} atividades. São 3 ciclos por onda.</span></div>
               <div><span class="guia-ritmo-tag">✔️ Checklist</span><strong>Dia a dia</strong><span class="muted small">Os passos de cada atividade. Marcar os itens atualiza o % da atividade e do projeto.</span></div>
             </div>
-            <p class="muted small">Projeto na Onda 1 ainda não quer dizer “em execução”: ele entra em execução quando alguma atividade dele é colocada na sprint e começa a andar no Kanban.</p>
+            <p class="muted small">Projeto na Onda 1 ainda não quer dizer “em execução”: ele entra em execução quando alguma atividade dele é colocada no ciclo e começa a andar no Kanban.</p>
           </section>
 
           <section class="panel guia-sec" id="guia-regras">
             <h3>Regras do jogo</h3>
             <ul class="guia-rules">
-              <li><strong>Sprint de 4 semanas com ${min} a ${max} atividades.</strong> O Kanban mostra só as atividades da sprint. Ao fim, o que não terminou passa para a próxima.</li>
+              <li><strong>Ciclo mensal.</strong> O Kanban mostra só as atividades do ciclo. Ao fim do mês, o que não terminou passa para o próximo.</li>
               <li><strong>Até ${porOnda} projetos por onda, divididos por eixo.</strong> Onda 1, 2 e 3 são os próximos trimestres; a Fila é o que ainda não tem data. Os limites se ajustam em ⚙️ Dados → Cadastros e capacidade.</li>
               <li><strong>Semáforo.</strong> 🟢 no prazo · 🟡 atenção, precisa de alinhamento · 🔴 travado, precisa de decisão.</li>
               <li><strong>Situação do cadastro.</strong> <span class="badge warn">Rascunho</span> acabou de entrar ·
@@ -155,11 +155,11 @@
             <h3>Mapa das abas</h3>
             <div class="guia-map">
               ${[
-                ["executivo", "📊 Painel executivo", "Resumo do dia: o que resolver, sprint e agenda de 2 semanas."],
+                ["executivo", "📊 Painel executivo", "Resumo do dia: o que resolver, ciclo e agenda de 4 semanas."],
                 ["triagem", "📝 Triagem", "Toda ideia nova entra aqui. Dar valor, esforço e validar."],
-                ["priorizacao", "🎯 Priorização", "Matriz e ranking por V÷E, lado a lado, com o que está na sprint."],
+                ["priorizacao", "🎯 Priorização", "Matriz e ranking por V÷E, lado a lado, com o que está no ciclo."],
                 ["ondas", "🌊 Ondas", "Em que trimestre cada projeto entra."],
-                ["kanban", "📋 Kanban", "Só as atividades da sprint. Clique no card para ver a atividade e o checklist."],
+                ["kanban", "📋 Kanban", "Só as atividades do ciclo. Clique no card para ver a atividade e o checklist."],
                 ["overview", "🗓️ Cronograma", "Linha do tempo de todos os projetos, por área."],
                 ["decisoes", "⚖️ Decisões", "Pauta e decisões da diretoria."],
                 ["historico", "🕘 Histórico", "Quem mudou o quê e quando."],
@@ -180,16 +180,16 @@
                 passo(3, "Decisões (5 min)", "Pendências que só a diretoria resolve. Registrar o que foi decidido.", ["decisoes", "Decisões"]),
               ])}
 
-            ${reuniao("🗓️", "Reunião de sprint", "A cada 4 semanas, no fim da sprint", "60 min",
-              `Fechar a sprint que acabou e combinar a próxima: de ${min} a ${max} atividades, com responsável e checklist.`,
+            ${reuniao("🗓️", "Reunião do ciclo", "Todo mês, no fim do ciclo", "60 min",
+              "Fechar o ciclo que acabou e combinar o próximo: as entregas de cada setor, com responsável e checklist.",
               [
-                passo(1, "Fechar a sprint (15 min)", "O que foi entregue, o que não foi e por quê. O que ficou pendente passa sozinho para a próxima sprint ao clicar em “Encerrar e abrir”.", ["kanban", "Kanban"]),
+                passo(1, "Fechar o ciclo (15 min)", "O que foi entregue, o que não foi e por quê. O que ficou pendente passa sozinho para o próximo ciclo ao clicar em “Encerrar e abrir”.", ["kanban", "Kanban"]),
                 passo(2, "Ideias novas (10 min)", "Triagem, filtro “A triar”: dar valor e esforço às ideias que chegaram no mês.", ["triagem", "Triagem"]),
-                passo(3, "Planejar a próxima sprint (30 min)", `Em “Planejar sprint”, escolher de ${min} a ${max} atividades dos projetos da onda atual, conferir o responsável (R) e escrever o objetivo da sprint.`, ["kanban", "Kanban"]),
-                passo(4, "Decisões (5 min)", "O que precisa da diretoria para a sprint andar.", ["decisoes", "Decisões"]),
+                passo(3, "Planejar o próximo ciclo (30 min)", "Em “Planejar ciclo”, escolher as atividades dos projetos da onda atual, conferir o responsável (R) e escrever o objetivo do ciclo.", ["kanban", "Kanban"]),
+                passo(4, "Decisões (5 min)", "O que precisa da diretoria para o ciclo andar.", ["decisoes", "Decisões"]),
               ])}
 
-            ${reuniao("🌊", "Reunião trimestral", "A cada 3 sprints, na virada da onda", "90 min",
+            ${reuniao("🌊", "Reunião trimestral", "A cada 3 ciclos, na virada da onda", "90 min",
               `Olhar o trimestre que passou e montar a próxima onda com até ${porOnda} projetos.`,
               [
                 passo(1, "Fechar a onda (20 min)", "O que foi concluído, o que continua e o que volta para a Fila.", ["ondas", "Ondas"]),
@@ -199,13 +199,13 @@
               ])}
 
             ${reuniao("📝", "1ª reunião: triagem com a Maíra", "Uma vez, para começar", "90 min",
-              "Dar nota a todas as ideias, validar as que fazem sentido e montar a Onda 1 e a Sprint 1.",
+              "Dar nota a todas as ideias, validar as que fazem sentido e montar a Onda 1 e o primeiro ciclo.",
               [
                 passo(1, "Combinar as escalas (10 min)", "Leiam juntos “Como dar valor e esforço” e ajustem as descrições se algo não fizer sentido."),
                 passo(2, "Dar nota a todas as ideias (45 min)", "Na Triagem, filtro “A triar”: primeiro o eixo, depois o valor e o esforço, no máximo 2 minutos por ideia. Se travar, deixe “a definir” e siga.", ["triagem", "Triagem"]),
                 passo(3, "Validar ou descartar (10 min)", "O que faz sentido vira “Validado”; o que não faz, exclua (rascunho) ou cancele.", ["triagem", "Triagem"]),
                 passo(4, "Montar a Onda 1 (15 min)", "Na Priorização, eixo por eixo, os melhores V÷E ocupam as vagas do eixo. Arraste-os para a Onda 1 na aba Ondas.", ["ondas", "Ondas"]),
-                passo(5, "Planejar a Sprint 1 (10 min)", `Escolher de ${min} a ${max} atividades dos projetos da Onda 1.`, ["kanban", "Kanban"]),
+                passo(5, "Planejar o primeiro ciclo (10 min)", "Escolher as atividades dos projetos da Onda 1.", ["kanban", "Kanban"]),
               ])}
           </section>
         </div>

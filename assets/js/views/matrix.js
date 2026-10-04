@@ -137,7 +137,7 @@
           <span class="pr-id" style="--ac:${A.area(it.area).cor}">${esc(it.id)}</span>
           <span class="pr-name">${aba === "ALL" ? ui.eixoIcon(it.eixo) : ""}${esc(it.nome)}</span>
           <span class="pr-ve" title="Valor ${it.valor} ÷ Esforço ${it.esforco}">${fmtNum(ve(it))}</span>
-          <span class="pr-onda">${esc(it.onda)}${naSprint.has(it.id) ? `<span class="sprint-tag" title="Tem atividades na sprint atual">${esc(sp.id.replace("S", "Sprint "))}</span>` : ""}</span>
+          <span class="pr-onda">${esc(it.onda)}${naSprint.has(it.id) ? `<span class="sprint-tag" title="Tem atividades no ciclo atual">${esc(S.nomeCiclo(sp, { curto: true }))}</span>` : ""}</span>
         </li>`;
     }).join("");
 

@@ -7,7 +7,7 @@
   <meta name="theme-color" content="#026488">
   <title>Painel de Expansão · Altamar</title>
   <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%23026488'/%3E%3Ctext x='32' y='44' font-family='Segoe UI,Arial' font-size='36' font-weight='800' fill='white' text-anchor='middle'%3EA%3C/text%3E%3C/svg%3E">
-  <link rel="stylesheet" href="assets/css/app.css?v=20261004j">
+  <link rel="stylesheet" href="assets/css/app.css?v=20261004l">
   <script>
     // Aplica o tema antes da pintura para evitar "piscar" claro → escuro.
     (function () {
@@ -26,13 +26,14 @@
   <header class="app-header">
     <div class="header-bar">
       <a class="brand" href="#executivo" data-action="go-tab" data-tab="executivo" title="Ir para o Painel executivo">
-        <span class="brand-logo-wrap"><img class="brand-img" src="assets/img/logo-altamar-branco.png?v=20261004j" alt="Altamar Sistemas Aquáticos" width="217" height="54"></span>
+        <span class="brand-logo-wrap"><img class="brand-img" src="assets/img/logo-altamar-branco.png?v=20261004l" alt="Altamar Sistemas Aquáticos" width="217" height="54"></span>
         <span class="brand-divider" aria-hidden="true"></span>
         <span class="brand-sub">Painel de Gestão<br>Projeto de Expansão</span>
       </a>
 
       <div class="header-actions">
-        <button id="wip-pill" class="wip-pill ok" data-action="go-tab" data-tab="kanban" title="Abrir o Kanban da sprint"></button>
+        <select id="ver-como" class="ver-como hidden no-print" aria-label="Ver o painel como outra pessoa" title="Confira o que cada pessoa enxerga"></select>
+        <button id="wip-pill" class="wip-pill ok" data-action="go-tab" data-tab="kanban" title="Abrir o Kanban do ciclo"></button>
         <div class="menu no-print">
           <button class="btn btn-sm btn-primary" id="btn-share" aria-haspopup="true" aria-expanded="false" title="Boletim e resumo para a diretoria">📤 Compartilhar ▾</button>
           <div id="share-menu" class="menu-panel hidden" role="menu">
@@ -74,9 +75,12 @@
     </div>
   </header>
 
+  <div id="visao-banner" class="visao-banner hidden no-print" role="status"></div>
+
   <!-- ================= Abas ================= -->
   <nav class="tabs-wrap no-print" aria-label="Seções">
     <div class="tabs" role="tablist">
+      <button class="tab-btn" data-tab="programa" role="tab">🧭 Programa</button>
       <button class="tab-btn" data-tab="executivo" role="tab">📊 Painel executivo</button>
       <button class="tab-btn" data-tab="guia" role="tab">📖 Guia</button>
       <button class="tab-btn" data-tab="triagem" role="tab">📝 Triagem <span class="tab-count" id="tab-count-triagem">0</span></button>
@@ -112,6 +116,8 @@
     </div>
 
     <!-- 1. Painel executivo -->
+    <section id="view-programa" class="view" aria-label="Programa de Expansão"><div id="programa-root"></div></section>
+
     <section id="view-executivo" class="view" aria-label="Painel executivo">
       <div id="exec-dashboard"></div>
     </section>
@@ -161,7 +167,7 @@
     <section id="view-overview" class="view" aria-label="Cronograma"></section>
 
     <!-- 4. Kanban -->
-    <section id="view-kanban" class="view" aria-label="Kanban da sprint">
+    <section id="view-kanban" class="view" aria-label="Kanban do ciclo">
       <div id="sprint-head"></div>
       <div class="kanban sprint-board" id="kanban-board"></div>
     </section>
@@ -220,7 +226,7 @@
             <option value="atividade">Atividades</option>
             <option value="cadastro">Cadastros</option>
             <option value="compromisso">Compromissos</option>
-            <option value="sprint">Sprints</option>
+            <option value="sprint">Ciclos</option>
             <option value="decisao">Decisões</option>
             <option value="sistema">Sistema</option>
           </select>
@@ -300,7 +306,7 @@
     </div>
   </div>
   <!-- Planejamento da sprint -->
-  <div class="modal-backdrop" id="modal-sprint" role="dialog" aria-modal="true" aria-label="Planejar a sprint">
+  <div class="modal-backdrop" id="modal-sprint" role="dialog" aria-modal="true" aria-label="Planejar o ciclo">
     <div class="modal lg" id="plan-body"></div>
   </div>
 
@@ -590,28 +596,30 @@
   <datalist id="people-list"></datalist>
   <div class="toasts" id="toasts" aria-live="polite"></div>
 
-  <script src="assets/js/config.js?v=20261004j"></script>
-  <script src="assets/js/utils.js?v=20261004j"></script>
-  <script src="assets/js/data.js?v=20261004j"></script>
-  <script src="assets/js/activities-seed.js?v=20261004j"></script>
-  <script src="assets/js/store.js?v=20261004j"></script>
-  <script src="assets/js/excel.js?v=20261004j"></script>
-  <script src="assets/js/views/executive.js?v=20261004j"></script>
-  <script src="assets/js/views/matrix.js?v=20261004j"></script>
-  <script src="assets/js/views/tables.js?v=20261004j"></script>
-  <script src="assets/js/views/board.js?v=20261004j"></script>
-  <script src="assets/js/views/drilldown.js?v=20261004j"></script>
-  <script src="assets/js/views/triagem.js?v=20261004j"></script>
-  <script src="assets/js/views/guia.js?v=20261004j"></script>
-  <script src="assets/js/boletim.js?v=20261004j"></script>
-  <script src="assets/js/views/sprint.js?v=20261004j"></script>
-  <script src="assets/js/views/overview.js?v=20261004j"></script>
-  <script src="assets/js/views/cadastros.js?v=20261004j"></script>
-  <script src="assets/js/google.js?v=20261004j"></script>
-  <script src="assets/js/compromissos.js?v=20261004j"></script>
-  <script src="assets/js/forms.js?v=20261004j"></script>
-  <script src="assets/js/ficha.js?v=20261004j"></script>
-  <script src="assets/js/nuvem.js?v=20261004j"></script>
-  <script src="assets/js/app.js?v=20261004j"></script>
+  <script src="assets/js/config.js?v=20261004l"></script>
+  <script src="assets/js/utils.js?v=20261004l"></script>
+  <script src="assets/js/data.js?v=20261004l"></script>
+  <script src="assets/js/activities-seed.js?v=20261004l"></script>
+  <script src="assets/js/store.js?v=20261004l"></script>
+  <script src="assets/js/excel.js?v=20261004l"></script>
+  <script src="assets/js/views/executive.js?v=20261004l"></script>
+  <script src="assets/js/views/matrix.js?v=20261004l"></script>
+  <script src="assets/js/views/tables.js?v=20261004l"></script>
+  <script src="assets/js/views/board.js?v=20261004l"></script>
+  <script src="assets/js/views/drilldown.js?v=20261004l"></script>
+  <script src="assets/js/views/triagem.js?v=20261004l"></script>
+  <script src="assets/js/views/guia.js?v=20261004l"></script>
+  <script src="assets/js/visao.js?v=20261004l"></script>
+  <script src="assets/js/views/programa.js?v=20261004l"></script>
+  <script src="assets/js/boletim.js?v=20261004l"></script>
+  <script src="assets/js/views/sprint.js?v=20261004l"></script>
+  <script src="assets/js/views/overview.js?v=20261004l"></script>
+  <script src="assets/js/views/cadastros.js?v=20261004l"></script>
+  <script src="assets/js/google.js?v=20261004l"></script>
+  <script src="assets/js/compromissos.js?v=20261004l"></script>
+  <script src="assets/js/forms.js?v=20261004l"></script>
+  <script src="assets/js/ficha.js?v=20261004l"></script>
+  <script src="assets/js/nuvem.js?v=20261004l"></script>
+  <script src="assets/js/app.js?v=20261004l"></script>
 </body>
 </html>

@@ -88,7 +88,7 @@
     const nivel = vermelhos || atraso.total > 2 ? "vermelho"
       : esperando.length || projRisco.length || atraso.total || atrasada || decisoes.length ? "amarelo" : "verde";
     const partes = [];
-    if (si.sp) partes.push(`${si.rotulo}: ${si.feitas} de ${si.total} atividades feitas${si.terminou ? ", sprint encerrada" : `, faltam ${si.diasRestantes} dia(s)`}.`);
+    if (si.sp) partes.push(`${si.rotulo}: ${si.feitas} de ${si.total} atividades feitas${si.terminou ? ", ciclo encerrado" : `, faltam ${si.diasRestantes} dia(s)`}.`);
     if (atraso.total) partes.push(`${atraso.total} item(ns) com prazo vencido.`);
     if (esperando.length) partes.push(`${esperando.length} atividade(s) travada(s).`);
     if (decisoes.length) partes.push(`${decisoes.length} decisão(ões) aguardando a diretoria.`);
@@ -199,15 +199,15 @@
     <h2>📋 ${esc(si.rotulo)} · ${esc(si.periodo)}</h2>
     ${si.sp.objetivo ? `<div class="obj">🎯 ${esc(si.sp.objetivo)}</div>` : ""}
     <div class="nums"><span><strong>${si.feitas}</strong> de <strong>${si.total}</strong> atividades feitas</span>
-      ${d.pctReal != null ? `<span>andamento médio <strong>${d.pctReal}%</strong></span><span>tempo da sprint já passado: ${d.pctEsperado}%</span>` : ""}
-      <span>${si.terminou ? "sprint encerrada" : `faltam ${si.diasRestantes} dia(s)`}</span></div>
+      ${d.pctReal != null ? `<span>andamento médio <strong>${d.pctReal}%</strong></span><span>tempo do ciclo já passado: ${d.pctEsperado}%</span>` : ""}
+      <span>${si.terminou ? "ciclo encerrado" : `faltam ${si.diasRestantes} dia(s)`}</span></div>
     <div class="big"><i style="width:${d.pctReal ?? 0}%"></i></div>
-    ${d.atrasada ? `<p class="sub" style="color:#b45309;font-weight:700">A sprint está andando mais devagar que o tempo: vale conversar sobre o que tirar ou destravar.</p>` : ""}
+    ${d.atrasada ? `<p class="sub" style="color:#b45309;font-weight:700">O ciclo está andando mais devagar que o tempo: vale conversar sobre o que tirar ou destravar.</p>` : ""}
   </div>` : ""}
 
   ${secao("🔴", `Precisa de você, Maíra`, lista(precisa, "Nenhuma decisão ou bloqueio esperando a diretoria."), precisa.length ? "destaque" : "")}
   ${secao("✅", "Feito na semana", lista(feito, d.passos.length ? "Nenhuma atividade concluída por inteiro, mas houve avanço nos passos:" : "Nenhuma entrega registrada nesta semana.") + passosHtml)}
-  ${secao("⏳", "Em andamento na sprint", lista(andamento, "Nenhuma atividade em aberto na sprint."))}
+  ${secao("⏳", "Em andamento no ciclo", lista(andamento, "Nenhuma atividade em aberto no ciclo."))}
   ${secao("⚠️", "Travado ou em risco", lista([...vencidos, ...risco], "Nenhum projeto em risco."))}
   ${secao("📅", "Próximos 14 dias", lista(prazos.slice(0, 15), "Nenhum prazo nos próximos 14 dias."))}
   ${novidades.length ? secao("💡", "Novidades", lista(novidades, "")) : ""}

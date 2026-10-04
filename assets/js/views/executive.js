@@ -45,7 +45,7 @@
       terminou: hoje > fim, naoComecou: hoje < inicio,
       diasRestantes: Math.max(0, Math.round((fim - hoje) / 86400000)),
       periodo: `${fmt(inicio)} a ${fmt(fim)}`, fimTxt: fmt(fim),
-      rotulo: `Sprint ${sp.numero}`,
+      rotulo: S.nomeCiclo(sp),
     };
   };
 
@@ -131,9 +131,9 @@
     if (od.projetos.length) items.push({ sev: "alert", text: `${od.projetos.length} projeto(s) com prazo vencido`, sub: od.projetos.slice(0, 4).map((i) => i.id).join(", "), go: "overview" });
     if (od.atividades.length) items.push({ sev: "alert", text: `${od.atividades.length} atividade(s) atrasada(s)`, sub: [...new Set(od.atividades.map((x) => x.it.id))].slice(0, 5).join(", "), go: "overview" });
     const si = A.sprintInfo(S);
-    if (!si.sp || si.terminou) items.push({ sev: "alert", text: si.sp ? `${si.rotulo} terminou em ${si.fimTxt}` : "Nenhuma sprint aberta", sub: "Encerrar e planejar a próxima sprint", go: "kanban" });
-    else if (!si.total) items.push({ sev: "alert", text: `Planejar a ${si.rotulo}`, sub: `Escolher de ${si.min} a ${si.max} atividades dos projetos da onda`, go: "kanban" });
-    else if (si.acima) items.push({ sev: "alert", text: `${si.rotulo} com ${si.total} atividades (máximo ${si.max})`, sub: "Tirar atividades da sprint ou ajustar o limite", go: "kanban" });
+    if (!si.sp || si.terminou) items.push({ sev: "alert", text: si.sp ? `${si.rotulo} terminou em ${si.fimTxt}` : "Nenhum ciclo aberto", sub: "Encerrar e planejar o próximo ciclo", go: "kanban" });
+    else if (!si.total) items.push({ sev: "alert", text: `Planejar o ${si.rotulo}`, sub: `Escolher de ${si.min} a ${si.max} atividades dos projetos da onda`, go: "kanban" });
+    else if (si.acima) items.push({ sev: "alert", text: `${si.rotulo} com ${si.total} atividades (máximo ${si.max})`, sub: "Tirar atividades do ciclo ou ajustar o limite", go: "kanban" });
     else if (si.abaixo) items.push({ sev: "warn", text: `${si.rotulo} com só ${si.total} atividade(s) (mínimo ${si.min})`, sub: "Dá para puxar mais atividades no planejamento", go: "kanban" });
 
     const active = all.filter((i) => i.status === "Em andamento");
@@ -198,7 +198,7 @@
   }
 
 
-  /* ---------- Agenda (calendário de 2 semanas + exportação) ---------- */
+  /* ---------- Agenda (calendário de 4 semanas, o tamanho do ciclo, + exportação) ---------- */
   // Eventos com data exata: prazos de atividades, entregas de projetos e a reunião de quinta.
   function agendaEvents(S, from, to, { reuniao = true } = {}) {
     const out = [];
@@ -242,13 +242,14 @@
 
   function calendar(S) {
     const start = mondayOf(new Date());
-    const end = new Date(start.getTime() + 13 * DAY);
+    const DIAS = 28; // 4 semanas a partir da segunda desta semana
+    const end = new Date(start.getTime() + (DIAS - 1) * DAY);
     const t = today().getTime();
     const evs = agendaEvents(S, start, end);
     const byDay = {};
     evs.forEach((e) => { (byDay[e.date.getTime()] ||= []).push(e); });
     const dow = ["Seg", "Ter", "Qua", "Qui", "Sex", "Sáb", "Dom"];
-    const cells = Array.from({ length: 14 }, (_, i) => {
+    const cells = Array.from({ length: DIAS }, (_, i) => {
       const d = new Date(start.getTime() + i * DAY);
       const list = byDay[d.getTime()] || [];
       const weekend = d.getDay() === 0 || d.getDay() === 6;
@@ -269,7 +270,7 @@
       <div class="cal-head">${dow.map((x, i) => `<span class="${i > 4 ? "weekend" : ""}">${x}</span>`).join("")}</div>
       <div class="cal-grid">${cells}</div>
       <div class="cal-foot">
-        <span>${nPrazos ? `${nPrazos} prazo(s)` : "Nenhum prazo"}${nComp ? ` · ${nComp} compromisso(s)` : ""} nestas 2 semanas</span>
+        <span>${nPrazos ? `${nPrazos} prazo(s)` : "Nenhum prazo"}${nComp ? ` · ${nComp} compromisso(s)` : ""} nestas 4 semanas</span>
         ${depois.length ? `<span>Depois: ${depois.map((e) => `<button class="link-btn" data-action="go-tab" data-tab="projeto/${esc(e.ini)}" title="${esc(e.title)}">${esc(e.ini)} ${e.date.toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit" })}</button>`).join(" · ")}</span>` : ""}
       </div>
       <div class="cal-legend">
@@ -379,7 +380,7 @@
     const si = A.sprintInfo(S);
     parts.push(od.total ? `${od.total} item(ns) em atraso.` : "Nada atrasado.");
     if (od.total) parts.push("O ponto da semana é recuperar os prazos.");
-    else if (!si.sp || si.terminou || !si.total) parts.push("O ponto da semana é planejar a sprint.");
+    else if (!si.sp || si.terminou || !si.total) parts.push("O ponto da semana é planejar o ciclo.");
     else parts.push(`${si.rotulo}: ${si.feitas} de ${si.total} atividades feitas, faltam ${si.diasRestantes} dia(s).`);
     return parts.join(" ");
   }
@@ -392,14 +393,14 @@
     const minhas = si.items.filter(({ a }) => S.raciPeople(a.raci, "R")[0] === eu)
       .sort((x, y) => (x.a.status === "Concluído") - (y.a.status === "Concluído"));
     if (!minhas.length) {
-      return `<section class="panel minhas vazio"><strong>Minhas atividades na ${esc(si.rotulo)}</strong>
-        <span class="muted small">Nenhuma atividade sua (como responsável R) nesta sprint.</span></section>`;
+      return `<section class="panel minhas vazio"><strong>Minhas atividades no ${esc(si.rotulo)}</strong>
+        <span class="muted small">Nenhuma atividade sua (como responsável R) neste ciclo.</span></section>`;
     }
     const COL = Object.fromEntries(A.meta.SPRINT_COLUNAS.map((c) => [c.key, c.label]));
     return `
       <section class="panel minhas">
         <div class="panel-head">
-          <h3 class="panel-title">Minhas atividades na ${esc(si.rotulo)}</h3>
+          <h3 class="panel-title">Minhas atividades no ${esc(si.rotulo)}</h3>
           <span class="muted small">${minhas.filter(({ a }) => a.status === "Concluído").length} de ${minhas.length} feitas · até ${esc(si.fimTxt)}</span>
         </div>
         <div class="minhas-grid">
@@ -446,10 +447,10 @@
     const pill = document.getElementById("wip-pill");
     const alerta = !si.sp || si.terminou || si.acima || !si.total;
     pill.className = `wip-pill ${alerta ? "warn" : "ok"}`;
-    pill.title = si.sp ? `${si.rotulo}: ${si.periodo} · limite de ${si.min} a ${si.max} atividades` : "Nenhuma sprint aberta";
+    pill.title = si.sp ? `${si.rotulo}: ${si.periodo} · limite de ${si.min} a ${si.max} atividades` : "Nenhum ciclo aberto";
     pill.innerHTML = si.sp
       ? `${si.rotulo}: <strong>${si.feitas}</strong> de ${si.total} feitas <span class="small">· até ${si.fimTxt}</span>`
-      : "Sem sprint aberta";
+      : "Sem ciclo aberto";
 
     const pending = S.state.data.decisions.filter((d) => d.status === "Pendente").length;
     const decCount = document.getElementById("tab-count-decisoes");
@@ -517,13 +518,13 @@
           foot: `${od.projetos.length} projeto(s) · ${od.atividades.length} atividade(s)`, go: "overview",
         })}
         ${kpiCard({
-          label: si.sp ? `${si.rotulo} · até ${si.fimTxt}` : "Sprint", value: si.sp ? `${si.feitas}/${si.total}` : "—",
+          label: si.sp ? `${si.rotulo} · até ${si.fimTxt}` : "Ciclo", value: si.sp ? `${si.feitas}/${si.total}` : "—",
           valueClass: si.acima || si.terminou ? "bad" : "",
           chipHtml: !si.sp || si.terminou ? `<span class="kchip bad">encerrar</span>`
             : si.acima ? `<span class="kchip bad">acima de ${si.max}</span>`
             : `<span class="kchip good">${si.diasRestantes} dia(s)</span>`,
           spark: sparkline(s.sprintPct, "#378ADD"),
-          foot: `atividades feitas · ${si.projetos || 0} projeto(s) na sprint`, go: "kanban",
+          foot: `atividades feitas · ${si.projetos || 0} projeto(s) no ciclo`, go: "kanban",
         })}
       </div>
 
@@ -542,7 +543,7 @@
         </section>
         <section class="panel cal-panel">
           <div class="panel-head">
-            <h3 class="panel-title">Agenda · 2 semanas</h3>
+            <h3 class="panel-title">Agenda · 4 semanas</h3>
             <div class="row no-print">
               <button class="btn btn-xs btn-primary" data-cmp-new="">+ Compromisso</button>
               ${A.google?.isConnected() ? "" : `<button class="btn btn-xs btn-outline" data-ics-export title="Baixa um arquivo .ics com todos os prazos para importar no Google Agenda">Exportar .ics</button>`}

@@ -90,7 +90,7 @@
         return;
       }
       const ok = await confirmDialog(
-        `Então publicar os dados que estão neste navegador (${A.store.state.data.initiatives.length} projetos, histórico e sprints)?`,
+        `Então publicar os dados que estão neste navegador (${A.store.state.data.initiatives.length} projetos, histórico e ciclos)?`,
         { title: "Publicar o painel", okLabel: "Publicar estes dados" });
       if (ok) { await salvar(); toast("Painel publicado no banco compartilhado."); }
       return;
@@ -266,7 +266,7 @@
         <div>
           <h3 class="panel-title">Acesso ao painel</h3>
           <div class="muted small">Quem pode entrar e com qual perfil. Depois de cadastrada, a pessoa abre o painel e clica em “Primeiro acesso? Crie sua senha”.
-          <strong>Administrador</strong>: tudo · <strong>Diretoria</strong>: altera projetos, ondas, sprint e decisões · <strong>Visualização</strong>: só vê.</div>
+          <strong>Administrador</strong>: tudo · <strong>Diretoria</strong>: altera projetos, ondas, ciclo e decisões · <strong>Visualização</strong>: só vê.</div>
         </div>
       </div>
       <div class="table-wrap">
