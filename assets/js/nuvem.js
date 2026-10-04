@@ -17,6 +17,7 @@
   let status = "";        // texto do rodapé
   let membros = [];       // lista para o cadastro de acesso (só admin)
   let ultimoEmail = "";   // e-mail digitado/logado (para as mensagens do login)
+  let retornoEmail = "";  // o que o link do e-mail trouxe no endereço (#access_token=… ou #error=…), guardado antes das rotas do painel
 
   const podeEscrever = () => membro && (membro.perfil === "admin" || membro.perfil === "diretoria");
   const conectado = () => !!membro;
@@ -29,6 +30,8 @@
     setStatus("Conectando ao banco…");
     try {
       await A.util.loadScript(SDK);
+      // Devolve ao endereço o que o link do e-mail trouxe, para a biblioteca concluir o login.
+      if (retornoEmail.includes("access_token")) history.replaceState(null, "", location.pathname + location.search + "#" + retornoEmail);
       sb = window.supabase.createClient(cfg.supabaseUrl, cfg.supabaseKey);
     } catch {
       setStatus("⚠️ Sem conexão com o banco: trabalhando só neste navegador");
@@ -38,8 +41,14 @@
       if (evento === "PASSWORD_RECOVERY") abrirLogin("nova-senha");
     });
     const { data } = await sb.auth.getSession();
+    if (retornoEmail) history.replaceState(null, "", location.pathname + location.search + "#executivo");
+    const aviso = lerRetornoDoEmail();
     if (data.session) await entrou();
-    else { setStatus("Entre com seu e-mail para ver o painel compartilhado"); abrirLogin("entrar"); }
+    else {
+      setStatus("Entre com seu e-mail para ver o painel compartilhado");
+      abrirLogin("entrar");
+      if (aviso) $("login-msg").textContent = aviso;
+    }
   }
 
   // Depois do login: confere se é membro, carrega o painel e liga o tempo real.
@@ -188,15 +197,19 @@
     try {
       if (tela === "entrar") {
         const { error } = await sb.auth.signInWithPassword({ email, password: senha });
+        if (error && /not confirmed/i.test(error.message)) {
+          $("login-erro").innerHTML = `Seu e-mail ainda não foi confirmado. <a href="#" data-login="reenviar">Reenviar o e-mail de confirmação</a>`;
+          return;
+        }
         if (error) return erro(/invalid/i.test(error.message) ? "E-mail ou senha incorretos. No primeiro acesso, use “Crie sua senha”." : error.message);
         await entrou();
       } else if (tela === "criar") {
-        const { data, error } = await sb.auth.signUp({ email, password: senha });
+        const { data, error } = await sb.auth.signUp({ email, password: senha, options: { emailRedirectTo: enderecoDoPainel() } });
         if (error) return erro(/already/i.test(error.message) ? "Este e-mail já tem senha. Use “Já tenho senha” ou “Esqueci a senha”." : error.message);
         if (!data.session) return erro("Conta criada. Confirme pelo link enviado ao seu e-mail e depois entre com a senha.");
         await entrou();
       } else if (tela === "esqueci") {
-        const { error } = await sb.auth.resetPasswordForEmail(email, { redirectTo: location.origin + location.pathname });
+        const { error } = await sb.auth.resetPasswordForEmail(email, { redirectTo: enderecoDoPainel() });
         if (error) return erro(error.message);
         $("login-msg").textContent = "Pronto. Abra o link que chegou no seu e-mail (pode levar alguns minutos).";
       } else if (tela === "nova-senha") {
@@ -278,7 +291,31 @@
     carregarMembros();
   }
 
+  async function reenviarConfirmacao() {
+    const email = ($("login-email").value || ultimoEmail).trim().toLowerCase();
+    if (!email) return ($("login-erro").textContent = "Digite o seu e-mail acima.");
+    const { error } = await sb.auth.resend({ type: "signup", email, options: { emailRedirectTo: enderecoDoPainel() } });
+    if (error) {
+      $("login-erro").textContent = /rate|limit|seconds/i.test(error.message)
+        ? "Muitos e-mails enviados há pouco. Espere alguns minutos e tente de novo." : error.message;
+      return;
+    }
+    $("login-erro").textContent = "";
+    $("login-msg").textContent = "Enviamos um novo e-mail de confirmação. Clique no link uma vez só; se ele disser que expirou, volte aqui e entre com e-mail e senha.";
+  }
+
+  // O link do e-mail volta para cá. Erros vêm no endereço (#error=...): mostra uma mensagem clara e limpa o endereço.
+  function lerRetornoDoEmail() {
+    const h = new URLSearchParams(retornoEmail);
+    if (!h.get("error")) return null;
+    return h.get("error_code") === "otp_expired"
+      ? "Esse link já tinha sido usado ou expirou. Isso é comum em e-mails corporativos, que abrem os links para checar segurança e às vezes já confirmam a conta. Tente entrar com e-mail e senha."
+      : `O link do e-mail não funcionou (${h.get("error_description") || h.get("error")}). Tente entrar com e-mail e senha ou peça um novo link.`;
+  }
+
   /* ---------- Auxiliares ---------- */
+  // Endereço completo do painel (com /painel-expansao/), para onde os links de e-mail devem voltar.
+  const enderecoDoPainel = () => location.origin + location.pathname;
   const horaDe = (iso) => new Date(iso).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" });
   function falha(msg, error) {
     console.error(msg, error);
@@ -288,12 +325,16 @@
 
   function init() {
     if (!configurado) return;
+    // Guarda o retorno do link do e-mail antes que o painel troque o endereço para a aba inicial.
+    if (/access_token|error=|type=recovery/.test(location.hash)) retornoEmail = location.hash.slice(1);
     $("login-form").addEventListener("submit", enviarLogin);
-    $("login-links").addEventListener("click", (e) => {
+    $("modal-login").addEventListener("click", (e) => {
       const a = e.target.closest("[data-login]");
       if (!a) return;
       e.preventDefault();
-      if (a.dataset.login === "sair") sair(); else abrirLogin(a.dataset.login);
+      if (a.dataset.login === "sair") sair();
+      else if (a.dataset.login === "reenviar") reenviarConfirmacao();
+      else abrirLogin(a.dataset.login);
     });
     document.addEventListener("change", (e) => {
       const el = e.target.closest("[data-membro]");
