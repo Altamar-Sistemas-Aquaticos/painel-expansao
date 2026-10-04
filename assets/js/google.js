@@ -26,8 +26,14 @@
       redirect: "follow",
       body: JSON.stringify({ ...payload, action, token: conf.token }),
     });
+    const texto = await res.text();
     let data;
-    try { data = await res.json(); } catch { throw new Error("A ponte não respondeu em JSON. Confira a URL do app da Web."); }
+    try { data = JSON.parse(texto); } catch {
+      // Página do próprio Google (erro de execução, tempo esgotado, login): mostra o título para facilitar o diagnóstico.
+      const titulo = (texto.match(/<title>([^<]*)<\/title>/i) || [])[1] || "";
+      const detalhe = (texto.replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").match(/(Exceeded[^.]*|Erro[^.]*|Error[^.]*|Exception[^.]*)/i) || [])[1] || "";
+      throw new Error(`O Google respondeu com uma página de erro (HTTP ${res.status}${titulo ? ` · ${titulo}` : ""}${detalhe ? ` · ${detalhe.trim()}` : ""}). Veja "Execuções" no Apps Script.`);
+    }
     if (!data.ok) throw new Error(data.error || "Erro na ponte do Google Agenda.");
     return data;
   }
