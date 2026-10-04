@@ -468,6 +468,7 @@
     const origem = adotar(raw);
     persist();
     emit();
+    A.google?.schedule(); // prazos alterados por outras pessoas também vão para a agenda de quem tem o Google conectado
     return origem;
   }
 

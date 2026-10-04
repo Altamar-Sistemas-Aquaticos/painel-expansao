@@ -157,13 +157,23 @@
     const $ = (id) => document.getElementById(id);
     $("g-test").addEventListener("click", async () => {
       const conf = { url: $("g-url").value.trim(), token: $("g-token").value.trim() };
-      if (!/^https:\/\/script\.google\.com\/macros\/s\/.+\/exec$/.test(conf.url)) {
+      // Contas comuns: script.google.com/macros/s/ID/exec · Google Workspace: script.google.com/a/macros/DOMÍNIO/s/ID/exec
+      const m = conf.url.match(/^https:\/\/script\.google\.com\/(?:a\/macros\/[^/]+|macros)\/s\/([\w-]+)\/exec\/?$/);
+      if (!m) {
         $("g-status").innerHTML = `<span class="badge alert">URL inválida</span> Use a URL do app da Web, que termina em <code>/exec</code>.`;
         return;
       }
       $("g-status").innerHTML = `<span class="badge">Testando…</span>`;
       try {
-        const r = await call("ping", {}, conf);
+        // Tenta a URL como foi colada e, se não responder, o formato padrão (o de Workspace às vezes exige login).
+        const padrao = `https://script.google.com/macros/s/${m[1]}/exec`;
+        let r;
+        try { r = await call("ping", {}, conf); }
+        catch (err) {
+          if (conf.url === padrao) throw err;
+          conf.url = padrao;
+          r = await call("ping", {}, conf);
+        }
         A.store.saveSettings({ google: { ...cfg(), ...conf, lastError: "" } });
         $("g-status").innerHTML = `<span class="badge ok">Conectado</span> Conta ${A.util.esc(r.conta)} · agenda “${A.util.esc(r.agenda)}”`;
         $("g-disconnect").classList.remove("hidden");
