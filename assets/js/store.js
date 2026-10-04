@@ -8,7 +8,7 @@
   const SETTINGS_KEY = "altamar_painel_settings_v2";
   const LEGACY_INI = "altamar_expansao_iniciativas_v1";
   const LEGACY_DEC = "altamar_expansao_decisoes_v1";
-  const SCHEMA_VERSION = 7; // 4: esforço em meses, sprints e checklist · 5: "esforço a revisar" · 6: eixos e fases · 7: setores com líder e ciclo mensal
+  const SCHEMA_VERSION = 8; // 4: esforço em meses, sprints e checklist · 5: "esforço a revisar" · 6: eixos e fases · 7: setores com líder e ciclo mensal
   const PORTFOLIO_BASE_DATE = "2026-09-01T12:00:00.000Z"; // data-base dos 29 projetos iniciais
   const HISTORY_LIMIT = 2000;
 
@@ -26,6 +26,8 @@
     observacoes: "Observações", enabler: "Habilitadora", coluna: "Coluna do Kanban",
     objetivo: "Objetivo", prontoQuando: "Pronto quando", indicador: "Indicador de sucesso",
     investimento: "Exige investimento", situacao: "Situação do cadastro", autor: "Autor da ideia", esforcoRevisar: "Esforço a revisar", eixo: "Eixo", faseDe: "Fase do projeto",
+    inicio: "Início", ciclo: "Ciclo", checklist: "Checklist do projeto", dependencias: "Depende de",
+    estrategico: "Escolha estratégica", estrategicoMotivo: "Motivo da escolha estratégica",
   };
   const ACTIVITY_FIELDS = {
     nome: "Atividade", entregavel: "Entregável", pct: "% concluído", status: "Status", raci: "RACI",
@@ -220,6 +222,19 @@
       autor: String(raw.autor ?? "").trim(),
       eixo: String(raw.eixo ?? "").trim(),
       faseDe: String(raw.faseDe ?? "").trim().toUpperCase(), // projeto principal, quando este é uma fase dele
+      inicio: String(raw.inicio ?? "").trim(), // dd/mm/aaaa (com o prazo, dá os dias corridos e o "esperado hoje")
+      ciclo: String(raw.ciclo ?? "").trim(),   // ciclo em que o projeto foi escolhido pela diretoria (vazio = fora do ciclo)
+      // Checklist do projeto: os marcos, cada um com data de entrega (aparecem na linha do tempo).
+      checklist: (Array.isArray(raw.checklist) ? raw.checklist : [])
+        .map((x) => ({ id: x.id || uid("mc"), texto: String(x.texto ?? "").trim(), data: String(x.data ?? "").trim(), feito: !!x.feito }))
+        .filter((x) => x.texto),
+      // Dependências entre projetos: FS = só começa depois que o outro terminar; SS = depois que o outro começar.
+      dependencias: (Array.isArray(raw.dependencias) ? raw.dependencias : [])
+        .map((d) => ({ id: String(d.id ?? "").trim().toUpperCase(), tipo: d.tipo === "SS" ? "SS" : "FS" }))
+        .filter((d, i, arr) => d.id && d.id !== String(raw.id ?? "").trim().toUpperCase() && arr.findIndex((x) => x.id === d.id) === i),
+      // Escolha estratégica da diretoria: entra no ciclo mesmo abaixo da linha de corte (com o motivo registrado).
+      estrategico: !!raw.estrategico,
+      estrategicoMotivo: String(raw.estrategicoMotivo ?? "").trim(),
       onda: ONDA_KEYS.includes(raw.onda) ? raw.onda : "Fila",
       status,
       semaforo: SEMAFORO_KEYS.includes(raw.semaforo) ? raw.semaforo : "verde",
@@ -434,6 +449,22 @@
           const ini = inicioDoMes(fromIso(s.inicio));
           s.inicio = isoDay(ini); s.fim = isoDay(fimDoMes(ini));
         });
+      }      if (!(raw.version >= 8)) {
+        // "Beatriz" e "Bia" eram a mesma pessoa cadastrada duas vezes: fica "Bia" (nome da liderança do Administrativo).
+        const bia = data.config.pessoas.find((p) => p.nome === "Bia");
+        const beatriz = data.config.pessoas.find((p) => p.nome === "Beatriz");
+        if (bia && beatriz) {
+          bia.email ||= beatriz.email; bia.funcao ||= beatriz.funcao; if (!bia.area) bia.area = beatriz.area;
+          data.config.pessoas = data.config.pessoas.filter((p) => p !== beatriz);
+          const troca = (n) => (n === "Beatriz" ? "Bia" : n);
+          data.initiatives.forEach((it) => {
+            it.responsavel = troca(it.responsavel); it.autor = troca(it.autor);
+            it.atividades.forEach((a) => {
+              if (a.raci.Beatriz) { a.raci.Bia = a.raci.Beatriz; delete a.raci.Beatriz; Object.assign(a, normalizeActivity(a)); }
+            });
+          });
+          data.config.areas.forEach((ar) => { ar.lider = troca(ar.lider); });
+        }
       }      // Antes da versão 6 não havia eixos: aplica a classificação inicial combinada com a diretoria.
       if (!(raw.version >= 6)) {
         data.initiatives.forEach((it) => {
@@ -572,7 +603,7 @@
     return { id: uid("h"), ts: new Date().toISOString(), user: store.settings.user || "Anônimo", entity, refId, action, label, changes, source };
   }
 
-  const fmtValue = (v) => (Array.isArray(v) ? v.map((x) => `${x.feito ? "☑" : "☐"} ${x.texto}`).join("; ")
+  const fmtValue = (v) => (Array.isArray(v) ? v.map((x) => (x && x.tipo ? `${x.id}${x.tipo === "SS" ? " (após começar)" : ""}` : `${x.feito ? "☑" : "☐"} ${x.texto}${x.data ? ` (${x.data})` : ""}`)).join("; ")
     : v && typeof v === "object" ? raciText(v) : typeof v === "boolean" ? (v ? "Sim" : "Não") : String(v ?? ""));
   function diff(before, after, fields) {
     const changes = [];
@@ -788,8 +819,12 @@
     const numero = (Math.max(0, ...store.data.sprints.map((s) => s.numero)) || 0) + 1;
     const inicio = atual ? addDays(fromIso(atual.fim), 1) : primeiraSegunda();
     const nova = makeSprint(numero, inicio);
-    let levadas = 0, feitas = 0;
+    let levadas = 0, feitas = 0, projetosLevados = 0;
     if (atual) {
+      // Projetos escolhidos para o ciclo que ainda não terminaram continuam no próximo (projeto longo não é re-escolhido todo mês).
+      store.data.initiatives.forEach((it) => {
+        if (it.ciclo === atual.id && it.status !== "Concluído" && it.status !== "Cancelado") { it.ciclo = nova.id; projetosLevados++; }
+      });
       sprintItems(atual).forEach(({ a }) => {
         if (a.status === "Concluído") feitas++;
         else { a.sprint = nova.id; levadas++; }
@@ -800,7 +835,7 @@
     const entries = [entry("sprint", nova.id, "abriu", `${nomeCiclo(nova)} aberto (${nova.inicio} a ${nova.fim})`, [], "Ciclo")];
     if (atual) entries.push(entry("sprint", atual.id, "encerrou", `${nomeCiclo(atual)} encerrado: ${feitas} feita(s), ${levadas} levada(s) para o ${nomeCiclo(nova)}`, [], "Ciclo"));
     commit(entries);
-    return { ok: true, sprint: nova, levadas, feitas };
+    return { ok: true, sprint: nova, levadas, feitas, projetosLevados };
   }
 
   function saveSprint(patch) {
@@ -850,6 +885,69 @@
   }
 
   const setOnda = (id, onda) => saveInitiative({ onda }, id, { source: "Ondas" });
+  // Colocar ou tirar o projeto do ciclo atual (decisão do Pedro com a diretoria, na Priorização).
+  function setNoCiclo(id, noCiclo) {
+    const sp = sprintAtual();
+    if (!sp) return { ok: false, error: "Nenhum ciclo aberto." };
+    const it = findInitiative(id);
+    if (!it) return { ok: false, error: "Projeto não encontrado." };
+    if (noCiclo && (!it.valor || !it.esforco)) return { ok: false, error: "Dê valor e esforço ao projeto antes de colocá-lo no ciclo." };
+    return saveInitiative(noCiclo ? { ciclo: sp.id } : { ciclo: "", estrategico: false, estrategicoMotivo: "" }, id, { source: "Priorização" });
+  }
+
+  // Escolha estratégica: a diretoria põe o projeto no ciclo mesmo abaixo da linha de corte, com o motivo registrado.
+  function setEstrategico(id, motivo) {
+    const sp = sprintAtual();
+    if (!sp) return { ok: false, error: "Nenhum ciclo aberto." };
+    const it = findInitiative(id);
+    if (!it) return { ok: false, error: "Projeto não encontrado." };
+    if (!String(motivo || "").trim()) return { ok: false, error: "Escreva o motivo da escolha estratégica." };
+    return saveInitiative({ ciclo: sp.id, estrategico: true, estrategicoMotivo: String(motivo).trim() }, id, { source: "Priorização" });
+  }
+
+  /* ---------- Ficha do projeto: dependências, ritmo, marcos e fila ---------- */
+  // Dependências ainda não resolvidas: FS = o outro precisa terminar; SS = o outro precisa ter começado.
+  function dependenciasPendentes(it) {
+    return (it.dependencias || []).map((d) => ({ ...d, proj: findInitiative(d.id) })).filter(({ proj, tipo }) =>
+      proj && proj.status !== "Cancelado" && (tipo === "SS" ? proj.status === "A fazer" : proj.status !== "Concluído"));
+  }
+  const liberaQuem = (id) => store.data.initiatives.filter((i) => (i.dependencias || []).some((d) => d.id === id));
+
+  // Ritmo do projeto contra o próprio plano: % feito × % esperado hoje (pelo início e pelo prazo).
+  function ritmo(it) {
+    const ini = parseDate(it.inicio), fim = parseDate(it.prazo);
+    const feitoEtapas = progress(it);
+    const marcos = it.checklist || [];
+    const feito = feitoEtapas ?? (marcos.length ? Math.round((marcos.filter((m) => m.feito).length / marcos.length) * 100) : 0);
+    if (!ini || !fim || fim <= ini) return { feito, esperado: null, situacao: null };
+    const hoje = new Date(); hoje.setHours(0, 0, 0, 0);
+    const esperado = Math.max(0, Math.min(100, Math.round(((hoje - ini) / (fim - ini)) * 100)));
+    const dif = feito - esperado;
+    const situacao = it.status === "Concluído" ? "concluido" : hoje < ini ? "nao-comecou" : dif >= 5 ? "adiantado" : dif >= -10 ? "no-ritmo" : dif >= -25 ? "atencao" : "atrasado";
+    return { feito, esperado, situacao, ini, fim };
+  }
+  // Próximo marco ainda não entregue (o de data mais próxima).
+  function proximoMarco(it) {
+    return (it.checklist || []).filter((m) => !m.feito)
+      .map((m) => ({ ...m, d: parseDate(m.data) }))
+      .sort((a, b) => (a.d ? a.d.getTime() : Infinity) - (b.d ? b.d.getTime() : Infinity))[0] || null;
+  }
+  // Há quantos ciclos (meses) o projeto validado espera na fila, fora do ciclo e sem começar.
+  function tempoNaFila(it) {
+    if (it.situacao !== "Validado" || it.status !== "A fazer") return null;
+    const sp = sprintAtual();
+    if (sp && it.ciclo === sp.id) return null;
+    const marco = store.data.history.find((h) => h.refId === it.id && (h.changes || []).some((c) =>
+      (c.field === "situacao" && c.to === "Validado") || (c.field === "ciclo" && !c.to)));
+    const desde = new Date(marco ? marco.ts : it.criadoEm);
+    const hoje = new Date();
+    return Math.max(0, (hoje.getFullYear() - desde.getFullYear()) * 12 + hoje.getMonth() - desde.getMonth());
+  }
+  // Projetos do ciclo atual, por setor (o limite é de A.meta.LIMITE_PROJETOS_SETOR por setor).
+  const projetosNoCiclo = (setor) => {
+    const sp = sprintAtual();
+    return sp ? store.data.initiatives.filter((i) => i.ciclo === sp.id && (!setor || i.area === setor) && i.status !== "Cancelado") : [];
+  };
   const confirmarEsforco = (id) => saveInitiative({ esforcoRevisar: false }, id, { source: "Triagem" });
   const setStatus = (id, status) => saveInitiative({ status }, id);
 
@@ -867,6 +965,8 @@
     if (semR) w.push(`${semR} atividade(s) sem responsável (R) na RACI.`);
     const semPrazo = acts.filter((a) => !a.prazo).length;
     if (semPrazo) w.push(`${semPrazo} atividade(s) sem prazo.`);
+    dependenciasPendentes(it).forEach(({ proj, tipo }) =>
+      w.push(tipo === "SS" ? `Depende de ${proj.id} começar (ainda não começou).` : `Depende de ${proj.id} terminar (${proj.status === "A fazer" ? "ainda não começou" : "ainda em andamento"}).`));
     const fim = parseDate(it.prazo);
     const ultimas = acts.map((a) => parseDate(a.prazo)).filter(Boolean);
     if (fim && ultimas.length) {
@@ -1097,8 +1197,8 @@
   function saveCompromisso(input) {
     const existing = input.id ? findCompromisso(input.id) : null;
     const after = normalizeCompromisso({ ...(existing || {}), ...input });
-    if (!after.titulo) return { ok: false, error: "Dê um título ao compromisso." };
-    if (!parseDate(after.data)) return { ok: false, error: "Informe a data do compromisso." };
+    if (!after.titulo) return { ok: false, error: "Dê um título à reunião." };
+    if (!parseDate(after.data)) return { ok: false, error: "Informe a data da reunião." };
     if (after.projeto && !findInitiative(after.projeto)) return { ok: false, error: `Projeto ${after.projeto} não encontrado.` };
     const label = `${after.data} ${after.horaInicio} · ${after.titulo}`;
     if (!existing) {
@@ -1115,7 +1215,7 @@
 
   function deleteCompromisso(id) {
     const c = findCompromisso(id);
-    if (!c) return { ok: false, error: "Compromisso não encontrado." };
+    if (!c) return { ok: false, error: "Reunião não encontrada." };
     store.data.compromissos = store.data.compromissos.filter((x) => x.id !== id);
     commit([entry("compromisso", c.projeto || null, "excluiu", `${c.data} ${c.horaInicio} · ${c.titulo}`)]);
     return { ok: true };
@@ -1258,7 +1358,8 @@
     eixos, findEixo, saveEixo, deleteEixo, eixoUso, criarFase, fasesDe,
     sprints, sprintAtual, findSprint, nomeCiclo, sprintItems, activityCol, sprintDates, planSprint, moveActivity, novaSprint, saveSprint, saveChecklist,
     findInitiative, nextId, saveInitiative, createProject, quickIdea, saveConfig, deleteInitiative, canDelete, advanceSituacao,
-    moveToColumn, setOnda, setStatus, warnings, confirmarEsforco,
+    moveToColumn, setOnda, setStatus, warnings, confirmarEsforco, setNoCiclo, projetosNoCiclo, setEstrategico,
+    dependenciasPendentes, liberaQuem, ritmo, proximoMarco, tempoNaFila,
     saveActivity, setRaci, deleteActivity, findActivity, projectTeam, raciText, raciPeople, splitNames,
     areas, findArea, saveArea, deleteArea, suggestAreaCode, nextAreaColor,
     pessoas, findPessoa, savePessoa, deletePessoa, pessoaUso,

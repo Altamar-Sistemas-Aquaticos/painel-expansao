@@ -75,20 +75,24 @@
       </div>`;
   }
 
-  function toolbar(S) {
-    const g = S.state.ui.kanbanGroup || "none";
-    const opt = (k, l) => `<button class="seg-btn ${g === k ? "active" : ""}" data-kb-group="${k}">${l}</button>`;
-    const user = S.state.settings.user;
+  // Filtro "Responsável": só aparece quando há duas ou mais pessoas com etapas na tela (equipe do líder).
+  function toolbar(S, responsaveis) {
+    const sel = S.state.ui.kanbanResp || "";
+    const lider = A.visao.atual().tipo === "lider";
+    if (responsaveis.length < 2 && lider) return "";
     return `
       <div class="kb-toolbar no-print">
-        <span class="muted small">Agrupar:</span>
-        <div class="seg">${opt("none", "Nenhum")}${opt("projeto", "Projeto")}${opt("pessoa", "Responsável")}</div>
-        ${user ? `<label class="checkbox kb-mine"><input type="checkbox" data-kb-mine ${S.state.ui.kanbanMine ? "checked" : ""}> Só as minhas (${esc(user)})</label>` : ""}
+        ${responsaveis.length >= 2 ? `
+          <label class="kb-resp"><span class="muted small">Responsável:</span>
+            <select class="input input-sm" data-kb-resp>
+              <option value="">Todos</option>
+              ${responsaveis.map((n) => `<option ${n === sel ? "selected" : ""}>${esc(n)}</option>`).join("")}
+            </select>
+          </label>` : ""}
         <span class="spacer"></span>
-        <span class="muted small">O backlog fica em <a href="#ondas">Ondas</a> e <a href="#priorizacao">Priorização</a>.</span>
+        ${lider ? "" : `<span class="muted small">Os demais projetos ficam em <a href="#ondas">Ondas</a> e <a href="#priorizacao">Priorização</a>.</span>`}
       </div>`;
   }
-
   function colunas(S, list, si, comCabecalho = true) {
     const cols = Object.fromEntries(A.meta.SPRINT_COLUNAS.map((c) => [c.key, []]));
     list.forEach((x) => cols[S.activityCol(x.a)].push(x));
@@ -107,41 +111,23 @@
 
   A.views.kanban = function (S) {
     const si = A.sprintInfo(S);
-    const ui_ = S.state.ui;
-    document.getElementById("sprint-head").innerHTML = sprintHead(S, si) + toolbar(S);
-    const user = S.state.settings.user;
     // O líder de setor vê só os projetos do próprio setor.
-    const items = si.items.filter(({ it, a }) => A.visao.veProjeto(it) && S.matchesFilters(it) && (!ui_.kanbanMine || S.raciPeople(a.raci, "R")[0] === user));
+    const doSetor = si.items.filter(({ it }) => A.visao.veProjeto(it) && S.matchesFilters(it));
+    const responsaveis = [...new Set(doSetor.map(({ a }) => S.raciPeople(a.raci, "R")[0]).filter(Boolean))].sort((a, b) => a.localeCompare(b, "pt-BR"));
+    let resp = S.state.ui.kanbanResp || "";
+    if (resp && !responsaveis.includes(resp)) resp = S.state.ui.kanbanResp = "";
+    const items = resp ? doSetor.filter(({ a }) => S.raciPeople(a.raci, "R")[0] === resp) : doSetor;
+    // Para o líder, os números do cabeçalho são só do setor dele.
+    const siTela = A.visao.atual().tipo !== "lider" ? si : {
+      ...si, items: doSetor, total: doSetor.length, acima: false, abaixo: false,
+      feitas: doSetor.filter(({ a }) => a.status === "Concluído").length,
+      projetos: new Set(doSetor.map(({ it }) => it.id)).size,
+    };
+    document.getElementById("sprint-head").innerHTML = sprintHead(S, siTela) + toolbar(S, responsaveis);
     const board = document.getElementById("kanban-board");
-    const g = ui_.kanbanGroup || "none";
-    if (g === "none") {
-      board.className = "kanban sprint-board";
-      board.innerHTML = colunas(S, items, si);
-      return;
-    }
-    // Faixas: uma por projeto ou por responsável, cruzando as 4 colunas.
-    const chave = g === "projeto" ? ({ it }) => it.id : ({ a }) => S.raciPeople(a.raci, "R")[0] || "Sem responsável";
-    const grupos = new Map();
-    items.forEach((x) => { const k = chave(x); if (!grupos.has(k)) grupos.set(k, []); grupos.get(k).push(x); });
-    const ordenados = [...grupos.entries()].sort((p, q) => p[0].localeCompare(q[0], "pt-BR", { numeric: true }));
-    board.className = "kanban-lanes";
-    board.innerHTML = `
-      <div class="lane-colheads">${A.meta.SPRINT_COLUNAS.map((c) => `<div class="k-title">${esc(c.label)}</div>`).join("")}</div>
-      ${ordenados.map(([k, list]) => {
-        const feitas = list.filter(({ a }) => a.status === "Concluído").length;
-        const pct = Math.round(list.reduce((s, { a }) => s + a.pct, 0) / list.length);
-        const it = g === "projeto" ? list[0].it : null;
-        const titulo = it
-          ? `<span class="act-card-id" style="--ac:${A.area(it.area).cor}">${esc(it.id)}</span> <a href="${A.drill.projectHref(it.id)}" data-nav>${esc(it.nome)}</a>`
-          : `<span class="act-av">${esc(A.util.initials(k))}</span> <strong>${esc(k)}</strong>`;
-        return `
-          <div class="lane">
-            <div class="lane-head">${titulo}<span class="muted small">${feitas}/${list.length} feitas · ${pct}%</span></div>
-            <div class="lane-cols">${colunas(S, list, si, false)}</div>
-          </div>`;
-      }).join("") || `<div class="empty">Nenhuma atividade no ciclo com esses filtros.</div>`}`;
+    board.className = "kanban sprint-board";
+    board.innerHTML = colunas(S, items, si);
   };
-
   // Ações rápidas do card (sem abrir a atividade).
   function quick(key, q) {
     const S = A.store;
@@ -166,15 +152,9 @@
   }
 
   function initKanbanControls() {
-    document.addEventListener("click", (e) => {
-      const b = e.target.closest("[data-kb-group]");
-      if (!b) return;
-      A.store.state.ui.kanbanGroup = b.dataset.kbGroup;
-      A.store.emit();
-    });
     document.addEventListener("change", (e) => {
-      if (!e.target.matches("[data-kb-mine]")) return;
-      A.store.state.ui.kanbanMine = e.target.checked;
+      if (!e.target.matches("[data-kb-resp]")) return;
+      A.store.state.ui.kanbanResp = e.target.value;
       A.store.emit();
     });
   }
@@ -201,12 +181,7 @@
             <div class="wave-cap ${over ? "over" : ""}" title="Projetos em aberto nesta onda × limite por onda (${limite})">
               <div class="wave-cap-bar"><span style="width:${pct}%"></span></div>
               <div class="wave-col-load">${abertos} de ${limite} projetos</div>
-            </div>
-            <div class="wave-eixos">${S.eixos().map((e) => {
-              const n = list.filter((i) => i.status !== "Concluído" && i.eixo === e.key).length;
-              const cls = n > e.vagas ? "bad" : !n && e.vagas ? "warnc" : n === e.vagas ? "good" : "neutral";
-              return `<span class="kchip ${cls}" title="${esc(e.key)}: ${n} projeto(s) para ${e.vagas} vaga(s)">${esc(e.icone)} ${n}/${e.vagas}</span>`;
-            }).join("")}</div>`}
+            </div>`}
           </header>
           <div class="wave-col-list">
             ${list.length ? list.map((it) => `
@@ -215,7 +190,6 @@
                    title="${esc(it.nome)} · ${esc(it.status)} · V÷E ${A.util.fmtNum(ve(it))} · esforço ${esc(A.meta.tempoPorEsforco(it.esforco))}"
                    style="--ac:${A.area(it.area).cor}">
                 <span class="wchip-id">${esc(it.id)}</span>
-                ${ui.eixoIcon(it.eixo)}
                 <span class="wchip-name">${esc(it.nome)}</span>
                 ${naSprint.has(it.id) ? `<span class="sprint-tag" title="Tem atividades no ciclo atual">${esc(S.nomeCiclo(sp, { curto: true }))}</span>` : ""}
               </div>`).join("")
@@ -326,10 +300,7 @@
     S.setOnda(id, onda);
     const limite = S.calc.projetosPorOnda();
     const abertos = S.state.data.initiatives.filter((i) => i.onda === onda && i.status !== "Concluído" && i.status !== "Cancelado").length;
-    const eixo = S.findEixo(it.eixo);
-    const doEixo = eixo ? S.state.data.initiatives.filter((i) => i.onda === onda && i.eixo === eixo.key && i.status !== "Concluído" && i.status !== "Cancelado").length : 0;
-    if (onda !== "Fila" && eixo && doEixo > eixo.vagas) toast(`${id} movido para ${onda}. Atenção: o eixo ${eixo.icone} ${eixo.key} ficou com ${doEixo} projetos para ${eixo.vagas} vaga(s).`, "warn", 6000);
-    else if (onda !== "Fila" && abertos > limite) toast(`${id} movido para ${onda}. Atenção: ${abertos} projetos para um limite de ${limite}.`, "warn", 5000);
+    if (onda !== "Fila" && abertos > limite) toast(`${id} movido para ${onda}. Atenção: ${abertos} projetos para um limite de ${limite}.`, "warn", 5000);
     else toast(`${id} movido para ${onda}.`);
   }
 

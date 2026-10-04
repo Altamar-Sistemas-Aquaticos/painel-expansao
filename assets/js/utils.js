@@ -111,6 +111,41 @@
     });
   }
 
+  // Pergunta com uma resposta em texto (ex.: motivo de uma escolha). Resolve com o texto, ou null se cancelar.
+  function pedirTexto(message, { title = "Informe", okLabel = "Confirmar", placeholder = "", obrigatorio = true } = {}) {
+    return new Promise((resolve) => {
+      const modal = document.getElementById("modal-texto");
+      const input = document.getElementById("texto-input");
+      const ok = document.getElementById("texto-ok");
+      const cancel = document.getElementById("texto-cancel");
+      document.getElementById("texto-title").textContent = title;
+      document.getElementById("texto-message").textContent = message;
+      input.value = ""; input.placeholder = placeholder;
+      ok.textContent = okLabel;
+      const done = (val) => {
+        ok.removeEventListener("click", onOk);
+        cancel.removeEventListener("click", onCancel);
+        modal.removeEventListener("modal:dismiss", onCancel);
+        input.removeEventListener("keydown", onKey);
+        closeModal("modal-texto");
+        resolve(val);
+      };
+      const onOk = () => {
+        const v = input.value.trim();
+        if (obrigatorio && !v) { input.focus(); input.classList.add("invalid"); return; }
+        done(v);
+      };
+      const onCancel = () => done(null);
+      const onKey = (e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); onOk(); } };
+      ok.addEventListener("click", onOk);
+      cancel.addEventListener("click", onCancel);
+      modal.addEventListener("modal:dismiss", onCancel);
+      input.addEventListener("keydown", onKey);
+      input.classList.remove("invalid");
+      openModal("modal-texto");
+      setTimeout(() => input.focus(), 40);
+    });
+  }
   /* ---------- Arquivos ---------- */
   function downloadBlob(blob, filename) {
     const url = URL.createObjectURL(blob);
@@ -142,7 +177,7 @@
 
   A.util = {
     esc, norm, fmtNum, todayStr, fmtTime, fmtDay, fmtDateTime, excelSerialToStr,
-    clone, uid, initials, toast, openModal, closeModal, closeTopModal, confirmDialog,
+    clone, uid, initials, toast, openModal, closeModal, closeTopModal, confirmDialog, pedirTexto,
     downloadBlob, loadScript,
   };
 })();

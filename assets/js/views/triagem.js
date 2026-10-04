@@ -10,7 +10,6 @@
   const FILTROS = [
     ["triar", "A triar"],
     ["semnota", "Sem nota"],
-    ["semeixo", "Sem eixo"],
     ["revisar", "Esforço a revisar"],
     ["Validado", "Validados"],
     ["ALL", "Todos"],
@@ -19,9 +18,8 @@
   const semNota = (it) => !it.valor || !it.esforco;
   const ativo = (it) => it.status !== "Cancelado" && it.status !== "Concluído";
   const filtros = {
-    triar: (it) => ativo(it) && (it.situacao === "Rascunho" || semNota(it) || !it.eixo),
+    triar: (it) => ativo(it) && (it.situacao === "Rascunho" || semNota(it)),
     semnota: (it) => ativo(it) && semNota(it),
-    semeixo: (it) => ativo(it) && !it.eixo,
     revisar: (it) => ativo(it) && it.esforcoRevisar,
     Validado: (it) => ativo(it) && it.situacao === "Validado",
     ALL: () => true,
@@ -39,7 +37,6 @@
     fillSelect($("tri-area"), `<option value="">Área…</option>` + ui.areaOptions(""),
       S.state.ui.area !== "ALL" ? S.state.ui.area : "");
     fillSelect($("tri-autor"), ui.peopleOptions("", { blank: "Quem trouxe?" }), S.state.settings.user || "");
-    fillSelect($("tri-eixo"), ui.eixoOptions("", "Eixo?"), "");
     if (!$("tri-valor").options.length) $("tri-valor").innerHTML = A.meta.valorOptions("", "Valor?");
     if (!$("tri-esforco").options.length) $("tri-esforco").innerHTML = A.meta.esforcoOptions("", "Esforço?");
   }
@@ -62,7 +59,6 @@
           ${fases ? `<span class="badge" title="Este projeto foi dividido em fases">${fases} fase(s)</span>` : ""}
         </td>
         <td>${ui.areaBadge(it.area)}</td>
-        <td><select class="tri-sel tri-eixo ${it.eixo ? "" : "empty"}" data-tri-field="eixo" data-id="${esc(it.id)}" aria-label="Eixo de ${esc(it.id)}">${ui.eixoOptions(it.eixo, "Eixo?")}</select></td>
         <td><select class="tri-sel tri-autor" data-tri-field="autor" data-id="${esc(it.id)}" aria-label="Autor de ${esc(it.id)}">${ui.peopleOptions(it.autor, { blank: "—" })}</select></td>
         <td><select class="tri-sel tri-score ${it.valor ? "" : "empty"}" data-tri-field="valor" data-id="${esc(it.id)}" aria-label="Valor de ${esc(it.id)}">${A.meta.valorOptions(it.valor || "", "Valor?")}</select></td>
         <td class="nowrap"><select class="tri-sel tri-score ${it.esforco ? "" : "empty"} ${it.esforcoRevisar ? "revisar" : ""}" data-tri-field="esforco" data-id="${esc(it.id)}" aria-label="Esforço de ${esc(it.id)}"
@@ -108,7 +104,6 @@
       nome: $("tri-nome").value.trim(),
       area: $("tri-area").value,
       autor: $("tri-autor").value,
-      eixo: $("tri-eixo").value,
       prazo: $("tri-prazo").value.trim(),
       valor: Number($("tri-valor").value) || 0,
       esforco: Number($("tri-esforco").value) || 0,

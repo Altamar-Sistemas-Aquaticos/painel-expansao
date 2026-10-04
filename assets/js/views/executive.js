@@ -158,6 +158,9 @@
 
     const drafts = all.filter((i) => i.situacao === "Rascunho");
     if (drafts.length) items.push({ sev: "accent", text: `Validar ${drafts.length} rascunho(s)`, sub: drafts.map((i) => i.id).join(", "), go: "triagem" });
+    // Projeto validado parado na fila há uma onda inteira: a diretoria decide de propósito o que fica para trás.
+    const parados = all.filter((i) => (S.tempoNaFila(i) ?? 0) >= 3);
+    if (parados.length) items.push({ sev: "warn", text: `${parados.length} projeto(s) na fila há uma onda inteira`, sub: `Decidir: subir (⭐), dividir em fases ou arquivar · ${parados.slice(0, 5).map((i) => i.id).join(", ")}`, go: "priorizacao" });
     const semNota = all.filter((i) => isOpen(i.status) && (!i.valor || !i.esforco));
     if (semNota.length) items.push({ sev: "accent", text: `Dar nota a ${semNota.length} ideia(s) na Triagem`, sub: semNota.slice(0, 5).map((i) => i.id).join(", "), go: "triagem" });
 
@@ -240,12 +243,30 @@
     return out.sort((a, b) => a.date - b.date || order[a.kind] - order[b.kind] || String(a.short).localeCompare(String(b.short)));
   }
 
+  const CHAVE_FILTRO = "altamar_agenda_ocultos";
+  function agendaOcultos() {
+    try { return JSON.parse(localStorage.getItem(CHAVE_FILTRO) || "[]"); } catch { return []; }
+  }
+  // Clicar numa etiqueta da legenda liga/desliga aquele tipo de evento (vários ao mesmo tempo).
+  document.addEventListener("click", (e) => {
+    const b = e.target.closest?.("[data-cal-filtro]");
+    if (!b) return;
+    let ocultos = agendaOcultos();
+    const k = b.dataset.calFiltro;
+    ocultos = k === "todos" ? [] : ocultos.includes(k) ? ocultos.filter((x) => x !== k) : [...ocultos, k];
+    try { localStorage.setItem(CHAVE_FILTRO, JSON.stringify(ocultos)); } catch {}
+    renderDashboard(A.store);
+  });
+
   function calendar(S) {
     const start = mondayOf(new Date());
     const DIAS = 28; // 4 semanas a partir da segunda desta semana
     const end = new Date(start.getTime() + (DIAS - 1) * DAY);
     const t = today().getTime();
-    const evs = agendaEvents(S, start, end);
+    // Tipos escondidos pelo filtro da legenda (guardado neste navegador).
+    const ocultos = agendaOcultos();
+    const tipoDe = (e) => (e.kind === "google" || e.kind === "reuniao" ? "agenda" : e.kind);
+    const evs = agendaEvents(S, start, end).filter((e) => !ocultos.includes(tipoDe(e)));
     const byDay = {};
     evs.forEach((e) => { (byDay[e.date.getTime()] ||= []).push(e); });
     const dow = ["Seg", "Ter", "Qua", "Qui", "Sex", "Sáb", "Dom"];
@@ -270,12 +291,18 @@
       <div class="cal-head">${dow.map((x, i) => `<span class="${i > 4 ? "weekend" : ""}">${x}</span>`).join("")}</div>
       <div class="cal-grid">${cells}</div>
       <div class="cal-foot">
-        <span>${nPrazos ? `${nPrazos} prazo(s)` : "Nenhum prazo"}${nComp ? ` · ${nComp} compromisso(s)` : ""} nestas 4 semanas</span>
+        <span>${nPrazos ? `${nPrazos} prazo(s)` : "Nenhum prazo"}${nComp ? ` · ${nComp} reunião(ões)` : ""} nestas 4 semanas</span>
         ${depois.length ? `<span>Depois: ${depois.map((e) => `<button class="link-btn" data-action="go-tab" data-tab="projeto/${esc(e.ini)}" title="${esc(e.title)}">${esc(e.ini)} ${e.date.toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit" })}</button>`).join(" · ")}</span>` : ""}
       </div>
-      <div class="cal-legend">
-        ${A.google?.isConnected() ? `<span class="cal-ev gcal">Sua agenda Google</span>` : `<span class="cal-ev warn">Reunião de quinta</span>`}
-        <span class="cal-ev pro">Compromisso</span><span class="cal-ev alert">Entrega de projeto</span><span class="cal-ev accent">Prazo de atividade</span>
+      <div class="cal-legend" role="group" aria-label="Filtrar o que aparece no calendário">
+        <span class="muted small">Mostrar:</span>
+        ${[
+          ["agenda", A.google?.isConnected() ? "gcal" : "warn", A.google?.isConnected() ? "Sua agenda Google" : "Reunião de quinta"],
+          ["compromisso", "pro", "Reunião"],
+          ["entrega", "alert", "Entrega de projeto"],
+          ["prazo", "accent", "Prazo de atividade"],
+        ].map(([k, cls, txt]) => `<button class="cal-ev cal-filtro ${cls} ${ocultos.includes(k) ? "off" : ""}" data-cal-filtro="${k}" aria-pressed="${!ocultos.includes(k)}" title="Mostrar ou esconder">${ocultos.includes(k) ? "○" : "●"} ${txt}</button>`).join("")}
+        ${ocultos.length ? `<button class="link-btn small" data-cal-filtro="todos">Mostrar tudo</button>` : ""}
       </div>
       <div class="cal-google no-print">${A.google?.isConnected()
         ? `${A.google.statusHtml()} · <button class="link-btn" data-g-sync>Sincronizar agora</button>`
@@ -318,7 +345,7 @@
       <div class="cal-pop-title">${esc(ev.title)}</div>
       <div class="cal-pop-detail">${esc(ev.detail)}</div>
       <div class="cal-pop-actions">
-        ${ev.kind === "compromisso" ? `<button class="btn btn-xs btn-primary" data-cmp-edit="${esc(ev.cmp)}">Editar compromisso</button>` : ""}
+        ${ev.kind === "compromisso" ? `<button class="btn btn-xs btn-primary" data-cmp-edit="${esc(ev.cmp)}">Editar reunião</button>` : ""}
         ${ev.ini ? `<button class="btn btn-xs btn-outline" data-action="go-tab" data-tab="projeto/${esc(ev.ini)}">Abrir projeto</button>` : ""}
         ${(ev.kind === "prazo" || ev.kind === "entrega") && !A.google?.isConnected()
           ? `<a class="btn btn-xs btn-primary" href="${esc(googleLink(ev))}" target="_blank" rel="noopener">Adicionar ao Google Agenda ↗</a>` : ""}
@@ -545,7 +572,7 @@
           <div class="panel-head">
             <h3 class="panel-title">Agenda · 4 semanas</h3>
             <div class="row no-print">
-              <button class="btn btn-xs btn-primary" data-cmp-new="">+ Compromisso</button>
+              <button class="btn btn-xs btn-primary" data-cmp-new="">+ Reunião</button>
               ${A.google?.isConnected() ? "" : `<button class="btn btn-xs btn-outline" data-ics-export title="Baixa um arquivo .ics com todos os prazos para importar no Google Agenda">Exportar .ics</button>`}
             </div>
           </div>

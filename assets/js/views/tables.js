@@ -116,7 +116,7 @@
     importou: "importou", restaurou: "restaurou", migrou: "migrou", limpou: "limpou",
     planejou: "planejou", abriu: "abriu", encerrou: "encerrou", zerou: "zerou",
   };
-  const ENTITY_LABEL = { iniciativa: "projeto", decisao: "decisão", atividade: "atividade", cadastro: "cadastro", compromisso: "compromisso", sprint: "", sistema: "" };
+  const ENTITY_LABEL = { iniciativa: "projeto", decisao: "decisão", atividade: "atividade", cadastro: "cadastro", compromisso: "reunião", sprint: "", sistema: "" };
 
   function fmtValue(field, v) {
     if (v === true) return "Sim";

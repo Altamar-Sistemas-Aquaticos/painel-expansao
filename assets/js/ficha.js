@@ -97,7 +97,6 @@
           <div class="field"><label>Área *</label><select ${f("area")}>${opt(S.areas().map((a) => [a.key, `${a.key} (${a.code})`]), draft.area)}</select></div>
           <div class="field"><label>Responsável pelo projeto *</label><select ${f("responsavel")}>${opt(S.pessoas({ ativas: true }).map((p) => [p.nome, p.funcao ? `${p.nome} — ${p.funcao}` : p.nome]), draft.responsavel)}</select></div>
           <div class="field"><label>Prazo final</label><input type="date" ${f("prazo")} value="${esc(draft.prazo)}"></div>
-          <div class="field"><label>Eixo</label><select ${f("eixo")}>${A.ui.eixoOptions(draft.eixo || "", "— A definir —")}</select></div>
           <div class="field"><label>Autor da ideia</label><select ${f("autor")}>${A.ui.peopleOptions(draft.autor || "", { blank: "Não informado" })}</select></div>
           <div class="field"><label>Valor *</label><select ${f("valor")}>${A.meta.valorOptions(draft.valor, "— Escolha —")}</select></div>
           <div class="field"><label>Esforço *</label><select ${f("esforco")}>${A.meta.esforcoOptions(draft.esforco, "— Escolha —")}</select></div>

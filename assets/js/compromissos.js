@@ -23,7 +23,7 @@
 
     $("cmp-body").innerHTML = `
       <div class="modal-head">
-        <h3>${c ? "Editar compromisso" : "Novo compromisso"}</h3>
+        <h3>${c ? "Editar reunião" : "Nova reunião"}</h3>
         <button class="btn btn-xs btn-ghost" data-action="close-modal" data-target="modal-compromisso" aria-label="Fechar">✕</button>
       </div>
       <form id="cmp-form" novalidate>
@@ -109,7 +109,7 @@
     if (!r.ok) { $("cmp-error").textContent = r.error; return; }
     closeModal("modal-compromisso");
     if (r.unchanged) return;
-    toast(A.google?.isConnected() ? "Compromisso salvo. Indo para o Google Agenda…" : "Compromisso salvo no painel.");
+    toast(A.google?.isConnected() ? "Reunião salva. Indo para o Google Agenda…" : "Reunião salva no painel.");
   }
 
   function init() {
@@ -123,10 +123,10 @@
       if (e.target.id !== "cmp-delete" || !editingId) return;
       const c = A.store.findCompromisso(editingId);
       if (!(await confirmDialog(`Excluir “${c.titulo}” (${c.data} ${c.horaInicio})?${A.google?.isConnected() ? " O evento também sai do Google Agenda." : ""}`,
-        { title: "Excluir compromisso", okLabel: "Excluir", danger: true }))) return;
+        { title: "Excluir reunião", okLabel: "Excluir", danger: true }))) return;
       A.store.deleteCompromisso(editingId);
       closeModal("modal-compromisso");
-      toast("Compromisso excluído.", "warn");
+      toast("Reunião excluída.", "warn");
     });
   }
 

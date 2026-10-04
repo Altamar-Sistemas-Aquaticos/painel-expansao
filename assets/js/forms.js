@@ -50,6 +50,25 @@
       <span class="badge ${above ? "ok" : ""}">${above ? "Acima da linha — prioritária" : "Abaixo da linha"}</span>`;
   }
 
+  // Prazo e dias corridos andam juntos: preencher um calcula o outro (a partir do início, ou de hoje).
+  const DIA = 86400000;
+  const fmtBR = (d) => d.toLocaleDateString("pt-BR");
+  function baseDias() {
+    const ini = A.store.calc.parseDate($("ini-inicio").value.trim());
+    if (ini) return ini;
+    const h = new Date(); h.setHours(0, 0, 0, 0); return h;
+  }
+  function atualizarDias() {
+    const fim = A.store.calc.parseDate($("ini-prazo").value.trim());
+    $("ini-dias").value = fim ? Math.max(0, Math.round((fim - baseDias()) / DIA)) : "";
+    $("ini-dias-ajuda").textContent = A.store.calc.parseDate($("ini-inicio").value.trim()) ? "Contados a partir do início" : "Contados a partir de hoje";
+  }
+  function atualizarPrazo() {
+    const n = Math.round(Number($("ini-dias").value));
+    if (!(n > 0)) return;
+    $("ini-prazo").value = fmtBR(new Date(baseDias().getTime() + n * DIA));
+  }
+
   function openInitiativeForm(id = null) {
     const S = A.store;
     const it = id ? S.findInitiative(id) : null;
@@ -69,7 +88,6 @@
     $("ini-area").innerHTML = A.ui.areaOptions(data.area);
     $("ini-responsavel").innerHTML = A.ui.peopleOptions(data.responsavel, { blank: "A definir" });
     $("ini-autor").innerHTML = A.ui.peopleOptions(data.autor, { blank: "Não informado" });
-    $("ini-eixo").innerHTML = A.ui.eixoOptions(data.eixo || "", "— A definir —");
     $("ini-situacao").value = data.situacao;
     $("ini-objetivo").value = data.objetivo || "";
     $("ini-pronto").value = data.prontoQuando || "";
@@ -80,7 +98,9 @@
     $("ini-onda").textContent = data.onda === "Fila" ? "Fila (sem onda)" : data.onda;
     $("ini-status").value = data.status;
     $("ini-semaforo").value = data.semaforo;
+    $("ini-inicio").value = data.inicio || "";
     $("ini-prazo").value = data.prazo;
+    atualizarDias();
     $("ini-obs").value = data.observacoes;
     $("ini-enabler").checked = !!data.enabler;
     $("ini-error").textContent = "";
@@ -107,12 +127,12 @@
       nome: $("ini-nome").value,
       area: $("ini-area").value,
       autor: $("ini-autor").value,
-      eixo: $("ini-eixo").value,
       valor: Number($("ini-valor").value),
       esforco: Number($("ini-esforco").value),
       status: $("ini-status").value,
       semaforo: $("ini-semaforo").value,
       responsavel: $("ini-responsavel").value,
+      inicio: $("ini-inicio").value.trim(),
       prazo: $("ini-prazo").value,
       observacoes: $("ini-obs").value,
       enabler: $("ini-enabler").checked,
@@ -347,6 +367,9 @@
   function init() {
     setupInitiativeSelects();
     $("initiative-form").addEventListener("submit", submitInitiative);
+    $("ini-prazo").addEventListener("input", atualizarDias);
+    $("ini-inicio").addEventListener("input", () => (A.store.calc.parseDate($("ini-prazo").value.trim()) ? atualizarDias() : atualizarPrazo()));
+    $("ini-dias").addEventListener("input", atualizarPrazo);
     $("ini-valor").addEventListener("change", updateCalcBox);
     $("ini-esforco").addEventListener("change", updateCalcBox);
     $("ini-area").addEventListener("change", () => {

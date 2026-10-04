@@ -319,7 +319,7 @@
     $("menu-zerar").addEventListener("click", async () => {
       closeMenu();
       const ok = await confirmDialog(
-        "Zerar o painel para começar o uso real? Ficam os 29 projetos (nome, área, eixo e nomes das atividades), todos como Rascunho e sem nota, na Fila. Saem: notas de valor e esforço, status, prazos, RACI, checklists, ciclos, decisões, compromissos e todo o histórico. Antes, um backup completo será baixado.",
+        "Zerar o painel para começar o uso real? Ficam os 29 projetos (nome, setor e nomes das atividades), todos como Rascunho e sem nota, na Fila. Saem: notas de valor e esforço, status, prazos, RACI, checklists, ciclos, decisões, reuniões e todo o histórico. Antes, um backup completo será baixado.",
         { title: "Zerar para uso real", okLabel: "Baixar backup e zerar", danger: true });
       if (!ok) return;
       exportJSON();

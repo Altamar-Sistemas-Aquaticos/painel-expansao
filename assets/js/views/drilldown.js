@@ -140,7 +140,10 @@
           <div class="field act-wide"><label>Entregável (pronto quando)</label><input class="input input-sm" value="${esc(a.entregavel)}" placeholder="O que existe quando a atividade termina" ${k("entregavel")}></div>
           <div class="field"><label>Início</label><input class="input input-sm" value="${esc(a.inicio)}" placeholder="dd/mm/aaaa" ${k("inicio")}></div>
           <div class="field"><label>Prazo</label><input class="input input-sm" value="${esc(a.prazo)}" placeholder="dd/mm/aaaa" ${k("prazo")}></div>
-          <div class="field"><label>Depende de (Nº)</label><input class="input input-sm" value="${esc(a.dependeDe)}" placeholder="—" ${k("dependeDe")}></div>
+          <div class="field"><label>Depende de</label><select class="input input-sm" ${k("dependeDe")} aria-label="Esta etapa depende de qual outra">
+            <option value="">— Nenhuma —</option>
+            ${it.atividades.map((x, j) => (x.id === a.id ? "" : `<option value="${j + 1}" ${String(a.dependeDe) === String(j + 1) ? "selected" : ""}>${j + 1}. ${esc(x.nome.length > 45 ? x.nome.slice(0, 45) + "…" : x.nome)}</option>`)).join("")}
+          </select></div>
           <div class="field act-obs"><label>Observações</label><textarea class="input input-sm" rows="1" ${k("observacoes")}>${esc(a.observacoes)}</textarea></div>
         </div>
         ${blockedBy(it, a)}
@@ -156,7 +159,7 @@
       .sort((a, b) => S.calc.parseDate(a.data) - S.calc.parseDate(b.data) || a.horaInicio.localeCompare(b.horaInicio));
     if (!list.length) return "";
     return `<div class="project-agenda">
-      <span class="kpi-label">Próximos compromissos</span>
+      <span class="kpi-label">Próximas reuniões</span>
       ${list.slice(0, 4).map((c) => `<button class="cal-ev pro full" data-cmp-edit="${esc(c.id)}">${esc(c.data)} ${esc(c.horaInicio)} · ${esc(c.titulo)}${c.participantes.length ? ` · ${esc(c.participantes.join(", "))}` : ""}</button>`).join("")}
     </div>`;
   }
@@ -201,6 +204,66 @@
       </div>`;
   }
 
+  /* ---------- Ficha do projeto ---------- */
+  const isoDeBr = (br) => { const d = A.store.calc.parseDate(br); return d ? `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}` : ""; };
+  const brDeIso = (iso) => { const m = String(iso || "").match(/^(\d{4})-(\d{2})-(\d{2})$/); return m ? `${m[3]}/${m[2]}/${m[1]}` : ""; };
+  const RITMO = {
+    adiantado: ["🟢", "adiantado", "ok"], "no-ritmo": ["🟢", "no ritmo", "ok"], atencao: ["🟡", "um pouco atrás", "warn"],
+    atrasado: ["🔴", "atrasado", "bad"], "nao-comecou": ["⚪", "ainda não começou", ""], concluido: ["✅", "concluído", "ok"],
+  };
+  let sobreAberto = false;    // "Objetivo, pronto quando e indicador" aberto?
+  let detalheAberto = false;  // editor detalhado das etapas aberto?
+
+  // Linha do tempo: do início ao prazo, com os marcos do checklist, a marca de hoje, o feito e o esperado.
+  function linhaDoTempo(S, it, r) {
+    if (!r.ini || !r.fim || r.fim <= r.ini) {
+      return `<div class="ficha-tl vazia muted small">📅 Defina o <strong>início</strong> e o <strong>prazo</strong> para ver a linha do tempo com os marcos.</div>`;
+    }
+    const total = r.fim - r.ini;
+    const pos = (d) => Math.max(0, Math.min(100, ((d - r.ini) / total) * 100));
+    const hoje = new Date(); hoje.setHours(0, 0, 0, 0);
+    const fmt = (d) => d.toLocaleDateString("pt-BR", { day: "2-digit", month: "short" }).replace(".", "");
+    // Meses no eixo (para projetos longos, enxergar os trimestres).
+    const meses = [];
+    for (let d = new Date(r.ini.getFullYear(), r.ini.getMonth() + 1, 1); d < r.fim; d = new Date(d.getFullYear(), d.getMonth() + 1, 1)) meses.push(d);
+    const passo = meses.length > 8 ? 3 : 1;
+    return `
+      <div class="ficha-tl" aria-label="Linha do tempo do projeto">
+        <div class="ficha-tl-trilho">
+          <div class="ficha-tl-feito" style="width:${r.feito}%"></div>
+          ${r.esperado != null ? `<div class="ficha-tl-esperado" style="left:${r.esperado}%" title="Esperado hoje: ${r.esperado}%"></div>` : ""}
+          ${hoje >= r.ini && hoje <= r.fim ? `<div class="ficha-tl-hoje" style="left:${pos(hoje)}%"><span>hoje</span></div>` : ""}
+          ${meses.filter((_, i) => i % passo === 0).map((d) => `<span class="ficha-tl-mes" style="left:${pos(d)}%">${d.toLocaleDateString("pt-BR", { month: "short" }).replace(".", "")}</span>`).join("")}
+          ${(it.checklist || []).map((m) => {
+            const d = S.calc.parseDate(m.data);
+            if (!d) return "";
+            const cls = m.feito ? "feito" : d < hoje ? "atrasado" : "pendente";
+            return `<span class="ficha-tl-marco ${cls}" style="left:${pos(d)}%" title="${esc(`${m.texto} · ${m.data}${m.feito ? " · entregue" : d < hoje ? " · atrasado" : ""}`)}"></span>`;
+          }).join("")}
+        </div>
+        <div class="ficha-tl-pontas"><span>${fmt(r.ini)}</span><span>${fmt(r.fim)}</span></div>
+      </div>`;
+  }
+
+  function etapaCard(S, it, a, n) {
+    const col = S.activityCol(a);
+    const r = S.raciPeople(a.raci, "R")[0];
+    const ck = a.checklist.length ? `${a.checklist.filter((x) => x.feito).length}/${a.checklist.length}` : "";
+    const ROT = { todo: "A fazer", doing: "Fazendo", waiting: "Travado", done: "Feito" };
+    return `
+      <button class="ficha-etapa ${col} ${a.status === "Cancelado" ? "cancelada" : ""}" data-action="open-activity" data-id="${esc(it.id)}|${esc(a.id)}" title="Abrir a etapa">
+        <span class="ficha-etapa-n">${n}</span>
+        <span class="ficha-etapa-nome">${esc(a.nome)}</span>
+        <span class="ficha-etapa-meta">
+          <span class="minha-col ${col}">${a.status === "Cancelado" ? "Cancelada" : ROT[col]}</span>
+          ${a.prazo ? `<span>📅 ${esc(a.prazo)}</span>` : ""}
+          ${ck ? `<span>☑ ${ck}</span>` : ""}
+        </span>
+        <span class="act-ring" style="--p:${a.pct}"><b>${a.pct}</b></span>
+        <span class="act-av ${r ? "" : "none"}" title="${esc(r ? `Responsável: ${r}` : "Sem responsável")}">${esc(r ? A.util.initials(r) : "?")}</span>
+      </button>`;
+  }
+
   A.views.project = function (S, id) {
     const el = document.getElementById("view-projeto");
     const it = S.findInitiative(id);
@@ -208,71 +271,159 @@
       el.innerHTML = `${breadcrumb([{ label: "Kanban", href: "#kanban" }, { label: "Projeto não encontrado" }])}${ui.empty(`O projeto ${esc(id)} não existe (pode ter sido renomeado ou excluído).`)}`;
       return;
     }
-    // Preserva o foco do campo em edição quando a tela é redesenhada após salvar.
+    // Preserva o foco e o que estava sendo digitado quando a tela é redesenhada após salvar.
     const focusKey = document.activeElement?.dataset?.key;
+    const rascunho = {
+      marco: document.getElementById("marco-novo")?.value || "", marcoData: document.getElementById("marco-data")?.value || "",
+      depProj: document.getElementById("dep-proj")?.value || "", depTipo: document.getElementById("dep-tipo")?.value || "",
+      focoId: document.activeElement?.id || "",
+    };
 
     const meta = A.area(it.area);
-    const { ve, progress, isAboveCut } = S.calc;
-    const pct = progress(it);
-    const col = A.meta.COLUNAS.find((c) => c.key === it.coluna);
-    const sem = A.meta.SEMAFOROS.find((s) => s.key === it.semaforo);
+    const { ve } = S.calc;
+    const pct = S.calc.progress(it);
     const canFinish = pct === 100 && it.coluna !== "done" && it.status !== "Cancelado";
     const acts = it.atividades;
-    const counted = acts.filter((a) => a.status !== "Cancelado");
-
+    const r = S.ritmo(it);
+    const rit = RITMO[r.situacao];
+    const prox = S.proximoMarco(it);
+    const sp = S.sprintAtual();
+    const noCiclo = sp && it.ciclo === sp.id;
+    const pend = new Set(S.dependenciasPendentes(it).map((d) => d.id));
+    const deps = (it.dependencias || []).map((d) => ({ ...d, proj: S.findInitiative(d.id) })).filter((d) => d.proj);
+    const libera = S.liberaQuem(it.id);
+    // Marcos em ordem de data (os sem data vão para o fim).
+    const marcos = [...(it.checklist || [])].sort((a, b) => (S.calc.parseDate(a.data)?.getTime() ?? Infinity) - (S.calc.parseDate(b.data)?.getTime() ?? Infinity));
+    const hoje = new Date(); hoje.setHours(0, 0, 0, 0);
+    const dias = r.ini && r.fim ? Math.round((r.fim - r.ini) / 86400000) : null;
     const warns = S.warnings(it);
-    const nextSit = { Rascunho: "Validar ✓", Validado: "Aprovar para onda ✓" }[it.situacao];
-    // Rascunhos ainda não estão no Kanban: o caminho começa na Triagem.
     const root = it.situacao === "Rascunho" ? { label: "Triagem", href: "#triagem" } : { label: "Kanban", href: "#kanban" };
+    const opcoesDep = S.state.data.initiatives
+      .filter((x) => x.id !== it.id && x.status !== "Cancelado" && !deps.some((d) => d.id === x.id))
+      .sort((a, b) => a.id.localeCompare(b.id, "pt-BR", { numeric: true }));
+
     const header = `
       ${breadcrumb([root, { label: `Setor ${esc(meta.key)}`, href: sectorHref(meta.key) }, { label: `${esc(it.id)} · ${esc(it.nome)}` }])}
-      <div class="panel project-head" style="--sector-color:${meta.cor}">
-        <div class="row" style="justify-content:space-between; align-items:flex-start">
-          <div style="min-width:0">
-            <div class="row">${ui.areaBadge(meta.key)} ${statusBadge(it.status)}
+      <div class="panel ficha" style="--ac:${meta.cor}">
+        <div class="ficha-top">
+          <span class="ficha-id">${esc(it.id)}</span>
+          <div class="ficha-tit">
+            <h2>${esc(it.nome)}</h2>
+            <div class="ficha-sub">
+              ${ui.areaBadge(meta.key)}
               <span class="badge ${{ Rascunho: "warn", Validado: "ok" }[it.situacao] || ""}">${esc(it.situacao)}</span>
-              ${it.enabler ? '<span class="badge enabler">★ Habilitadora</span>' : ""}</div>
-            <h2 class="project-title"><span style="color:var(--accent)">${esc(it.id)}</span> · ${esc(it.nome)}</h2>
+              ${noCiclo ? `<span class="badge accent">📋 No ${esc(S.nomeCiclo(sp))}</span>` : `<span class="badge">Fora do ciclo</span>`}
+              ${it.estrategico && noCiclo ? `<span class="badge warn" title="${esc(it.estrategicoMotivo)}">⭐ Escolha estratégica</span>` : ""}
+              ${it.valor && it.esforco ? `<span class="muted small">V${it.valor} · E${it.esforco} · V÷E ${fmtNum(ve(it))}</span>` : ""}
+            </div>
           </div>
-          <div class="row no-print">
-            ${nextSit ? `<button class="btn btn-sm btn-primary" data-action="advance-situacao" data-id="${esc(it.id)}">${nextSit}</button>` : ""}
-            <button class="btn btn-sm btn-outline" data-action="edit-initiative" data-id="${esc(it.id)}">Editar dados</button>
+          <div class="ficha-acoes no-print">
+            ${it.situacao === "Rascunho" ? `<button class="btn btn-sm btn-primary" data-action="advance-situacao" data-id="${esc(it.id)}">Validar ✓</button>` : ""}
+            ${canFinish ? `<button class="btn btn-sm btn-primary" data-action="finish-project" data-id="${esc(it.id)}">✓ Concluir projeto</button>` : ""}
+            <button class="btn btn-sm btn-ghost" data-cmp-new="${esc(it.id)}">+ Reunião</button>
             <button class="btn btn-sm btn-ghost" data-action="new-decision-for" data-id="${esc(it.id)}">+ Decisão</button>
-            <button class="btn btn-sm btn-ghost" data-cmp-new="${esc(it.id)}">+ Compromisso</button>
-            ${S.canDelete(it) ? `<button class="btn btn-sm btn-danger-ghost" data-action="delete-initiative" data-id="${esc(it.id)}">Excluir rascunho</button>` : ""}
+            <button class="btn btn-sm btn-outline" data-action="edit-initiative" data-id="${esc(it.id)}">Editar</button>
           </div>
         </div>
-        ${warns.length ? `<ul class="pf-warn project-warn">${warns.map((x) => `<li>${esc(x)}</li>`).join("")}</ul>` : ""}
-        ${projectAgenda(S, it)}
-        <dl class="project-facts">
-          <div><dt>Valor</dt><dd>${it.valor}</dd></div>
-          <div><dt>Esforço</dt><dd>${it.esforco}</dd></div>
-          <div><dt>V ÷ E</dt><dd style="color:${isAboveCut(it) ? "var(--ok)" : "inherit"}">${fmtNum(ve(it))}</dd></div>
-          <div><dt>Onda</dt><dd>${esc(it.onda)}</dd></div>
-          <div><dt>Kanban</dt><dd>${esc(col ? col.label : "—")}</dd></div>
-          <div><dt>Responsável</dt><dd>${esc(it.responsavel || "A definir")}</dd></div>
-          <div><dt>Prazo</dt><dd>${esc(it.prazo || "—")}</dd></div>
-          <div><dt>Semáforo</dt><dd class="row" style="gap:0.35rem">${ui.dot(it.semaforo)} ${esc(sem.label)}</dd></div>
-          ${it.investimento === "Sim" ? `<div><dt>Investimento</dt><dd>Exige investimento</dd></div>` : ""}
-        </dl>
-        ${it.objetivo || it.prontoQuando || it.indicador ? `
-        <dl class="project-brief">
-          ${it.objetivo ? `<div><dt>Objetivo</dt><dd>${esc(it.objetivo)}</dd></div>` : ""}
-          ${it.prontoQuando ? `<div><dt>Pronto quando</dt><dd>${esc(it.prontoQuando)}</dd></div>` : ""}
-          ${it.indicador ? `<div><dt>Indicador de sucesso</dt><dd>${esc(it.indicador)}</dd></div>` : ""}
-        </dl>` : ""}
-        <div class="project-progress">
-          <div class="row" style="justify-content:space-between">
-            <span class="kpi-label">Conclusão do projeto <span class="muted">(média de ${counted.length} atividade${counted.length === 1 ? "" : "s"}, calculada automaticamente)</span></span>
-            ${canFinish ? `<button class="btn btn-sm btn-primary no-print" data-action="finish-project" data-id="${esc(it.id)}">✓ Mover para “Feito”</button>` : ""}
-          </div>
-          <div id="project-pbar">${ui.progressBar(pct, { size: "xl" })}</div>
-        </div>
-        ${it.observacoes ? `<div class="muted small" style="margin-top:0.6rem">${esc(it.observacoes)}</div>` : ""}
-      </div>`;
 
-    // A lista só é redesenhada quando muda a estrutura, o % ou o status das atividades;
-    // edições de texto não a redesenham, para não tirar o foco de quem está digitando.
+        <div class="ficha-campos">
+          <label class="ficha-campo"><span>Líder do projeto</span>
+            <select class="input input-sm" data-ficha-campo="responsavel">${ui.peopleOptions(it.responsavel, { blank: "A definir" })}</select></label>
+          <label class="ficha-campo"><span>Status</span>
+            <select class="input input-sm" data-ficha-campo="status">${A.meta.STATUS.map((s) => `<option ${s === it.status ? "selected" : ""}>${esc(s)}</option>`).join("")}</select></label>
+          <label class="ficha-campo"><span>Semáforo</span>
+            <select class="input input-sm" data-ficha-campo="semaforo">${A.meta.SEMAFOROS.map((s) => `<option value="${s.key}" ${s.key === it.semaforo ? "selected" : ""}>${{ verde: "🟢", amarelo: "🟡", vermelho: "🔴" }[s.key]} ${esc(s.label)}</option>`).join("")}</select></label>
+          <label class="ficha-campo"><span>Início</span><input type="date" class="input input-sm" data-ficha-campo="inicio" value="${isoDeBr(it.inicio)}"></label>
+          <label class="ficha-campo"><span>Prazo</span><input type="date" class="input input-sm" data-ficha-campo="prazo" value="${isoDeBr(it.prazo)}"></label>
+          <div class="ficha-campo"><span>Duração</span><strong>${dias != null ? `${dias} dias` : "—"}</strong></div>
+        </div>
+
+        <div class="ficha-ritmo ${rit ? rit[2] : ""}">
+          <span class="act-ring ficha-anel" style="--p:${r.feito}"><b>${r.feito}%</b></span>
+          <div>
+            <div class="ficha-ritmo-tit">${r.feito}% feito${r.esperado != null ? ` · esperado hoje: ${r.esperado}%` : ""}${rit ? ` <span class="ficha-ritmo-sit">${rit[0]} ${rit[1]}</span>` : ""}</div>
+            <div class="muted small">${r.esperado == null ? "Com início e prazo, o painel compara o feito com o esperado para hoje (um projeto longo não fica “atrasado” só por estar no começo)." : "Comparado com o próprio plano do projeto, do início ao prazo."}</div>
+            <div class="ficha-prox">${prox ? `📍 Próximo marco: <strong>${esc(prox.texto)}</strong>${prox.data ? ` · ${esc(prox.data)}${prox.d && prox.d < hoje ? " <span class=\"badge alert\">atrasado</span>" : ""}` : ""}` : marcos.length ? "✅ Todos os marcos entregues" : "Sem marcos ainda: adicione no checklist do projeto."}</div>
+          </div>
+        </div>
+        ${linhaDoTempo(S, it, r)}
+        ${warns.length ? `<details class="ficha-avisos"><summary>⚠ ${warns.length} ponto(s) de atenção</summary><ul>${warns.map((x) => `<li>${esc(x)}</li>`).join("")}</ul></details>` : ""}
+      </div>
+
+      <div class="ficha-grid">
+        <section class="panel ficha-marcos">
+          <div class="panel-head"><h3 class="panel-title">✔ Checklist do projeto</h3><span class="muted small">${marcos.filter((m) => m.feito).length} de ${marcos.length} entregues</span></div>
+          <p class="muted small" style="margin-top:0">Os marcos do projeto, cada um com a data de entrega. Aparecem na linha do tempo acima.</p>
+          <ul class="ficha-marcos-lista">
+            ${marcos.map((m) => {
+              const d = S.calc.parseDate(m.data);
+              return `
+                <li class="${m.feito ? "feito" : ""} ${!m.feito && d && d < hoje ? "atrasado" : ""}">
+                  <input type="checkbox" data-marco-feito="${esc(m.id)}" ${m.feito ? "checked" : ""} aria-label="Entregue">
+                  <input class="marco-texto" data-marco-texto="${esc(m.id)}" data-key="mt:${esc(m.id)}" value="${esc(m.texto)}" aria-label="Marco">
+                  <input type="date" class="marco-data" data-marco-data="${esc(m.id)}" value="${isoDeBr(m.data)}" aria-label="Data de entrega">
+                  <button class="raci-x no-print" data-marco-del="${esc(m.id)}" title="Remover">✕</button>
+                </li>`;
+            }).join("") || `<li class="muted small">Nenhum marco ainda.</li>`}
+          </ul>
+          <form class="ficha-add no-print" id="marco-form" data-ini="${esc(it.id)}" autocomplete="off">
+            <input class="input input-sm" id="marco-novo" placeholder="Novo marco (ex.: escopo aprovado)" value="${esc(rascunho.marco)}">
+            <input type="date" class="input input-sm" id="marco-data" value="${esc(rascunho.marcoData)}" aria-label="Data de entrega">
+            <button class="btn btn-sm btn-primary" type="submit">+ Marco</button>
+          </form>
+        </section>
+
+        <section class="panel ficha-deps">
+          <div class="panel-head"><h3 class="panel-title">🔗 Dependências</h3></div>
+          <div class="muted small">Este projeto só começa depois que…</div>
+          <ul class="ficha-deps-lista">
+            ${deps.map((d) => `
+              <li class="${pend.has(d.id) ? "pendente" : "ok"}">
+                <span class="pr-id" style="--ac:${A.area(d.proj.area).cor}">${esc(d.id)}</span>
+                <button class="link-btn" data-action="open-project" data-id="${esc(d.id)}">${esc(d.proj.nome)}</button>
+                <span class="ficha-dep-tipo">${d.tipo === "SS" ? "começar" : "terminar"}</span>
+                <span title="${pend.has(d.id) ? "Ainda não aconteceu" : "Já aconteceu"}">${pend.has(d.id) ? "⏳" : "✓"}</span>
+                <button class="raci-x no-print" data-dep-del="${esc(d.id)}" title="Remover dependência">✕</button>
+              </li>`).join("") || `<li class="muted small">Não depende de nenhum projeto.</li>`}
+          </ul>
+          <form class="ficha-add no-print" id="dep-form" data-ini="${esc(it.id)}">
+            <select class="input input-sm" id="dep-proj" aria-label="Projeto">
+              <option value="">Escolha o projeto…</option>
+              ${opcoesDep.map((x) => `<option value="${esc(x.id)}" ${x.id === rascunho.depProj ? "selected" : ""}>${esc(x.id)} · ${esc(x.nome.length > 40 ? x.nome.slice(0, 40) + "…" : x.nome)}</option>`).join("")}
+            </select>
+            <select class="input input-sm" id="dep-tipo" aria-label="Tipo">
+              <option value="FS" ${rascunho.depTipo !== "SS" ? "selected" : ""}>terminar</option>
+              <option value="SS" ${rascunho.depTipo === "SS" ? "selected" : ""}>começar</option>
+            </select>
+            <button class="btn btn-sm btn-outline" type="submit">+ Dependência</button>
+          </form>
+          ${libera.length ? `<div class="ficha-libera"><span class="muted small">Quando este projeto andar, ele libera:</span>
+            ${libera.map((x) => `<button class="pr-id ficha-libera-chip" style="--ac:${A.area(x.area).cor}" data-action="open-project" data-id="${esc(x.id)}" title="${esc(x.nome)}">${esc(x.id)}</button>`).join("")}</div>` : ""}
+        </section>
+      </div>
+
+      <details class="panel ficha-sobre" id="ficha-sobre" ${sobreAberto ? "open" : ""}>
+        <summary>📄 Objetivo, pronto quando e indicador</summary>
+        <dl class="project-brief">
+          <div><dt>Objetivo</dt><dd>${esc(it.objetivo || "—")}</dd></div>
+          <div><dt>Pronto quando</dt><dd>${esc(it.prontoQuando || "—")}</dd></div>
+          <div><dt>Indicador de sucesso</dt><dd>${esc(it.indicador || "—")}</dd></div>
+          ${it.observacoes ? `<div><dt>Observações</dt><dd>${esc(it.observacoes)}</dd></div>` : ""}
+        </dl>
+        <button class="btn btn-xs btn-outline no-print" data-action="edit-initiative" data-id="${esc(it.id)}">Editar estes textos</button>
+      </details>
+
+      <section class="ficha-etapas" style="--ac:${meta.cor}">
+        <div class="panel-head"><h3 class="panel-title">Etapas (${acts.length})</h3><span class="muted small">Clique numa etapa para ver o checklist, o prazo e o responsável.</span></div>
+        <div class="ficha-etapas-grid">${acts.map((a, i) => etapaCard(S, it, a, i + 1)).join("") || ui.empty("Nenhuma etapa ainda. Adicione a primeira abaixo.")}</div>
+        <form class="act-new no-print" data-ini="${esc(it.id)}" id="act-new-form">
+          <input class="input" id="act-new-name" placeholder="Nova etapa…" autocomplete="off" aria-label="Nome da nova etapa">
+          <button class="btn btn-primary" type="submit">+ Adicionar etapa</button>
+        </form>
+      </section>`;
+
+    // O editor detalhado só é redesenhado quando muda a estrutura, o % ou o status das etapas;
+    // edições de texto não o redesenham, para não tirar o foco de quem está digitando.
     const team = [...new Set([...(it.responsavel ? [it.responsavel] : []), ...S.projectTeam(it), ...(extraTeam[it.id] || [])])];
     const sig = `${it.id}|${it.situacao}|${team.join(",")}|` + acts.map((a) => `${a.id}:${a.pct}:${a.status}:${S.raciText(a.raci)}`).join(",");
     const fullSig = sig + JSON.stringify(acts.map((a) => [a.nome, a.entregavel, a.inicio, a.prazo, a.dependeDe, a.observacoes]));
@@ -280,34 +431,23 @@
     if (el.dataset.sig === sig && (el.dataset.fullSig === fullSig || editing) && el.querySelector("#project-header")) {
       el.querySelector("#project-header").innerHTML = header;
       el.dataset.fullSig = fullSig;
-      return;
+    } else {
+      el.dataset.sig = sig;
+      el.dataset.fullSig = fullSig;
+      el.innerHTML = `
+        <div id="project-header">${header}</div>
+        <details class="panel ficha-detalhe" id="act-detalhe" ${detalheAberto ? "open" : ""}>
+          <summary>✏️ Editar as etapas em detalhe (entregável, início, dependência entre etapas e RACI)</summary>
+          <div class="stack" id="act-list">
+            ${acts.length ? acts.map((a, i) => activityRow(it, a, i + 1)).join("") : ui.empty("Nenhuma etapa cadastrada.")}
+          </div>
+          ${raciMatrix(S, it, team)}
+        </details>`;
     }
-    el.dataset.sig = sig;
-    el.dataset.fullSig = fullSig;
 
-    el.innerHTML = `
-      <div id="project-header">${header}</div>
-      <div class="page-head" style="margin-top:1.25rem">
-        <div>
-          <h3 class="panel-title">Atividades (<span id="act-count">${acts.length}</span>)</h3>
-          <div class="muted small">Arraste o controle para registrar o avanço. Atividades não são apagadas: use “Cancelado” para tirá-las do cálculo.</div>
-        </div>
-      </div>
-      <div class="stack" id="act-list">
-        ${acts.length ? acts.map((a, i) => activityRow(it, a, i + 1)).join("") : ui.empty("Nenhuma atividade cadastrada. Adicione a primeira abaixo ou importe a aba 2_Atividades da planilha.")}
-      </div>
-      <form class="act-new no-print" data-ini="${esc(it.id)}" id="act-new-form">
-        <input class="input" id="act-new-name" placeholder="Nova atividade…" autocomplete="off" aria-label="Nome da nova atividade">
-        <button class="btn btn-primary" type="submit">+ Adicionar atividade</button>
-      </form>
-      ${raciMatrix(S, it, team)}`;
-
-    if (focusKey) {
-      const f = el.querySelector(`[data-key="${CSS.escape(focusKey)}"]`);
-      if (f) f.focus();
-    }
+    if (focusKey) el.querySelector(`[data-key="${CSS.escape(focusKey)}"]`)?.focus();
+    if (rascunho.focoId) document.getElementById(rascunho.focoId)?.focus();
   };
-
   /* ---------- Eventos de edição das atividades (delegados, registrados uma vez) ---------- */
   function liveProjectBar(iniId, actId, value) {
     // Prévia instantânea enquanto o controle é arrastado; o salvamento acontece ao soltar.
@@ -316,7 +456,8 @@
     const acts = it.atividades.filter((a) => a.status !== "Cancelado");
     if (!acts.length) return;
     const sum = acts.reduce((s, a) => s + (a.id === actId ? Number(value) : a.pct), 0);
-    document.getElementById("project-pbar").innerHTML = ui.progressBar(Math.round(sum / acts.length), { size: "xl" });
+    const bar = document.getElementById("project-pbar");
+    if (bar) bar.innerHTML = ui.progressBar(Math.round(sum / acts.length), { size: "xl" });
   }
 
   async function saveField(el) {
@@ -344,7 +485,80 @@
     }
   }
 
+  // Projeto aberto na ficha (o formulário de marcos carrega o ID).
+  const fichaId = () => document.getElementById("marco-form")?.dataset.ini;
+  function salvarProjeto(patch, msg) {
+    const id = fichaId();
+    if (!id) return;
+    const r = A.store.saveInitiative(patch, id, { source: "Ficha do projeto" });
+    if (!r.ok) { A.util.toast(r.error, "error"); A.store.emit(); }
+    else if (msg && !r.unchanged) A.util.toast(msg);
+  }
+  const marcosAtuais = () => (A.store.findInitiative(fichaId())?.checklist || []).map((m) => ({ ...m }));
+
+  function initFichaEvents() {
+    document.addEventListener("change", (e) => {
+      const el = e.target;
+      if (!el.closest?.("#view-projeto")) return;
+      if (el.dataset.fichaCampo) {
+        const campo = el.dataset.fichaCampo;
+        const valor = el.type === "date" ? brDeIso(el.value) : el.value;
+        return salvarProjeto({ [campo]: valor });
+      }
+      const marco = el.dataset.marcoFeito || el.dataset.marcoTexto || el.dataset.marcoData;
+      if (marco) {
+        const lista = marcosAtuais().map((m) => {
+          if (m.id !== marco) return m;
+          if (el.dataset.marcoFeito) return { ...m, feito: el.checked };
+          if (el.dataset.marcoTexto) return { ...m, texto: el.value.trim() || m.texto };
+          return { ...m, data: brDeIso(el.value) };
+        });
+        salvarProjeto({ checklist: lista }, el.dataset.marcoFeito && el.checked ? "Marco entregue ✓" : "");
+      }
+    });
+    document.addEventListener("click", (e) => {
+      const delM = e.target.closest?.("[data-marco-del]");
+      if (delM) return salvarProjeto({ checklist: marcosAtuais().filter((m) => m.id !== delM.dataset.marcoDel) });
+      const delD = e.target.closest?.("[data-dep-del]");
+      if (delD) {
+        const it = A.store.findInitiative(fichaId());
+        return salvarProjeto({ dependencias: (it.dependencias || []).filter((d) => d.id !== delD.dataset.depDel) }, "Dependência removida.");
+      }
+    });
+    document.addEventListener("submit", (e) => {
+      const form = e.target;
+      if (form.id === "marco-form") {
+        e.preventDefault();
+        const texto = document.getElementById("marco-novo").value.trim();
+        if (!texto) return document.getElementById("marco-novo").focus();
+        const data = brDeIso(document.getElementById("marco-data").value);
+        document.getElementById("marco-novo").value = "";
+        document.getElementById("marco-data").value = "";
+        salvarProjeto({ checklist: [...marcosAtuais(), { texto, data, feito: false }] }, "Marco adicionado.");
+        setTimeout(() => document.getElementById("marco-novo")?.focus(), 0);
+      }
+      if (form.id === "dep-form") {
+        e.preventDefault();
+        const dep = document.getElementById("dep-proj").value;
+        if (!dep) return document.getElementById("dep-proj").focus();
+        const tipo = document.getElementById("dep-tipo").value;
+        const it = A.store.findInitiative(fichaId());
+        // Evita o círculo "A depende de B e B depende de A".
+        const outro = A.store.findInitiative(dep);
+        if ((outro?.dependencias || []).some((d) => d.id === it.id)) return A.util.toast(`${dep} já depende de ${it.id}: não dá para os dois dependerem um do outro.`, "error", 6000);
+        document.getElementById("dep-proj").value = "";
+        salvarProjeto({ dependencias: [...(it.dependencias || []), { id: dep, tipo }] }, "Dependência adicionada.");
+      }
+    });
+    // Lembra se as seções recolhíveis estavam abertas (a tela é redesenhada a cada alteração).
+    document.addEventListener("toggle", (e) => {
+      if (e.target.id === "ficha-sobre") sobreAberto = e.target.open;
+      if (e.target.id === "act-detalhe") detalheAberto = e.target.open;
+    }, true);
+  }
+
   function initActivityEvents() {
+    initFichaEvents();
     document.addEventListener("input", (e) => {
       const el = e.target;
       if (el.matches?.('#view-projeto input[type="range"][data-field="pct"]')) {

@@ -36,7 +36,7 @@
     const cls = ["bubble", doing ? "doing" : "", !S.matchesFilters(it) || !emFoco(it) ? "faded" : ""].join(" ");
     return `
       <g class="${cls}" data-hl="${esc(it.id)}" data-action="edit-initiative" data-id="${esc(it.id)}" tabindex="0" role="button" aria-label="${esc(it.id + " " + it.nome)}">
-        <title>${esc(`${it.id} — ${it.nome}\n${it.eixo ? `${A.eixo(it.eixo).icone} ${it.eixo}\n` : ""}Valor ${it.valor} · Esforço ${it.esforco} (${A.meta.tempoPorEsforco(it.esforco)}) · V÷E ${fmtNum(ve(it))}\n${it.status} · ${it.onda}`)}</title>
+        <title>${esc(`${it.id} — ${it.nome}\n${it.area}\nValor ${it.valor} · Esforço ${it.esforco} (${A.meta.tempoPorEsforco(it.esforco)}) · V÷E ${fmtNum(ve(it))}\n${it.status} · ${it.onda}`)}</title>
         <circle cx="${cx}" cy="${cy}" r="${R}" style="fill:${A.area(it.area).cor}"/>
         <text x="${cx}" y="${cy + 3}" text-anchor="middle">${esc(it.id)}</text>
       </g>`;
@@ -96,84 +96,152 @@
     return parts.join("");
   }
 
-  // Aba escolhida no ranking: "ALL" ou o nome de um eixo.
+  // Aba escolhida: "ALL" (programa inteiro), o nome de um setor ou "SEMNOTA" (falta valor/esforço).
   document.addEventListener("click", (e) => {
-    const b = e.target.closest("[data-pr-eixo]");
+    const b = e.target.closest("[data-pr-setor]");
     if (!b) return;
-    A.store.state.ui.prioEixo = b.dataset.prEixo;
+    A.store.state.ui.prioSetor = b.dataset.prSetor;
     A.store.emit();
+  });
+  // ⭐ Escolha estratégica: projeto abaixo da linha entra no ciclo por decisão da diretoria, com o motivo no histórico.
+  document.addEventListener("click", async (e) => {
+    const b = e.target.closest("[data-pr-estrategico]");
+    if (!b) return;
+    e.preventDefault(); e.stopPropagation();
+    const S = A.store;
+    const it = S.findInitiative(b.dataset.prEstrategico);
+    const limite = A.meta.LIMITE_PROJETOS_SETOR;
+    const doSetor = S.projetosNoCiclo(it.area);
+    if (doSetor.some((x) => x.estrategico)) {
+      const ok = await A.util.confirmDialog(`${it.area} já tem uma escolha estratégica neste ciclo (${doSetor.find((x) => x.estrategico).id}). O combinado é uma por setor. Fazer mais uma?`,
+        { title: "Escolha estratégica", okLabel: "Fazer mesmo assim" });
+      if (!ok) return;
+    }
+    if (doSetor.length >= limite) {
+      const ok = await A.util.confirmDialog(`${it.area} já tem ${limite} projetos no ciclo, o limite combinado. Colocar ${it.id} mesmo assim?`,
+        { title: "Limite do setor", okLabel: "Colocar mesmo assim" });
+      if (!ok) return;
+    }
+    const motivo = await A.util.pedirTexto(`${it.id} · ${it.nome} está abaixo da linha de corte. Por que ele entra neste ciclo? O motivo fica registrado no histórico.`,
+      { title: "⭐ Escolha estratégica", okLabel: "Colocar no ciclo", placeholder: "ex.: abre o mercado de 2027; destrava outros projetos" });
+    if (motivo == null) return;
+    const r = S.setEstrategico(it.id, motivo);
+    if (!r.ok) A.util.toast(r.error, "error");
+    else A.util.toast(`⭐ ${it.id} entrou no ciclo como escolha estratégica.`);
+  }, true);
+  // Marcar/desmarcar o projeto no ciclo, com o limite de projetos por setor.
+  document.addEventListener("change", async (e) => {
+    const cb = e.target.closest("[data-pr-ciclo]");
+    if (!cb) return;
+    const S = A.store;
+    const it = S.findInitiative(cb.dataset.prCiclo);
+    const limite = A.meta.LIMITE_PROJETOS_SETOR;
+    if (cb.checked && S.projetosNoCiclo(it.area).length >= limite) {
+      const ok = await A.util.confirmDialog(`${it.area} já tem ${limite} projetos no ciclo, o limite combinado. Colocar ${it.id} mesmo assim?`,
+        { title: "Limite do setor", okLabel: "Colocar mesmo assim" });
+      if (!ok) { cb.checked = false; return; }
+    }
+    const r = S.setNoCiclo(it.id, cb.checked);
+    if (!r.ok) { cb.checked = !cb.checked; A.util.toast(r.error, "error"); }
+    else if (!r.unchanged) A.util.toast(cb.checked ? `${it.id} entrou no ${S.nomeCiclo(S.sprintAtual())}.` : `${it.id} saiu do ciclo.`);
   });
 
   A.views.priorizacao = function (S) {
     const el = document.getElementById("priorizacao-root");
     if (!el) return;
     const { ve, cutoff, isAboveCut } = S.calc;
+    const sp = S.sprintAtual();
+    const limite = A.meta.LIMITE_PROJETOS_SETOR;
     const all = S.state.data.initiatives.filter(ativo);
     const items = all.filter(pontuado);
-    const pend = all.filter((i) => !pontuado(i)).length;
-    let aba = S.state.ui.prioEixo || "ALL";
-    if (aba !== "ALL" && aba !== "" && !S.findEixo(aba)) aba = "ALL";
-    const eixo = aba === "ALL" ? null : A.eixo(aba);
-    const doEixo = (it) => aba === "ALL" || (it.eixo || "") === aba;
-    // Dentro de um eixo, a linha de corte é a média do próprio eixo: só se compara projeto com projeto parecido.
-    const base = items.filter(doEixo);
+    const semNota = all.filter((i) => !pontuado(i));
+    let aba = S.state.ui.prioSetor || "ALL";
+    if (aba !== "ALL" && aba !== "SEMNOTA" && !S.findArea(aba)) aba = "ALL";
+    const setor = aba === "ALL" || aba === "SEMNOTA" ? null : S.findArea(aba);
+    const doSetor = (it) => !setor || it.area === setor.key;
+    // A linha de corte é sempre a do conjunto que está na tela (programa inteiro ou o setor).
+    const base = items.filter(doSetor);
     const cut = cutoff(base);
     const ranked = [...base].sort((a, b) => ve(b) - ve(a) || b.valor - a.valor || a.id.localeCompare(b.id, "pt-BR", { numeric: true }));
     const rows = ranked.filter((it) => S.matchesFilters(it));
     const above = ranked.filter((it) => isAboveCut(it, cut.value)).length;
 
-    const sp = S.sprintAtual();
-    const naSprint = new Set(S.sprintItems().map(({ it }) => it.id));
-    const vagas = eixo ? eixo.vagas : 0;
     let cutDone = false;
-    const list = rows.map((it, idx) => {
+    const linha = (it) => {
       const isAbove = isAboveCut(it, cut.value);
       let divider = "";
-      if (!eixo && !isAbove && !cutDone) { cutDone = true; divider = `<li class="pr-cut">Linha de corte · ${fmtNum(cut.value)}</li>`; }
-      if (eixo && idx === vagas && vagas > 0) divider = `<li class="pr-cut vagas">${vagas === 1 ? "Acima desta linha: a vaga do eixo na onda" : `Acima desta linha: as ${vagas} vagas do eixo na onda`}</li>`;
+      if (!isAbove && !cutDone) { cutDone = true; divider = `<li class="pr-cut">Linha de corte · ${fmtNum(cut.value)}</li>`; }
+      const noCiclo = sp && it.ciclo === sp.id;
+      const podeCiclo = it.situacao === "Validado";
+      const deps = S.dependenciasPendentes(it);
+      const fila = S.tempoNaFila(it);
       return `${divider}
-        <li class="pr-row ${eixo ? (idx < vagas ? "above" : "") : isAbove ? "above" : ""}" data-hl="${esc(it.id)}" data-action="edit-initiative" data-id="${esc(it.id)}" tabindex="0" role="button">
+        <li class="pr-row ${isAbove ? "above" : ""} ${noCiclo ? "no-ciclo" : ""}" data-hl="${esc(it.id)}" data-action="edit-initiative" data-id="${esc(it.id)}" tabindex="0" role="button">
           <span class="pr-pos">${ranked.indexOf(it) + 1}</span>
           <span class="pr-id" style="--ac:${A.area(it.area).cor}">${esc(it.id)}</span>
-          <span class="pr-name">${aba === "ALL" ? ui.eixoIcon(it.eixo) : ""}${esc(it.nome)}</span>
+          <span class="pr-name" title="${esc(`${it.nome} · ${it.area}${it.estrategico && noCiclo ? `\n⭐ Escolha estratégica: ${it.estrategicoMotivo}` : ""}`)}">
+            ${it.estrategico && noCiclo ? `<span class="pr-estrela" title="Escolha estratégica: ${esc(it.estrategicoMotivo)}">⭐</span>` : ""}<span class="pr-name-txt">${esc(it.nome)}</span>
+            ${deps.length ? `<span class="pr-dep" title="${esc(deps.map((d) => (d.tipo === "SS" ? `Só começa depois que ${d.proj.id} começar` : `Só começa depois que ${d.proj.id} terminar`)).join("\n"))}">⚠ ${esc(deps.map((d) => d.proj.id).join(", "))}</span>` : ""}
+            ${fila != null && fila >= 1 ? `<span class="pr-fila ${fila >= 3 ? "decidir" : ""}" title="${fila >= 3 ? "Uma onda inteira na fila: decidir se sobe (⭐), divide em fases ou arquiva." : "Validado e esperando para entrar num ciclo"}">${fila >= 3 ? "⏳ decidir · " : "⏳ "}na fila há ${fila} ciclo${fila === 1 ? "" : "s"}</span>` : ""}
+          </span>
           <span class="pr-ve" title="Valor ${it.valor} ÷ Esforço ${it.esforco}">${fmtNum(ve(it))}</span>
-          <span class="pr-onda">${esc(it.onda)}${naSprint.has(it.id) ? `<span class="sprint-tag" title="Tem atividades no ciclo atual">${esc(S.nomeCiclo(sp, { curto: true }))}</span>` : ""}</span>
+          <label class="pr-ciclo" title="${podeCiclo ? (noCiclo ? "No ciclo deste mês: clique para tirar" : "Colocar no ciclo deste mês") : "Valide o projeto na Triagem antes de colocá-lo no ciclo"}">
+            <input type="checkbox" data-pr-ciclo="${esc(it.id)}" ${noCiclo ? "checked" : ""} ${podeCiclo && sp ? "" : "disabled"}><span>${noCiclo ? "No ciclo" : "Ciclo"}</span>
+          </label>
+          ${!noCiclo && !isAbove && podeCiclo && sp ? `<button class="pr-star" data-pr-estrategico="${esc(it.id)}" title="Escolha estratégica: colocar no ciclo mesmo abaixo da linha de corte">⭐</button>` : ""}
         </li>`;
+    };
+
+    const contadores = S.areas().map((a) => {
+      const n = S.projetosNoCiclo(a.key).length;
+      const cls = n > limite ? "bad" : n === limite ? "cheio" : n ? "tem" : "";
+      return `<button class="pr-cont ${cls} ${aba === a.key ? "ativo" : ""}" data-pr-setor="${esc(a.key)}" style="--ac:${a.cor}" title="${esc(`${a.key}: ${n} de ${limite} projetos no ciclo`)}">
+          <span class="pr-cont-nome">${esc(a.key)}</span>
+          <span class="pr-cont-bar">${Array.from({ length: limite }, (_, k) => `<i class="${k < n ? "on" : ""}"></i>`).join("")}</span>
+          <strong>${n}/${limite}</strong>
+        </button>`;
     }).join("");
 
-    const conta = (k) => items.filter((it) => (it.eixo || "") === k).length;
-    const semEixo = conta("");
-    const abas = [
-      `<button class="seg-btn ${aba === "ALL" ? "active" : ""}" data-pr-eixo="ALL">Todos <span class="muted">${items.length}</span></button>`,
-      ...S.eixos().map((e) => `<button class="seg-btn ${aba === e.key ? "active" : ""}" data-pr-eixo="${esc(e.key)}" title="${esc(e.descricao)}">${esc(e.icone)} ${esc(e.key)} <span class="muted">${conta(e.key)}</span></button>`),
-      semEixo ? `<button class="seg-btn ${aba === "" ? "active" : ""}" data-pr-eixo="">❔ Sem eixo <span class="muted">${semEixo}</span></button>` : "",
-    ].join("");
+    const conteudoSemNota = `
+      <section class="panel">
+        <p class="muted" style="margin-top:0">Estes projetos ainda não têm valor e esforço, por isso ficam fora da matriz e do ranking. Dê as notas na Triagem.</p>
+        <ul class="pr-semnota">${semNota.map((it) => `<li><span class="pr-id" style="--ac:${A.area(it.area).cor}">${esc(it.id)}</span> ${esc(it.nome)} <span class="muted small">· ${esc(it.area)}</span></li>`).join("")}</ul>
+        <button class="btn btn-sm btn-primary" data-action="go-tab" data-tab="triagem">Dar notas na Triagem →</button>
+      </section>`;
 
     el.innerHTML = `
       <div class="page-head">
         <div>
           <h2>Priorização</h2>
-          <div class="muted">${eixo
-            ? `${esc(eixo.icone)} <strong>${esc(eixo.key)}</strong>: ${esc(eixo.descricao)}. O V÷E compara só os projetos deste eixo, e a onda reserva <strong>${vagas} vaga(s)</strong> para eles.`
-            : "Escolha um eixo para comparar projetos parecidos entre si. Cada eixo tem vagas garantidas em toda onda."}</div>
+          <div class="muted">${setor
+            ? `Projetos de <strong>${esc(setor.key)}</strong> (líder: ${esc(setor.lider || "a definir")}), comparados entre si. Marque na coluna “Ciclo” os que entram neste mês: até ${limite} por setor.`
+            : "Todos os setores juntos. Marque na coluna “Ciclo” os projetos que entram neste mês: até " + limite + " por setor."}</div>
         </div>
         <div class="row">
-          ${eixo ? `<span class="badge ok">${Math.min(vagas, ranked.length)} na disputa pelas vagas</span>` : `<span class="badge ok">${above} acima do corte</span>`}
-          <span class="badge" title="Σ Valor ÷ Σ Esforço ${eixo ? "dos projetos deste eixo" : "de todos os projetos"}">Linha de corte ${fmtNum(cut.value)}</span>
-          ${pend ? `<button class="btn btn-xs btn-outline" data-action="go-tab" data-tab="triagem">${pend} sem nota → Triagem</button>` : ""}
+          <span class="badge ok">${above} acima do corte</span>
+          <span class="badge" title="Σ Valor ÷ Σ Esforço ${setor ? "dos projetos deste setor" : "de todos os projetos"}">Linha de corte ${fmtNum(cut.value)}</span>
         </div>
       </div>
-      <div class="seg pr-tabs no-print">${abas}</div>
+      <div class="pr-contadores no-print">
+        <div class="pr-contadores-tit">${sp ? `No ${esc(S.nomeCiclo(sp))}` : "Sem ciclo aberto"}</div>
+        ${contadores}
+      </div>
+      <div class="seg pr-tabs no-print">
+        <button class="seg-btn ${aba === "ALL" ? "active" : ""}" data-pr-setor="ALL">Programa inteiro <span class="muted">${items.length}</span></button>
+        ${S.areas().map((a) => `<button class="seg-btn ${aba === a.key ? "active" : ""}" data-pr-setor="${esc(a.key)}" style="--ac:${a.cor}"><span class="pr-tab-cor"></span>${esc(a.key)} <span class="muted">${items.filter((i) => i.area === a.key).length}</span></button>`).join("")}
+        ${semNota.length ? `<button class="seg-btn alerta ${aba === "SEMNOTA" ? "active" : ""}" data-pr-setor="SEMNOTA" title="Projetos sem valor ou esforço">⚠ Sem nota <span class="muted">${semNota.length}</span></button>` : ""}
+      </div>
+      ${aba === "SEMNOTA" ? conteudoSemNota : `
       <div class="pr-grid">
         <section class="panel pr-matrix">
-          <svg class="matrix-svg" viewBox="0 0 ${W} ${H}" preserveAspectRatio="xMidYMid meet" role="img" aria-label="Matriz valor por esforço">${matrixSvg(S, items, cut.value, doEixo)}</svg>
+          <svg class="matrix-svg" viewBox="0 0 ${W} ${H}" preserveAspectRatio="xMidYMid meet" role="img" aria-label="Matriz valor por esforço">${matrixSvg(S, items, cut.value, doSetor)}</svg>
           <div class="pr-legend">${S.areas().map((a) => ui.areaBadge(a.key)).join("")}<span class="muted small"><span class="legend-ring"></span> em andamento</span></div>
         </section>
         <section class="panel pr-rank">
-          <div class="pr-rank-head"><span>#</span><span>ID</span><span>Projeto</span><span>V÷E</span><span>Onda</span></div>
-          <ol class="pr-list">${list || `<li>${ui.empty("Nenhum projeto com nota neste eixo.")}</li>`}</ol>
+          <div class="pr-rank-head"><span>#</span><span>ID</span><span>Projeto</span><span>V÷E</span><span>Ciclo</span></div>
+          <ol class="pr-list">${rows.map(linha).join("") || `<li>${ui.empty("Nenhum projeto com nota neste setor.")}</li>`}</ol>
         </section>
-      </div>`;
+      </div>`}`;
   };
   // Destaque sincronizado entre matriz e ranking.
   function highlight(id) {

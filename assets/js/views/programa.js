@@ -76,7 +76,7 @@
     if (!el) return;
     const resumos = S.areas().map((a) => resumoSetor(S, a));
     const n = resumos.length;
-    const raio = 38;
+    const raio = 36.5;
     const pos = (i) => {
       const ang = (i / n) * 2 * Math.PI - Math.PI / 2;
       return { x: 50 + raio * Math.cos(ang), y: 50 + raio * Math.sin(ang) };
