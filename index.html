@@ -7,7 +7,7 @@
   <meta name="theme-color" content="#026488">
   <title>Painel de Expansão · Altamar</title>
   <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%23026488'/%3E%3Ctext x='32' y='44' font-family='Segoe UI,Arial' font-size='36' font-weight='800' fill='white' text-anchor='middle'%3EA%3C/text%3E%3C/svg%3E">
-  <link rel="stylesheet" href="assets/css/app.css?v=20261004h">
+  <link rel="stylesheet" href="assets/css/app.css?v=20261004j">
   <script>
     // Aplica o tema antes da pintura para evitar "piscar" claro → escuro.
     (function () {
@@ -26,21 +26,27 @@
   <header class="app-header">
     <div class="header-bar">
       <a class="brand" href="#executivo" data-action="go-tab" data-tab="executivo" title="Ir para o Painel executivo">
-        <span class="brand-logo-wrap"><img class="brand-img" src="assets/img/logo-altamar-branco.png?v=20261004h" alt="Altamar Sistemas Aquáticos" width="217" height="54"></span>
+        <span class="brand-logo-wrap"><img class="brand-img" src="assets/img/logo-altamar-branco.png?v=20261004j" alt="Altamar Sistemas Aquáticos" width="217" height="54"></span>
         <span class="brand-divider" aria-hidden="true"></span>
         <span class="brand-sub">Painel de Gestão<br>Projeto de Expansão</span>
       </a>
 
       <div class="header-actions">
-        <div id="wip-pill" class="wip-pill ok" title="Carga em andamento × capacidade da equipe"></div>
-        <button class="btn btn-sm btn-outline no-print" id="btn-presentation" title="Fontes maiores para projetar na reunião">📺 Modo reunião</button>
-        <button class="btn btn-sm btn-primary no-print" data-action="boletim" title="Boletim da semana para mandar à diretoria">📨 Boletim</button>
-        <button class="btn btn-sm btn-primary no-print" data-action="meeting-summary">📋 Resumo da reunião</button>
+        <button id="wip-pill" class="wip-pill ok" data-action="go-tab" data-tab="kanban" title="Abrir o Kanban da sprint"></button>
+        <div class="menu no-print">
+          <button class="btn btn-sm btn-primary" id="btn-share" aria-haspopup="true" aria-expanded="false" title="Boletim e resumo para a diretoria">📤 Compartilhar ▾</button>
+          <div id="share-menu" class="menu-panel hidden" role="menu">
+            <button data-action="boletim" role="menuitem">📨 Boletim da semana<span class="menu-sub">Página para mandar à diretoria quando não houver reunião</span></button>
+            <button data-action="meeting-summary" role="menuitem">📋 Resumo da reunião<span class="menu-sub">Texto para colar no e-mail ou WhatsApp</span></button>
+          </div>
+        </div>
         <div class="menu no-print">
           <button class="btn btn-sm btn-outline" id="btn-data" aria-haspopup="true" aria-expanded="false">
             ⚙️ Dados <span id="backup-dot" class="notify-dot hidden" title="Faça um backup: há alterações recentes sem backup"></span>
           </button>
           <div id="data-menu" class="menu-panel hidden" role="menu">
+            <button id="btn-presentation" role="menuitem" title="Fontes maiores para projetar na reunião">📺 Modo reunião</button>
+            <hr>
             <button id="menu-import-excel" role="menuitem">📥 Importar da planilha Excel…</button>
             <button id="menu-export-excel" role="menuitem">📤 Exportar para Excel</button>
             <hr>
@@ -54,6 +60,7 @@
             <button id="menu-sair" class="hidden" role="menuitem">🚪 Sair da conta</button>
             <hr>
             <button id="menu-clear-history" class="danger" role="menuitem">🧹 Limpar histórico</button>
+            <button id="menu-zerar" class="danger" role="menuitem">🧹 Zerar para uso real…</button>
             <button id="menu-reset" class="danger" role="menuitem">🔄 Restaurar dados padrão</button>
             <div class="menu-note" id="backup-note"></div>
           </div>
@@ -61,7 +68,7 @@
           <input type="file" id="file-json" accept=".json,application/json" class="hidden">
         </div>
         <button class="user-chip no-print" data-action="change-user" title="Trocar de pessoa">
-          <span class="avatar" id="user-chip-avatar">?</span><span id="user-chip-name">Identificar-se</span>
+          <span class="avatar" id="user-chip-avatar">?</span><span class="user-chip-text"><span id="user-chip-name">Identificar-se</span><span id="user-chip-perfil"></span></span>
         </button>
       </div>
     </div>
@@ -86,7 +93,7 @@
 
     <!-- Filtros globais -->
     <div class="filter-bar no-print">
-      <input type="search" id="filter-search" class="input input-sm search" placeholder="Buscar por ID, nome, responsável…" aria-label="Buscar iniciativas">
+      <input type="search" id="filter-search" class="input input-sm search" placeholder="Buscar por ID, nome, responsável…" aria-label="Buscar projetos">
       <div class="filter-group">
         <span class="filter-label">Área</span>
         <div id="filter-areas" class="filter-group"></div>
@@ -191,7 +198,7 @@
       <div class="table-wrap">
         <table class="data">
           <thead>
-            <tr><th>Data</th><th>Quem decide</th><th>Iniciativa</th><th>Pauta / decisão necessária</th><th>Status</th><th>O que foi decidido / próximo passo</th><th class="center no-print">Ações</th></tr>
+            <tr><th>Data</th><th>Quem decide</th><th>Projeto</th><th>Pauta / decisão necessária</th><th>Status</th><th>O que foi decidido / próximo passo</th><th class="center no-print">Ações</th></tr>
           </thead>
           <tbody id="decisoes-tbody"></tbody>
         </table>
@@ -209,7 +216,7 @@
           <input type="search" id="history-search" class="input input-sm" placeholder="Buscar no histórico…" aria-label="Buscar no histórico">
           <select id="history-entity" class="input input-sm" aria-label="Tipo de registro">
             <option value="ALL">Tudo</option>
-            <option value="iniciativa">Iniciativas</option>
+            <option value="iniciativa">Projetos</option>
             <option value="atividade">Atividades</option>
             <option value="cadastro">Cadastros</option>
             <option value="compromisso">Compromissos</option>
@@ -306,7 +313,7 @@
   <div class="modal-backdrop" id="modal-initiative" role="dialog" aria-modal="true" aria-labelledby="ini-modal-title">
     <div class="modal">
       <div class="modal-head">
-        <h3 id="ini-modal-title">Iniciativa</h3>
+        <h3 id="ini-modal-title">Projeto</h3>
         <button class="btn btn-xs btn-ghost" data-action="close-modal" data-target="modal-initiative" aria-label="Fechar">✕</button>
       </div>
       <form id="initiative-form" novalidate>
@@ -320,7 +327,7 @@
             <select id="ini-area" class="input"></select>
           </div>
           <div class="field span-all" style="grid-column:1/-1">
-            <label for="ini-nome">Nome da iniciativa</label>
+            <label for="ini-nome">Nome do projeto</label>
             <input id="ini-nome" class="input" required autocomplete="off">
           </div>
         </div>
@@ -392,7 +399,7 @@
           <textarea id="ini-obs" class="input"></textarea>
         </div>
         <div class="row">
-          <label class="checkbox"><input type="checkbox" id="ini-enabler"> Habilitadora técnica (destrava outras iniciativas)</label>
+          <label class="checkbox"><input type="checkbox" id="ini-enabler"> Habilitadora técnica (destrava outros projetos)</label>
           <label class="checkbox"><input type="checkbox" id="ini-invest"> Exige investimento</label>
         </div>
 
@@ -474,7 +481,7 @@
             <input id="dec-quem" class="input" list="people-list" placeholder="ex.: Maíra / Shei" autocomplete="off">
           </div>
           <div class="field" style="grid-column:1/-1">
-            <label for="dec-grupo">Iniciativa relacionada</label>
+            <label for="dec-grupo">Projeto relacionado</label>
             <select id="dec-grupo" class="input"></select>
           </div>
           <div class="field" style="grid-column:1/-1">
@@ -531,7 +538,7 @@
         <button class="btn btn-xs btn-ghost" data-action="close-modal" data-target="modal-import" aria-label="Fechar">✕</button>
       </div>
       <p class="muted small" style="margin-top:0" id="import-file"></p>
-      <p class="small" style="margin-top:0">Confira as alterações antes de aplicar. Iniciativas são casadas pelo ID (coluna <em>Grupo</em>); decisões, pelo texto da pauta. Nada é apagado — campos que só existem no painel (semáforo, coluna do Kanban…) são preservados.</p>
+      <p class="small" style="margin-top:0">Confira as alterações antes de aplicar. Projetos são casados pelo ID (coluna <em>Grupo</em>); decisões, pelo texto da pauta. Nada é apagado — campos que só existem no painel (semáforo, coluna do Kanban…) são preservados.</p>
       <div class="import-stats" id="import-stats"></div>
       <div class="import-list" id="import-list"></div>
       <div class="modal-foot">
@@ -583,28 +590,28 @@
   <datalist id="people-list"></datalist>
   <div class="toasts" id="toasts" aria-live="polite"></div>
 
-  <script src="assets/js/config.js?v=20261004h"></script>
-  <script src="assets/js/utils.js?v=20261004h"></script>
-  <script src="assets/js/data.js?v=20261004h"></script>
-  <script src="assets/js/activities-seed.js?v=20261004h"></script>
-  <script src="assets/js/store.js?v=20261004h"></script>
-  <script src="assets/js/excel.js?v=20261004h"></script>
-  <script src="assets/js/views/executive.js?v=20261004h"></script>
-  <script src="assets/js/views/matrix.js?v=20261004h"></script>
-  <script src="assets/js/views/tables.js?v=20261004h"></script>
-  <script src="assets/js/views/board.js?v=20261004h"></script>
-  <script src="assets/js/views/drilldown.js?v=20261004h"></script>
-  <script src="assets/js/views/triagem.js?v=20261004h"></script>
-  <script src="assets/js/views/guia.js?v=20261004h"></script>
-  <script src="assets/js/boletim.js?v=20261004h"></script>
-  <script src="assets/js/views/sprint.js?v=20261004h"></script>
-  <script src="assets/js/views/overview.js?v=20261004h"></script>
-  <script src="assets/js/views/cadastros.js?v=20261004h"></script>
-  <script src="assets/js/google.js?v=20261004h"></script>
-  <script src="assets/js/compromissos.js?v=20261004h"></script>
-  <script src="assets/js/forms.js?v=20261004h"></script>
-  <script src="assets/js/ficha.js?v=20261004h"></script>
-  <script src="assets/js/nuvem.js?v=20261004h"></script>
-  <script src="assets/js/app.js?v=20261004h"></script>
+  <script src="assets/js/config.js?v=20261004j"></script>
+  <script src="assets/js/utils.js?v=20261004j"></script>
+  <script src="assets/js/data.js?v=20261004j"></script>
+  <script src="assets/js/activities-seed.js?v=20261004j"></script>
+  <script src="assets/js/store.js?v=20261004j"></script>
+  <script src="assets/js/excel.js?v=20261004j"></script>
+  <script src="assets/js/views/executive.js?v=20261004j"></script>
+  <script src="assets/js/views/matrix.js?v=20261004j"></script>
+  <script src="assets/js/views/tables.js?v=20261004j"></script>
+  <script src="assets/js/views/board.js?v=20261004j"></script>
+  <script src="assets/js/views/drilldown.js?v=20261004j"></script>
+  <script src="assets/js/views/triagem.js?v=20261004j"></script>
+  <script src="assets/js/views/guia.js?v=20261004j"></script>
+  <script src="assets/js/boletim.js?v=20261004j"></script>
+  <script src="assets/js/views/sprint.js?v=20261004j"></script>
+  <script src="assets/js/views/overview.js?v=20261004j"></script>
+  <script src="assets/js/views/cadastros.js?v=20261004j"></script>
+  <script src="assets/js/google.js?v=20261004j"></script>
+  <script src="assets/js/compromissos.js?v=20261004j"></script>
+  <script src="assets/js/forms.js?v=20261004j"></script>
+  <script src="assets/js/ficha.js?v=20261004j"></script>
+  <script src="assets/js/nuvem.js?v=20261004j"></script>
+  <script src="assets/js/app.js?v=20261004j"></script>
 </body>
 </html>

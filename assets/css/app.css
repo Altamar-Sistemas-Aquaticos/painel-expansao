@@ -1131,6 +1131,52 @@ body.presentation .filter-bar { display: none; }
 .wave-eixos .kchip { font-size: 0.72rem; padding: 0.1rem 0.4rem; }
 .wchip .eixo-ico { flex: none; font-size: 0.8rem; }
 
+/* ---------- Perfis (definidos no login: body[data-perfil]) ---------- */
+/* Diretoria e Visualização: sem funções de administração */
+body[data-perfil="diretoria"] :is(#menu-import-excel, #menu-import-json, #menu-clear-history, #menu-zerar, #menu-reset, #data-menu [data-tab="cadastros"]),
+body[data-perfil="visualizacao"] :is(#menu-import-excel, #menu-import-json, #menu-clear-history, #menu-zerar, #menu-reset, #data-menu [data-tab="cadastros"], #menu-google) { display: none !important; }
+/* Visualização: só vê; edita apenas o andamento das próprias atividades */
+body[data-perfil="visualizacao"] :is(
+  [data-action="new-initiative"], button[data-action="edit-initiative"], [data-action="advance-situacao"], [data-action="delete-initiative"],
+  [data-action="criar-fase"], [data-action="new-decision"], [data-action="new-decision-for"], [data-action="edit-decision"], [data-action="delete-decision"],
+  [data-action="plan-sprint"], [data-action="new-sprint"], [data-action="finish-project"], [data-cmp-new], [data-tri-confirm],
+  #triagem-form, .tri-actions, [data-del-act], #act-new-name, #act-new-name + button, #act-sprint-toggle, [data-raci-add]
+) { display: none !important; }
+body[data-perfil="visualizacao"] :is(#view-projeto, #view-setor, #view-triagem, #view-decisoes, #view-cadastros) :is(input, select, textarea) { pointer-events: none; }
+body[data-perfil="visualizacao"] .tri-sel { appearance: none; -webkit-appearance: none; border-color: transparent; background: transparent; }
+#act-body.somente-leitura :is(input, select, textarea, .raci-x) { pointer-events: none; opacity: 0.75; }
+#act-body.somente-leitura #ck-form { display: none; }
+.perfil-aviso { font-size: 0.8rem; color: var(--text-muted); background: var(--surface-3); border-radius: 8px; padding: 0.4rem 0.6rem; margin-bottom: 0.6rem; }
+
+/* ---------- Minhas atividades ---------- */
+.minhas { margin-bottom: 1rem; }
+.minhas.vazio { display: flex; gap: 0.6rem; align-items: baseline; flex-wrap: wrap; padding: 0.7rem 1rem; }
+.minhas-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(250px, 1fr)); gap: 0.7rem; }
+.minha { border: 1px solid var(--border); border-left: 4px solid var(--ac); border-radius: 10px; padding: 0.65rem 0.75rem; display: flex; flex-direction: column; gap: 0.4rem; background: var(--surface-2); }
+.minha.done { opacity: 0.7; }
+.minha.waiting { background: color-mix(in srgb, var(--alert-soft) 55%, var(--surface)); }
+.minha-top { display: flex; align-items: center; gap: 0.4rem; }
+.minha-top .act-ring { margin-left: auto; }
+.minha-col { font-size: 0.72rem; font-weight: 700; border-radius: 999px; padding: 0.1rem 0.5rem; background: var(--surface-3); color: var(--text-muted); }
+.minha-col.doing { background: var(--accent-soft); color: var(--accent); }
+.minha-col.waiting { background: var(--alert-soft); color: var(--alert-text); }
+.minha-col.done { background: var(--ok-soft); color: var(--ok-text); }
+.minha-nome { all: unset; cursor: pointer; font-weight: 700; line-height: 1.3; }
+.minha-nome:hover { color: var(--accent); text-decoration: underline; }
+.minha-check { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 0.15rem; font-size: 0.86rem; }
+.minha-check label { display: flex; gap: 0.45rem; align-items: flex-start; cursor: pointer; }
+.minha-check input { margin-top: 0.2rem; width: 16px; height: 16px; flex: none; }
+.minha-check li.done span { text-decoration: line-through; color: var(--text-muted); }
+.minha-acoes { display: flex; gap: 0.35rem; flex-wrap: wrap; margin-top: auto; }
+
+/* ---------- Topo ---------- */
+button.wip-pill { cursor: pointer; font: inherit; }
+button.wip-pill:hover { filter: brightness(1.05); }
+.menu-panel .menu-sub { display: block; font-size: 0.74rem; color: var(--text-muted); font-weight: 400; margin-top: 0.1rem; }
+.user-chip-text { display: flex; flex-direction: column; align-items: flex-start; line-height: 1.1; }
+#user-chip-perfil { font-size: 0.66rem; opacity: 0.75; font-weight: 500; }
+#user-chip-perfil:empty { display: none; }
+
 /* ---------- Login ---------- */
 .login-modal { max-width: 400px; }
 .login-brand { display: flex; flex-direction: column; align-items: center; gap: 0.3rem; margin-bottom: 0.8rem; color: var(--text-muted); font-size: 0.8rem; }

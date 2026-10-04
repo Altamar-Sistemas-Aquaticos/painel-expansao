@@ -53,7 +53,7 @@
   function openInitiativeForm(id = null) {
     const S = A.store;
     const it = id ? S.findInitiative(id) : null;
-    if (id && !it) return toast(`Iniciativa ${id} não encontrada.`, "error");
+    if (id && !it) return toast(`Projeto ${id} não encontrado.`, "error");
     editingId = it ? it.id : null;
     fillPeopleDatalist();
 
@@ -63,7 +63,7 @@
       semaforo: "verde", responsavel: S.state.settings.user || "", prazo: "", observacoes: "", enabler: false,
       situacao: "Rascunho", objetivo: "", prontoQuando: "", indicador: "", investimento: "Não",
     };
-    $("ini-modal-title").textContent = it ? `Editar ${it.id} · ${it.area}` : "Nova iniciativa";
+    $("ini-modal-title").textContent = it ? `Editar ${it.id} · ${it.area}` : "Novo projeto";
     $("ini-id").value = data.id;
     $("ini-nome").value = data.nome;
     $("ini-area").innerHTML = A.ui.areaOptions(data.area);
@@ -245,11 +245,11 @@
     const si = A.sprintInfo(S);
     t += `• Em andamento: ${inProgress.length} projeto(s)\n`;
     if (si.sp) t += `• ${si.rotulo} (${si.periodo}): ${si.feitas} de ${si.total} atividades feitas${si.sp.objetivo ? ` · Objetivo: ${si.sp.objetivo}` : ""}\n`;
-    t += `• Concluídas: ${done.length} de ${active.length} iniciativas ativas (${active.length ? Math.round((done.length / active.length) * 100) : 0}%)\n`;
+    t += `• Concluídas: ${done.length} de ${active.length} projetos ativos (${active.length ? Math.round((done.length / active.length) * 100) : 0}%)\n`;
     t += `• Linha de corte V÷E: ${fmtNum(cut)}\n\n`;
 
     t += `2. EM ANDAMENTO NESTA SPRINT\n`;
-    if (!inProgress.length) t += `• Nenhuma iniciativa em andamento.\n`;
+    if (!inProgress.length) t += `• Nenhum projeto em andamento.\n`;
     inProgress.forEach((it) => {
       const pct = S.calc.progress(it);
       t += `• ${it.id} - ${it.nome} | ${pct == null ? "sem atividades" : pct + "% concluído"} | Resp.: ${it.responsavel || "A definir"} | Prazo: ${it.prazo || "—"} ${mark[it.semaforo]}${it.coluna === "waiting" ? " [ESPERANDO]" : ""}\n`;
@@ -312,7 +312,7 @@
 
     $("import-file").textContent = `${plan.fileName} · abas lidas: ${plan.sheets.join(", ")}`;
     $("import-stats").innerHTML = [
-      ["Iniciativas novas", newI.length], ["Iniciativas alteradas", updI.length],
+      ["Projetos novos", newI.length], ["Projetos alterados", updI.length],
       ["Decisões novas", newD.length], ["Decisões alteradas", updD.length],
       ["Atividades novas", newA.length], ["Atividades alteradas", updA.length],
     ].map(([l, n]) => `<div class="panel"><div class="kpi-label">${l}</div><div class="kpi-value" style="font-size:1.5rem">${n}</div></div>`).join("");
@@ -328,7 +328,7 @@
       ...updA.map((p) => `<div class="import-row"><span class="badge accent">Alterar atividade</span> <strong>${esc(p.iniId)}</strong> · ${esc(p.nome)}
           <ul class="h-changes">${p.changes.map((c) => `<li>${renderChange(c)}</li>`).join("")}</ul></div>`),
       ...(plan.newAreas?.length ? [`<div class="import-row"><span class="badge warn">Áreas novas</span> ${esc(plan.newAreas.join(", "))} — serão criadas nos Cadastros</div>`] : []),
-      ...(plan.skipped.length ? [`<div class="import-row muted">Ignoradas (iniciativa não encontrada): ${esc(plan.skipped.join(" · "))}</div>`] : []),
+      ...(plan.skipped.length ? [`<div class="import-row muted">Ignoradas (projeto não encontrado): ${esc(plan.skipped.join(" · "))}</div>`] : []),
     ];
     $("import-list").innerHTML = rows.length ? rows.join("") : `<div class="import-row muted">O painel já está igual à planilha. Nada a importar.</div>`;
     $("import-apply").disabled = total === 0;

@@ -20,14 +20,14 @@
     const rows = ranked.filter((it) => S.matchesFilters(it));
     const above = ranked.filter((it) => isAboveCut(it, cut)).length;
 
-    document.getElementById("ranking-title").textContent = `Ranking das ${ranked.length} iniciativas`;
+    document.getElementById("ranking-title").textContent = `Ranking dos ${ranked.length} projetos`;
     document.getElementById("ranking-cut-badge").textContent = `${above} acima do corte (V÷E ≥ ${fmtNum(cut)})`;
     document.getElementById("ranking-filter-note").textContent = S.hasActiveFilters()
       ? `Mostrando ${rows.length} de ${ranked.length} (filtros ativos)` : "";
 
     const tbody = document.getElementById("ranking-tbody");
     if (!rows.length) {
-      tbody.innerHTML = `<tr><td colspan="12">${ui.empty("Nenhuma iniciativa corresponde aos filtros.")}</td></tr>`;
+      tbody.innerHTML = `<tr><td colspan="12">${ui.empty("Nenhum projeto corresponde aos filtros.")}</td></tr>`;
       return;
     }
     let dividerDone = false;
@@ -96,7 +96,7 @@
         <tr>
           <td class="muted nowrap">${esc(d.data)}</td>
           <td><strong>${esc(d.quem)}</strong></td>
-          <td>${d.grupo ? `<button class="btn btn-xs btn-ghost" data-action="edit-initiative" data-id="${esc(d.grupo)}" title="${esc(it ? it.nome : "Iniciativa não encontrada")}"><strong style="color:var(--accent)">${esc(d.grupo)}</strong></button>` : '<span class="muted">—</span>'}</td>
+          <td>${d.grupo ? `<button class="btn btn-xs btn-ghost" data-action="edit-initiative" data-id="${esc(d.grupo)}" title="${esc(it ? it.nome : "Projeto não encontrado")}"><strong style="color:var(--accent)">${esc(d.grupo)}</strong></button>` : '<span class="muted">—</span>'}</td>
           <td style="font-weight:600; min-width:240px">${esc(d.pauta)}</td>
           <td>${ui.decisionBadge(d.status)}</td>
           <td style="min-width:220px; color:${d.status === "Pendente" ? "var(--text-muted)" : "var(--text)"}">${d.resultado ? esc(d.resultado) : "<em>Aguardando decisão da diretoria</em>"}</td>
@@ -114,9 +114,9 @@
   const ACTION_LABEL = {
     criou: "criou", editou: "editou", excluiu: "excluiu", decidiu: "registrou decisão em",
     importou: "importou", restaurou: "restaurou", migrou: "migrou", limpou: "limpou",
-    planejou: "planejou", abriu: "abriu", encerrou: "encerrou",
+    planejou: "planejou", abriu: "abriu", encerrou: "encerrou", zerou: "zerou",
   };
-  const ENTITY_LABEL = { iniciativa: "iniciativa", decisao: "decisão", atividade: "atividade", cadastro: "cadastro", compromisso: "compromisso", sprint: "", sistema: "" };
+  const ENTITY_LABEL = { iniciativa: "projeto", decisao: "decisão", atividade: "atividade", cadastro: "cadastro", compromisso: "compromisso", sprint: "", sistema: "" };
 
   function fmtValue(field, v) {
     if (v === true) return "Sim";

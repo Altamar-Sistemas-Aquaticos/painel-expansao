@@ -150,6 +150,24 @@
     if (pendente) { pendente = false; salvar(); }
   }
 
+  // Perfil Visualização: atualiza o andamento das próprias atividades (R) direto no banco, que confere a permissão.
+  async function atualizarMinhaAtividade(iniId, actId, patch) {
+    if (!sb || !membro) return { ok: false };
+    setStatus("Salvando…");
+    const { data, error } = await sb.rpc("atualizar_minha_atividade", { p_ini: iniId, p_act: actId, p_patch: patch });
+    if (error) {
+      const msg = String(error.message || "");
+      toast(msg.includes("nao_responsavel") ? "Você só pode atualizar as atividades em que é o responsável (R)."
+        : msg.includes("Could not find") || msg.includes("does not exist") ? "O banco ainda não tem a regra para atualizar atividades. Avise o administrador (script 02)."
+        : "Não foi possível salvar a atividade. Tente de novo.", "error", 6000);
+      await buscar();
+      return { ok: false };
+    }
+    versao = data;
+    await buscar();
+    return { ok: true };
+  }
+
   /* ---------- Login ---------- */
   const TELAS = {
     entrar: { titulo: "Entrar no painel", botao: "Entrar", senha: true },
@@ -347,7 +365,7 @@
   }
 
   A.nuvem = {
-    configurado, init, iniciar, agendar, sair, conectado, renderMembros,
+    configurado, init, iniciar, agendar, sair, conectado, renderMembros, atualizarMinhaAtividade,
     status: () => status,
     perfil: () => membro?.perfil || null,
     perfilLabel: () => (membro ? PERFIL_LABEL[membro.perfil] : ""),

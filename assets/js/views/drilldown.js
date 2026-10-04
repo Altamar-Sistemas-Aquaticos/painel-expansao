@@ -57,7 +57,7 @@
           </div>
         </div>
         <div class="sector-stats">
-          <div><div class="kpi-label">Iniciativas</div><div class="kpi-value">${active.length}</div><div class="kpi-sub">${done} concluídas${list.length !== active.length ? ` · ${list.length - active.length} canceladas` : ""}</div></div>
+          <div><div class="kpi-label">Projetos</div><div class="kpi-value">${active.length}</div><div class="kpi-sub">${done} concluídas${list.length !== active.length ? ` · ${list.length - active.length} canceladas` : ""}</div></div>
           <div><div class="kpi-label">Conclusão média</div><div class="kpi-value">${avg == null ? "—" : avg + "%"}</div><div class="kpi-sub">${withActs.length} de ${active.length} com atividades</div></div>
           <div><div class="kpi-label">Em andamento</div><div class="kpi-value">${doing}</div><div class="kpi-sub">no fluxo agora</div></div>
         </div>
@@ -85,7 +85,7 @@
               <div class="sector-progress">${ui.progressBar(pct)}</div>
               <span class="chev" aria-hidden="true">›</span>
             </a>`;
-        }).join("") : ui.empty("Nenhuma iniciativa neste setor.")}
+        }).join("") : ui.empty("Nenhum projeto neste setor.")}
       </div>`;
   };
 
@@ -205,7 +205,7 @@
     const el = document.getElementById("view-projeto");
     const it = S.findInitiative(id);
     if (!it) {
-      el.innerHTML = `${breadcrumb([{ label: "Kanban", href: "#kanban" }, { label: "Projeto não encontrado" }])}${ui.empty(`A iniciativa ${esc(id)} não existe (pode ter sido renomeada ou excluída).`)}`;
+      el.innerHTML = `${breadcrumb([{ label: "Kanban", href: "#kanban" }, { label: "Projeto não encontrado" }])}${ui.empty(`O projeto ${esc(id)} não existe (pode ter sido renomeado ou excluído).`)}`;
       return;
     }
     // Preserva o foco do campo em edição quando a tela é redesenhada após salvar.

@@ -36,7 +36,7 @@
     $("save-status").textContent = A.nuvem.configurado ? A.nuvem.status()
       : S.state.saveError ? "⚠️ Falha ao salvar no navegador"
       : settings.lastSavedAt ? `Salvo automaticamente às ${A.util.fmtTime(settings.lastSavedAt)}` : "";
-    $("user-chip-name").title = A.nuvem.conectado() ? `Perfil: ${A.nuvem.perfilLabel()}` : "";
+    $("user-chip-perfil").textContent = A.nuvem.conectado() ? A.nuvem.perfilLabel() : "";
     const overdue = S.backupOverdue();
     $("backup-dot").classList.toggle("hidden", !overdue);
     $("backup-note").textContent = settings.lastBackupAt
@@ -75,6 +75,11 @@
   function switchTab(name, push = true) {
     const prev = route;
     route = parseRoute(name);
+    // Cadastros e acessos são só do administrador (com o banco compartilhado ligado).
+    if (route.view === "cadastros" && A.nuvem.perfil() && A.nuvem.perfil() !== "admin") {
+      route = { view: "executivo", param: null };
+      push = true; // corrige também o endereço
+    }
     const full = route.param ? `${route.view}/${encodeURIComponent(route.param)}` : route.view;
     const tab = route.view === "setor" || route.view === "projeto" ? "kanban" : route.view;
     document.querySelectorAll(".tab-btn").forEach((b) => {
@@ -94,7 +99,8 @@
 
   /* ---------- Ações delegadas ---------- */
   const actions = {
-    "edit-initiative": (id) => A.forms.openInitiativeForm(id),
+    // Quem só visualiza abre a página do projeto (somente leitura) em vez da janela de edição.
+    "edit-initiative": (id) => (A.nuvem.perfil() === "visualizacao" ? (location.hash = A.drill.projectHref(id)) : A.forms.openInitiativeForm(id)),
     "new-initiative": (area) => A.ficha.open(area),
     "advance-situacao": (id) => {
       const r = S.advanceSituacao(id);
@@ -130,8 +136,8 @@
       closeModal(id);
       m?.dispatchEvent(new Event("modal:dismiss"));
     },
-    "meeting-summary": () => A.forms.openMeetingSummary(),
-    "boletim": () => A.boletim.open(),
+    "meeting-summary": () => { closeMenu(); A.forms.openMeetingSummary(); },
+    "boletim": () => { closeMenu(); A.boletim.open(); },
     "print": () => window.print(),
     "change-user": async () => {
       // Com o banco compartilhado, quem está mexendo vem do login; trocar de pessoa = sair da conta.
@@ -226,8 +232,9 @@
 
   /* ---------- Menu de dados ---------- */
   function closeMenu() {
-    $("data-menu").classList.add("hidden");
+    ["data-menu", "share-menu"].forEach((id) => $(id).classList.add("hidden"));
     $("btn-data").setAttribute("aria-expanded", "false");
+    $("btn-share").setAttribute("aria-expanded", "false");
   }
 
   function exportJSON() {
@@ -245,7 +252,7 @@
         const data = JSON.parse(ev.target.result);
         if (!Array.isArray(data.initiatives)) throw new Error("formato");
         const ok = await confirmDialog(
-          `Substituir os dados atuais pelo backup “${file.name}” (${data.initiatives.length} iniciativas, ${(data.decisions || []).length} decisões)? O histórico é mantido e mesclado.`,
+          `Substituir os dados atuais pelo backup “${file.name}” (${data.initiatives.length} projetos, ${(data.decisions || []).length} decisões)? O histórico é mantido e mesclado.`,
           { title: "Restaurar backup", okLabel: "Substituir dados", danger: true });
         if (!ok) return;
         S.replaceAll(data, `Backup “${file.name}” restaurado`);
@@ -268,10 +275,14 @@
   }
 
   function initDataMenu() {
-    $("btn-data").addEventListener("click", (e) => {
-      e.stopPropagation();
-      const hidden = $("data-menu").classList.toggle("hidden");
-      $("btn-data").setAttribute("aria-expanded", String(!hidden));
+    // Menus do topo (⚙️ Dados e 📤 Compartilhar): abrir um fecha o outro; clicar fora fecha os dois.
+    [["btn-data", "data-menu"], ["btn-share", "share-menu"]].forEach(([btn, menu]) => {
+      $(btn).addEventListener("click", (e) => {
+        e.stopPropagation();
+        const estavaFechado = $(menu).classList.contains("hidden");
+        closeMenu();
+        if (estavaFechado) { $(menu).classList.remove("hidden"); $(btn).setAttribute("aria-expanded", "true"); }
+      });
     });
     document.addEventListener("click", (e) => { if (!e.target.closest("#data-menu")) closeMenu(); });
 
@@ -299,9 +310,19 @@
         toast("Histórico apagado.", "warn");
       }
     });
-    $("menu-reset").addEventListener("click", async () => {
+    $("menu-zerar").addEventListener("click", async () => {
       closeMenu();
-      if (await confirmDialog("Restaurar as 29 iniciativas e decisões originais? Todas as alterações feitas no painel serão perdidas (o histórico é mantido). Exporte um backup antes se tiver dúvida.", { title: "Restaurar padrão", okLabel: "Restaurar padrão", danger: true })) {
+      const ok = await confirmDialog(
+        "Zerar o painel para começar o uso real? Ficam os 29 projetos (nome, área, eixo e nomes das atividades), todos como Rascunho e sem nota, na Fila. Saem: notas de valor e esforço, status, prazos, RACI, checklists, sprints, decisões, compromissos e todo o histórico. Antes, um backup completo será baixado.",
+        { title: "Zerar para uso real", okLabel: "Baixar backup e zerar", danger: true });
+      if (!ok) return;
+      exportJSON();
+      const r = S.zerarParaUsoReal();
+      switchTab("triagem");
+      toast(`Painel zerado: ${r.mantidos} projetos prontos para a 1ª reunião de triagem.`, "ok", 7000);
+    });    $("menu-reset").addEventListener("click", async () => {
+      closeMenu();
+      if (await confirmDialog("Restaurar os 29 projetos e decisões originais? Todas as alterações feitas no painel serão perdidas (o histórico é mantido). Exporte um backup antes se tiver dúvida.", { title: "Restaurar padrão", okLabel: "Restaurar padrão", danger: true })) {
         S.resetToDefaults();
         toast("Dados restaurados para o padrão.", "warn");
       }
@@ -338,6 +359,7 @@
     document.addEventListener("keydown", onKeydown);
     document.querySelectorAll(".tab-btn").forEach((b) => b.addEventListener("click", () => switchTab(b.dataset.tab)));
     $("btn-presentation").addEventListener("click", () => {
+      closeMenu();
       const on = document.body.classList.toggle("presentation");
       $("btn-presentation").textContent = on ? "📺 Sair da projeção" : "📺 Modo reunião";
     });

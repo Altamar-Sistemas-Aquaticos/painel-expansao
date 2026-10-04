@@ -109,6 +109,9 @@
     const r = S.raciPeople(a.raci, "R")[0] || "";
     const feitos = a.checklist.filter((x) => x.feito).length;
     const outros = Object.entries(a.raci).filter(([, role]) => role !== "R").map(([n, role]) => `${role}: ${n}`).join(" · ");
+    // Perfil Visualização: só o responsável (R) atualiza o andamento; ninguém nesse perfil muda R, prazo ou sprint.
+    const soVe = A.nuvem?.perfil() === "visualizacao";
+    const somenteLeitura = soVe && r !== S.state.settings.user;
 
     $("act-body").innerHTML = `
       <div class="modal-head">
@@ -118,6 +121,7 @@
         </div>
         <button class="btn btn-xs btn-ghost" data-action="close-modal" data-target="modal-activity" aria-label="Fechar">✕</button>
       </div>
+      ${soVe ? `<div class="perfil-aviso">${somenteLeitura ? "Somente leitura: só o responsável (R) atualiza esta atividade." : "Você é o responsável: atualize a situação, o checklist e as observações."}</div>` : ""}
       <h3 class="act-modal-title">${esc(a.nome)}</h3>
       ${a.entregavel ? `<p class="act-modal-deliv"><strong>Entregável:</strong> ${esc(a.entregavel)}</p>` : ""}
 
@@ -169,6 +173,8 @@
         </div>
         <div class="right"><button type="button" class="btn btn-primary" data-action="close-modal" data-target="modal-activity">Fechar</button></div>
       </div>`;
+    $("act-body").classList.toggle("somente-leitura", somenteLeitura);
+    if (soVe) { $("act-r").disabled = true; $("act-prazo").disabled = true; }
   }
 
   function openActivity(key) {
@@ -180,11 +186,8 @@
   }
 
   const cur = () => A.store.findActivity(atual.ini, atual.act);
-  function saveAct(patch) {
-    const r = A.store.saveActivity(atual.ini, atual.act, patch, { source: "Kanban" });
-    if (!r.ok) toast(r.error, "error");
-    return r;
-  }
+  // Grava pela mesma via do Kanban (inclusive para quem só visualiza e é o responsável R da atividade).
+  const saveAct = (patch) => A.board.salvarAtividade(atual.ini, atual.act, patch);
 
   function init() {
     $("plan-body").addEventListener("change", (e) => {
@@ -220,8 +223,8 @@
       if (e.target.id === "act-sprint-toggle") {
         const sp = A.store.sprintAtual();
         const dentro = cur().sprint === sp.id;
-        const r = saveAct({ sprint: dentro ? "" : sp.id });
-        if (r.ok) toast(dentro ? "Atividade tirada da sprint." : "Atividade incluída na sprint.");
+        Promise.resolve(saveAct({ sprint: dentro ? "" : sp.id }))
+          .then((r) => { if (r?.ok) toast(dentro ? "Atividade tirada da sprint." : "Atividade incluída na sprint."); });
       }
       if (e.target.closest("[data-close-act]")) closeModal("modal-activity");
     });
@@ -230,8 +233,8 @@
       e.preventDefault();
       const texto = $("ck-new").value.trim();
       if (!texto) return;
-      const r = saveAct({ checklist: [...cur().checklist, { texto, feito: false }] });
-      if (r.ok) setTimeout(() => $("ck-new")?.focus(), 0);
+      Promise.resolve(saveAct({ checklist: [...cur().checklist, { texto, feito: false }] }))
+        .then((r) => { if (r?.ok) setTimeout(() => $("ck-new")?.focus(), 0); });
     });
     // Mantém a janela atualizada quando os dados mudam (ex.: arrastar o card com ela aberta).
     A.store.subscribe(() => {

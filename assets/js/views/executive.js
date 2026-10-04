@@ -384,6 +384,62 @@
     return parts.join(" ");
   }
 
+  /* ---------- Minhas atividades (quem está logado é o R) ---------- */
+  function minhasAtividades(S) {
+    const eu = S.state.settings.user;
+    const si = A.sprintInfo(S);
+    if (!eu || !si.sp) return "";
+    const minhas = si.items.filter(({ a }) => S.raciPeople(a.raci, "R")[0] === eu)
+      .sort((x, y) => (x.a.status === "Concluído") - (y.a.status === "Concluído"));
+    if (!minhas.length) {
+      return `<section class="panel minhas vazio"><strong>Minhas atividades na ${esc(si.rotulo)}</strong>
+        <span class="muted small">Nenhuma atividade sua (como responsável R) nesta sprint.</span></section>`;
+    }
+    const COL = Object.fromEntries(A.meta.SPRINT_COLUNAS.map((c) => [c.key, c.label]));
+    return `
+      <section class="panel minhas">
+        <div class="panel-head">
+          <h3 class="panel-title">Minhas atividades na ${esc(si.rotulo)}</h3>
+          <span class="muted small">${minhas.filter(({ a }) => a.status === "Concluído").length} de ${minhas.length} feitas · até ${esc(si.fimTxt)}</span>
+        </div>
+        <div class="minhas-grid">
+          ${minhas.map(({ it, a }) => {
+            const key = `${it.id}|${a.id}`;
+            const col = S.activityCol(a);
+            return `
+              <article class="minha ${col}" style="--ac:${A.area(it.area).cor}">
+                <div class="minha-top">
+                  <span class="act-card-id">${esc(it.id)}</span>
+                  <span class="minha-col ${col}">${esc(COL[col])}</span>
+                  <span class="act-ring" style="--p:${a.pct}" title="${a.pct}% concluído"><b>${a.pct}</b></span>
+                </div>
+                <button class="minha-nome" data-action="open-activity" data-id="${esc(key)}" title="Abrir a atividade">${esc(a.nome)}</button>
+                ${a.prazo ? `<div class="muted small">📅 ${esc(a.prazo)}</div>` : ""}
+                ${a.checklist.length ? `<ul class="minha-check">${a.checklist.map((x) => `
+                  <li class="${x.feito ? "done" : ""}"><label><input type="checkbox" data-minha-ck="${esc(key)}|${esc(x.id)}" ${x.feito ? "checked" : ""} ${col === "done" ? "disabled" : ""}> <span>${esc(x.texto)}</span></label></li>`).join("")}</ul>`
+                  : `<button class="btn btn-xs btn-ghost" data-action="open-activity" data-id="${esc(key)}">+ Quebrar em passos (checklist)</button>`}
+                <div class="minha-acoes">
+                  ${col === "todo" ? `<button class="btn btn-xs btn-outline" data-action="act-quick" data-id="${esc(key)}" data-q="next">▶ Começar</button>` : ""}
+                  ${col === "doing" ? `<button class="btn btn-xs btn-outline" data-action="act-quick" data-id="${esc(key)}" data-q="block">⚠ Travou</button><button class="btn btn-xs btn-primary" data-action="act-quick" data-id="${esc(key)}" data-q="next">✓ Concluir</button>` : ""}
+                  ${col === "waiting" ? `<button class="btn btn-xs btn-outline" data-action="act-quick" data-id="${esc(key)}" data-q="next">▶ Destravar</button>` : ""}
+                </div>
+              </article>`;
+          }).join("")}
+        </div>
+      </section>`;
+  }
+
+  // Marcar um passo do checklist direto no Painel executivo.
+  document.addEventListener("change", (e) => {
+    const cb = e.target.closest?.("[data-minha-ck]");
+    if (!cb) return;
+    const [ini, act, ck] = cb.dataset.minhaCk.split("|");
+    const a = A.store.findActivity(ini, act);
+    if (!a) return;
+    const patch = { checklist: a.checklist.map((x) => (x.id === ck ? { ...x, feito: cb.checked } : x)) };
+    if (cb.checked && a.status === "A fazer") Object.assign(patch, { status: "Em andamento", esperando: false });
+    A.board.salvarAtividade(ini, act, patch, "Painel executivo");
+  });
   /* ---------- Render ---------- */
   function renderHeader(S) {
     const si = A.sprintInfo(S);
@@ -438,6 +494,8 @@
           ${soon.length ? `<span class="kchip warnc big">${soon.length} vence${soon.length === 1 ? "" : "m"} em 7 dias</span>` : ""}
         </div>
       </div>
+
+      ${minhasAtividades(S)}
 
       <div class="kgrid">
         ${kpiCard({

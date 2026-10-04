@@ -419,7 +419,7 @@
 
     const resumo = [
       { Indicador: "Linha de corte (Σ Valor ÷ Σ Esforço)", Valor: Math.round(cut * 100) / 100 },
-      { Indicador: "Iniciativas acima da linha", Valor: ranked.filter((i) => isAboveCut(i, cut)).length },
+      { Indicador: "Projetos acima da linha", Valor: ranked.filter((i) => isAboveCut(i, cut)).length },
       { Indicador: "Projetos em andamento", Valor: S.calc.wipCount() },
       { Indicador: "Sprint atual", Valor: S.sprintAtual() ? `Sprint ${S.sprintAtual().numero} (${S.sprintItems().length} atividades)` : "—" },
       { Indicador: "Concluídas", Valor: ranked.filter((i) => i.status === "Concluído").length },

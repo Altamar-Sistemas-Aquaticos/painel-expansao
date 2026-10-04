@@ -16,6 +16,8 @@
     const total = a.checklist.length, feitos = a.checklist.filter((x) => x.feito).length;
     const proximo = a.checklist.find((x) => !x.feito);
     const key = `${it.id}|${a.id}`;
+    // Quem só visualiza mexe apenas nas atividades em que é o responsável (R).
+    const pode = !viaBanco() || r === A.store.state.settings.user;
     const dica = [`${it.id} · ${it.nome}`, a.prazo ? `Prazo: ${a.prazo}` : "", a.entregavel ? `Entregável: ${a.entregavel}` : "", a.observacoes ? `Obs.: ${a.observacoes}` : ""].filter(Boolean).join("\n");
     return `
       <div class="k-card act-card ${col}" draggable="true" data-drag="activity" data-ini="${esc(it.id)}" data-act="${esc(a.id)}"
@@ -30,11 +32,11 @@
         <div class="act-bottom">
           <span class="act-ring" style="--p:${a.pct}" title="${a.pct}% concluído"><b>${a.pct}</b></span>
           ${total ? `<span class="act-ck" title="Passos do checklist">☑ ${feitos}/${total}</span>` : ""}
-          <span class="act-quick no-print">
+          ${pode ? `<span class="act-quick no-print">
             ${proximo && col !== "done" ? `<button class="q-btn" data-action="act-quick" data-id="${esc(key)}" data-q="step" title="Marcar passo: ${esc(proximo.texto)}">☐</button>` : ""}
             ${col === "todo" || col === "doing" ? `<button class="q-btn warn" data-action="act-quick" data-id="${esc(key)}" data-q="block" title="Marcar como travado">⚠</button>` : ""}
             ${PROXIMA[col] ? `<button class="q-btn go" data-action="act-quick" data-id="${esc(key)}" data-q="next" title="${PROXIMA_LABEL[col]}">→</button>` : ""}
-          </span>
+          </span>` : ""}
         </div>
       </div>`;
   }
@@ -149,9 +151,9 @@
     if (q === "step") {
       const prox = a.checklist.find((x) => !x.feito);
       if (!prox) return;
-      const r = S.saveActivity(ini, act, { checklist: a.checklist.map((x) => (x.id === prox.id ? { ...x, feito: true } : x)) }, { source: "Kanban" });
-      if (r.ok) toast(`Passo marcado: ${prox.texto}`);
-      if (col === "todo") S.moveActivity(ini, act, "doing");
+      const patch = { checklist: a.checklist.map((x) => (x.id === prox.id ? { ...x, feito: true } : x)) };
+      if (col === "todo") Object.assign(patch, { status: "Em andamento", esperando: false });
+      Promise.resolve(salvarAtividade(ini, act, patch)).then((r) => { if (r?.ok) toast(`Passo marcado: ${prox.texto}`); });
     } else if (q === "next" && PROXIMA[col]) {
       moveActivity(ini, act, PROXIMA[col]);
     } else if (q === "block") {
@@ -229,6 +231,11 @@
     document.addEventListener("dragstart", (e) => {
       const el = e.target.closest?.("[data-drag]");
       if (!el) return;
+      // Visualização: não muda onda de projeto; no Kanban, só arrasta as próprias atividades.
+      if (viaBanco()) {
+        const a = el.dataset.drag === "activity" ? A.store.findActivity(el.dataset.ini, el.dataset.act) : null;
+        if (!a || A.store.raciPeople(a.raci, "R")[0] !== A.store.state.settings.user) { e.preventDefault(); return; }
+      }
       dragging = el.dataset.drag === "activity"
         ? { kind: "activity", ini: el.dataset.ini, act: el.dataset.act }
         : { kind: "initiative", id: el.dataset.id };
@@ -271,8 +278,28 @@
     });
   }
 
-  function moveActivity(iniId, actId, col) {
+  // Ponto único para alterar atividades na tela: quem só visualiza grava pelo banco, e só nas atividades em que é R.
+  const viaBanco = () => A.nuvem?.perfil() === "visualizacao";
+  async function salvarAtividade(iniId, actId, patch, source = "Kanban") {
+    if (viaBanco()) return A.nuvem.atualizarMinhaAtividade(iniId, actId, patch);
+    const r = A.store.saveActivity(iniId, actId, patch, { source });
+    if (!r.ok) { toast(r.error, "error"); return r; }
+    // Começar (ou concluir) uma atividade põe o projeto em andamento, como no Kanban.
+    if ((patch.status === "Em andamento" || patch.status === "Concluído") && A.store.findInitiative(iniId)?.status === "A fazer") {
+      A.store.saveInitiative({ status: "Em andamento" }, iniId, { source });
+    }
+    return r;
+  }
+
+  async function moveActivity(iniId, actId, col) {
     const S = A.store;
+    if (viaBanco()) {
+      const patch = { todo: { status: "A fazer", esperando: false }, doing: { status: "Em andamento", esperando: false },
+        waiting: { status: "Em andamento", esperando: true }, done: { status: "Concluído", esperando: false } }[col];
+      const r = await A.nuvem.atualizarMinhaAtividade(iniId, actId, patch);
+      if (r.ok) toast(`Atividade movida para “${A.meta.SPRINT_COLUNAS.find((c) => c.key === col)?.label}”.`);
+      return;
+    }
     const r = S.moveActivity(iniId, actId, col);
     if (!r.ok) return toast(r.error, "error");
     if (r.unchanged) return;
@@ -305,5 +332,5 @@
     else toast(`${id} movido para ${onda}.`);
   }
 
-  A.board = { initDragAndDrop, initKanbanControls, moveCard, moveActivity, quick };
+  A.board = { initDragAndDrop, initKanbanControls, moveCard, moveActivity, quick, salvarAtividade };
 })();

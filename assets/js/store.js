@@ -33,7 +33,7 @@
     sprint: "Sprint", esperando: "Esperando / travada", checklist: "Checklist",
   };
   const DECISION_FIELDS = {
-    data: "Data", quem: "Quem decide", grupo: "Iniciativa", pauta: "Pauta", status: "Status", resultado: "Decisão / encaminhamento",
+    data: "Data", quem: "Quem decide", grupo: "Projeto", pauta: "Pauta", status: "Status", resultado: "Decisão / encaminhamento",
   };
   const AREA_FIELDS = { key: "Nome", code: "Código", cor: "Cor" };
   const EIXO_FIELDS = { key: "Nome", icone: "Ícone", vagas: "Vagas por onda", descricao: "Descrição" };
@@ -567,8 +567,8 @@
     const id = String(input.id || "").trim().toUpperCase();
     if (!id) return "Informe um ID (ex.: P11).";
     if (!/^[A-Z0-9][A-Z0-9_-]{0,11}$/.test(id)) return "ID deve ter só letras, números, - ou _ (até 12 caracteres).";
-    if (id !== originalId && findInitiative(id)) return `Já existe uma iniciativa com o ID ${id}.`;
-    if (!String(input.nome || "").trim()) return "Informe o nome da iniciativa.";
+    if (id !== originalId && findInitiative(id)) return `Já existe um projeto com o ID ${id}.`;
+    if (!String(input.nome || "").trim()) return "Informe o nome do projeto.";
     if (!findArea(input.area)) return "Escolha uma área cadastrada.";
     return null;
   }
@@ -579,7 +579,7 @@
    */
   function saveInitiative(input, originalId = null, { source = "Painel", silent = false } = {}) {
     const current = originalId ? findInitiative(originalId) : null;
-    if (originalId && !current) return { ok: false, error: "Iniciativa não encontrada." };
+    if (originalId && !current) return { ok: false, error: "Projeto não encontrado." };
     // Valida o registro final (atual + alterações), pois `input` pode ser um patch parcial.
     const error = validateInitiative(current ? { ...current, ...input } : input, originalId);
     if (error) return { ok: false, error };
@@ -791,7 +791,7 @@
 
   function advanceSituacao(id) {
     const it = findInitiative(id);
-    if (!it) return { ok: false, error: "Iniciativa não encontrada." };
+    if (!it) return { ok: false, error: "Projeto não encontrado." };
     const next = SITUACOES[SITUACOES.indexOf(it.situacao) + 1];
     if (!next) return { ok: true, unchanged: true };
     return saveInitiative({ situacao: next }, id, { source: "Triagem" });
@@ -842,7 +842,7 @@
    */
   function saveActivity(iniId, actId, input, { source = "Projeto", silent = false } = {}) {
     const it = findInitiative(iniId);
-    if (!it) return { ok: false, error: "Iniciativa não encontrada." };
+    if (!it) return { ok: false, error: "Projeto não encontrado." };
     const idx = actId ? it.atividades.findIndex((a) => a.id === actId) : -1;
     if (actId && idx < 0) return { ok: false, error: "Atividade não encontrada." };
     const before = idx >= 0 ? it.atividades[idx] : null;
@@ -1144,6 +1144,31 @@
     return changed;
   }
 
+  /**
+   * Zera o painel para o uso real (opção B): mantém só os 29 projetos iniciais, com nome, área, eixo, autor e o nome
+   * das atividades; zera notas, status, prazos, RACI, checklists, sprints, decisões, compromissos e histórico.
+   * Áreas, pessoas, eixos e capacidade continuam. Tudo volta a Rascunho para a 1ª reunião de triagem.
+   */
+  function zerarParaUsoReal() {
+    const iniciais = new Set(A.defaults.initiatives.map((i) => i.id));
+    const agora = new Date().toISOString();
+    const projetos = store.data.initiatives.filter((it) => iniciais.has(it.id)).map((it) => ({
+      id: it.id, nome: it.nome, area: it.area, eixo: it.eixo, autor: it.autor || "Pedro",
+      valor: 0, esforco: 0, onda: "Fila", status: "A fazer", semaforo: "verde", situacao: "Rascunho",
+      responsavel: "", prazo: "", observacoes: "", objetivo: it.objetivo, prontoQuando: it.prontoQuando, indicador: it.indicador,
+      investimento: it.investimento, enabler: it.enabler, criadoEm: agora,
+      atividades: it.atividades.map((a) => ({ id: a.id, nome: a.nome, entregavel: a.entregavel, dependeDe: a.dependeDe, raci: {} })),
+    }));
+    const removidos = store.data.initiatives.length - projetos.length;
+    store.data = normalizeData({
+      version: SCHEMA_VERSION,
+      config: store.data.config,
+      initiatives: projetos, decisions: [], compromissos: [], history: [], snapshots: {}, sprints: [],
+    });
+    commit([entry("sistema", null, "zerou",
+      `Painel zerado para o uso real: ${projetos.length} projetos mantidos como Rascunho, sem notas${removidos ? `, ${removidos} projeto(s) de teste removido(s)` : ""}`, [], "Sistema")]);
+    return { ok: true, mantidos: projetos.length, removidos };
+  }
   function resetToDefaults() {
     store.data = { ...normalizeData(clone(A.defaults)), history: store.data.history, snapshots: store.data.snapshots };
     commit([entry("sistema", null, "restaurou", "Dados restaurados para o padrão inicial", [], "Sistema")]);
@@ -1195,7 +1220,7 @@
     pessoas, findPessoa, savePessoa, deletePessoa, pessoaUso,
     findDecision, saveDecision, deleteDecision,
     findCompromisso, saveCompromisso, deleteCompromisso,
-    replaceAll, applyImportPlan, resetToDefaults, clearHistory, markBackup, backupOverdue,
+    replaceAll, applyImportPlan, resetToDefaults, zerarParaUsoReal, clearHistory, markBackup, backupOverdue,
     matchesFilters, filtered, hasActiveFilters,
     SITUACOES, RACI_ROLES,
     FIELDS: { INITIATIVE_FIELDS, DECISION_FIELDS, ACTIVITY_FIELDS },
