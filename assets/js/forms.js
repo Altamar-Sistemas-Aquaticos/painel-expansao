@@ -22,11 +22,10 @@
   let editingId = null;
 
   function setupInitiativeSelects() {
-    const { FIBONACCI, ONDAS, STATUS, SEMAFOROS } = A.meta;
+    const { STATUS, SEMAFOROS } = A.meta;
     $("ini-situacao").innerHTML = optionList(A.store.SITUACOES);
     $("ini-valor").innerHTML = A.meta.valorOptions("");
     $("ini-esforco").innerHTML = A.meta.esforcoOptions("");
-    $("ini-onda").innerHTML = optionList(ONDAS.map((o) => [o.key, `${o.key} · ${o.periodo}`]));
     $("ini-status").innerHTML = optionList(STATUS);
     $("ini-semaforo").innerHTML = optionList(SEMAFOROS.map((s) => [s.key, `${s.label} — ${s.desc}`]));
   }
@@ -77,7 +76,7 @@
     $("ini-invest").checked = data.investimento === "Sim";
     $("ini-valor").value = data.valor || "";
     $("ini-esforco").value = data.esforco || "";
-    $("ini-onda").value = data.onda;
+    $("ini-onda").textContent = data.onda === "Fila" ? "Fila (sem onda)" : data.onda;
     $("ini-status").value = data.status;
     $("ini-semaforo").value = data.semaforo;
     $("ini-prazo").value = data.prazo;
@@ -109,7 +108,6 @@
       autor: $("ini-autor").value,
       valor: Number($("ini-valor").value),
       esforco: Number($("ini-esforco").value),
-      onda: $("ini-onda").value,
       status: $("ini-status").value,
       semaforo: $("ini-semaforo").value,
       responsavel: $("ini-responsavel").value,
@@ -353,6 +351,8 @@
       // Para iniciativas novas, sugere o próximo ID da área escolhida.
       if (!editingId && /^[A-Z]{1,3}\d+$/.test($("ini-id").value)) $("ini-id").value = A.store.nextId($("ini-area").value);
     });
+    // A onda é decidida na aba Ondas: o link fecha a janela e leva até lá.
+    $("modal-initiative").addEventListener("click", (e) => { if (e.target.closest("[data-close-ini]")) closeModal("modal-initiative"); });
     $("ini-delete").addEventListener("click", () => editingId && deleteInitiative(editingId));
     $("ini-add-decision").addEventListener("click", () => {
       const id = editingId;

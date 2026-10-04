@@ -8,7 +8,7 @@
   const SETTINGS_KEY = "altamar_painel_settings_v2";
   const LEGACY_INI = "altamar_expansao_iniciativas_v1";
   const LEGACY_DEC = "altamar_expansao_decisoes_v1";
-  const SCHEMA_VERSION = 4; // 4: esforço em meses (1 a 5), sprints de 4 semanas e checklist nas atividades
+  const SCHEMA_VERSION = 5; // 4: esforço em meses, sprints e checklist · 5: marca "esforço a revisar"
   const PORTFOLIO_BASE_DATE = "2026-09-01T12:00:00.000Z"; // data-base dos 29 projetos iniciais
   const HISTORY_LIMIT = 2000;
 
@@ -25,7 +25,7 @@
     status: "Status", semaforo: "Semáforo", responsavel: "Responsável", prazo: "Prazo",
     observacoes: "Observações", enabler: "Habilitadora", coluna: "Coluna do Kanban",
     objetivo: "Objetivo", prontoQuando: "Pronto quando", indicador: "Indicador de sucesso",
-    investimento: "Exige investimento", situacao: "Situação do cadastro", autor: "Autor da ideia",
+    investimento: "Exige investimento", situacao: "Situação do cadastro", autor: "Autor da ideia", esforcoRevisar: "Esforço a revisar",
   };
   const ACTIVITY_FIELDS = {
     nome: "Atividade", entregavel: "Entregável", pct: "% concluído", status: "Status", raci: "RACI",
@@ -209,6 +209,8 @@
       area: String(raw.area ?? "").trim() || (areas()[0] || {}).key || "Projetos",
       valor: scoreOrZero(raw.valor),
       esforco: esforcoOrZero(raw.esforco),
+      // Esforço convertido automaticamente da escala antiga: fica marcado até alguém confirmar ou mudar.
+      esforcoRevisar: !!raw.esforcoRevisar && !isBlank(raw.esforco),
       autor: String(raw.autor ?? "").trim(),
       onda: ONDA_KEYS.includes(raw.onda) ? raw.onda : "Fila",
       status,
@@ -315,7 +317,7 @@
     const posInt = (v, def) => (Number(v) > 0 ? Math.round(Number(v)) : def);
     // Antes da versão 4 o esforço usava 1, 2, 3, 5 e 8 (1 semana a 3+ meses): converte para meses (1 a 5).
     if (!(raw.version >= 4) && Array.isArray(raw.initiatives)) {
-      raw = { ...raw, initiatives: raw.initiatives.map((i) => ({ ...i, esforco: isBlank(i.esforco) ? 0 : (A.meta.ESFORCO_ANTIGO_PARA_NOVO[snapFib(i.esforco)] || 1) })) };
+      raw = { ...raw, initiatives: raw.initiatives.map((i) => ({ ...i, esforco: isBlank(i.esforco) ? 0 : (A.meta.ESFORCO_ANTIGO_PARA_NOVO[snapFib(i.esforco)] || 1), esforcoRevisar: !isBlank(i.esforco) })) };
     }
     const data = {
       version: SCHEMA_VERSION,
@@ -351,6 +353,30 @@
       data.initiatives.forEach((it) => {
         if (!it.autor) it.autor = autorNoHistorico[it.id] || (iniciais.has(it.id) ? "Pedro" : "");
       });
+      // Dados da versão 4: a conversão antiga achatou o esforço (quase tudo virou 1). Recupera a nota da escala
+      // antiga (histórico, ficha de criação ou dados iniciais) e renumera nível a nível, como na conversão nova.
+      if (raw.version === 4) {
+        const mig = data.history.find((h) => h.action === "migrou" && /esforço convertido/.test(h.label));
+        const migTs = mig ? mig.ts : "";
+        const antesDaMig = (h) => !migTs || h.ts < migTs;
+        const mexidos = new Set(data.history.filter((h) => h.entity === "iniciativa" && migTs && h.ts >= migTs && (h.changes || []).some((c) => c.field === "esforco")).map((h) => h.refId));
+        const doHistorico = (h) => h.entity === "iniciativa" && antesDaMig(h);
+        function esforcoAntigo(it) {
+          const ed = data.history.find((h) => doHistorico(h) && h.refId === it.id && (h.changes || []).some((c) => c.field === "esforco"));
+          if (ed) return Number(ed.changes.find((c) => c.field === "esforco").to);
+          const cri = data.history.find((h) => doHistorico(h) && h.refId === it.id && h.action === "criou");
+          const m = cri && (cri.changes || []).map((c) => c.from).join(" ").match(/\/E(\d)/);
+          if (m) return Number(m[1]);
+          return A.defaults.initiatives.find((d) => d.id === it.id)?.esforco ?? null;
+        }
+        data.initiatives.forEach((it) => {
+          const antigo = migTs ? it.criadoEm < migTs : iniciais.has(it.id);
+          if (!it.esforco || !antigo || mexidos.has(it.id)) return;
+          const velho = esforcoAntigo(it);
+          if (velho) it.esforco = A.meta.ESFORCO_ANTIGO_PARA_NOVO[snapFib(velho)] || it.esforco;
+          it.esforcoRevisar = true;
+        });
+      }
       // Sem sprints ainda: cria a Sprint 1 com a próxima atividade aberta de cada projeto em andamento.
       if (!data.sprints.length) {
         const s1 = makeSprint(1, primeiraSegunda());
@@ -406,8 +432,12 @@
           store.data.history.unshift(entry("sistema", null, "migrou",
             "Nova versão: esforço convertido para meses (1 = 1 mês … 5 = 1 ano), Sprint 1 de 4 semanas criada e “Aprovado para onda” passou a “Validado”", [], "Sistema"));
         }
+        if (saved.version === 4) {
+          store.data.history.unshift(entry("sistema", null, "migrou",
+            "Esforço renumerado mantendo a proporção da escala antiga (1, 2, 3, 5, 8 → 1, 2, 3, 4, 5); projetos marcados como “esforço a revisar” na Triagem", [], "Sistema"));
+        }
         persist();
-        if (!(saved.version >= 4)) return "upgraded";
+        if (!(saved.version >= 5)) return "upgraded";
       }
       return "saved";
     }
@@ -524,6 +554,7 @@
     const idx = store.data.initiatives.findIndex((i) => i.id === originalId);
     const before = store.data.initiatives[idx];
     const merged = { ...before, ...input };
+    if ("esforco" in input && !("esforcoRevisar" in input)) merged.esforcoRevisar = false; // mexeu no esforço = revisado
     // Se o status mudou e a coluna não foi informada explicitamente, a coluna acompanha o status.
     if (input.status && input.status !== before.status && !("coluna" in input)) merged.coluna = null;
     if (merged.status === "Concluído" && before.status !== "Concluído" && !("semaforo" in input)) merged.semaforo = "verde";
@@ -733,6 +764,7 @@
   }
 
   const setOnda = (id, onda) => saveInitiative({ onda }, id, { source: "Ondas" });
+  const confirmarEsforco = (id) => saveInitiative({ esforcoRevisar: false }, id, { source: "Triagem" });
   const setStatus = (id, status) => saveInitiative({ status }, id);
 
   /* ---------- Consistência (avisos da Triagem e da tela do projeto) ---------- */
@@ -1065,7 +1097,7 @@
     calc: { ve, cutoff, isAboveCut, wipCount, snapFib, snapEsforco, progress, parseDate, weekKey, sprintLimites, projetosPorOnda },
     sprints, sprintAtual, findSprint, sprintItems, activityCol, sprintDates, planSprint, moveActivity, novaSprint, saveSprint, saveChecklist,
     findInitiative, nextId, saveInitiative, createProject, quickIdea, saveConfig, deleteInitiative, canDelete, advanceSituacao,
-    moveToColumn, setOnda, setStatus, warnings,
+    moveToColumn, setOnda, setStatus, warnings, confirmarEsforco,
     saveActivity, setRaci, deleteActivity, findActivity, projectTeam, raciText, raciPeople, splitNames,
     areas, findArea, saveArea, deleteArea, suggestAreaCode, nextAreaColor,
     pessoas, findPessoa, savePessoa, deletePessoa, pessoaUso,

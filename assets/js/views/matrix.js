@@ -4,25 +4,51 @@
   const { esc, fmtNum } = A.util;
   const ui = A.ui;
 
-  const W = 520, H = 400;
-  const PAD = { left: 40, right: 16, top: 16, bottom: 40 };
+  const W = 560, H = 440;
+  const PAD = { left: 40, right: 12, top: 30, bottom: 40 };
   const plotW = W - PAD.left - PAD.right;
   const plotH = H - PAD.top - PAD.bottom;
   const EMAX = A.meta.ESFORCO_PONTOS.length; // esforço 1 a 5 (meses); valor segue 1, 2, 3, 5, 8
   const x = (e) => PAD.left + ((e - 0.5) / EMAX) * plotW;
   const y = (v) => H - PAD.bottom - ((v - 0.5) / 8) * plotH;
+  const R = 10, PITCH = 23; // raio e espaçamento das bolhas
 
   const ativo = (it) => it.status !== "Cancelado" && it.status !== "Concluído";
   const pontuado = (it) => it.valor > 0 && it.esforco > 0;
 
+  // Espaço livre ao redor de um ponto da grade (até a metade da distância para o vizinho mais próximo).
+  function celula(e, v) {
+    const vs = A.meta.FIBONACCI, i = vs.indexOf(v);
+    // Nas pontas (valor 8 e 1) usa todo o espaço até a borda; no meio, metade até o vizinho.
+    const up = i < vs.length - 1 ? (y(v) - y(vs[i + 1])) / 2 : y(v) - y(8.5);
+    const down = i > 0 ? (y(vs[i - 1]) - y(v)) / 2 : y(0.5) - y(v);
+    const largura = plotW / EMAX;
+    return {
+      up, down,
+      cols: Math.max(1, Math.floor((largura - 6) / PITCH)),
+      rows: Math.max(1, Math.floor((up + down - 4) / PITCH)),
+    };
+  }
+
+  function bolha(S, it, cx, cy) {
+    const { ve } = S.calc;
+    const doing = it.status === "Em andamento";
+    const cls = ["bubble", doing ? "doing" : "", !S.matchesFilters(it) ? "faded" : ""].join(" ");
+    return `
+      <g class="${cls}" data-hl="${esc(it.id)}" data-action="edit-initiative" data-id="${esc(it.id)}" tabindex="0" role="button" aria-label="${esc(it.id + " " + it.nome)}">
+        <title>${esc(`${it.id} — ${it.nome}\nValor ${it.valor} · Esforço ${it.esforco} (${A.meta.tempoPorEsforco(it.esforco)}) · V÷E ${fmtNum(ve(it))}\n${it.status} · ${it.onda}`)}</title>
+        <circle cx="${cx}" cy="${cy}" r="${R}" style="fill:${A.area(it.area).cor}"/>
+        <text x="${cx}" y="${cy + 3}" text-anchor="middle">${esc(it.id)}</text>
+      </g>`;
+  }
+
   function matrixSvg(S, items) {
-    const { ve, cutoff } = S.calc;
-    const c = cutoff().value;
+    const c = S.calc.cutoff().value;
     const parts = [];
 
-    // Ganhos rápidos: esforço até 2 meses, valor a partir de 5.
+    // Ganhos rápidos: esforço até 2 meses, valor a partir de 5. O rótulo fica acima da área, fora das bolhas.
     parts.push(`<rect class="qw-rect" x="${x(0.5)}" y="${y(8.5)}" width="${x(2.5) - x(0.5)}" height="${y(4) - y(8.5)}" rx="6"/>`);
-    parts.push(`<text class="qw-text" x="${x(0.5) + 8}" y="${y(8.5) + 15}">★ GANHOS RÁPIDOS</text>`);
+    parts.push(`<text class="qw-text" x="${x(0.5) + 4}" y="${PAD.top - 10}">★ GANHOS RÁPIDOS · alto valor em até 2 meses</text>`);
 
     A.meta.FIBONACCI.forEach((v) => {
       parts.push(`<line class="grid-line" x1="${PAD.left}" x2="${W - PAD.right}" y1="${y(v)}" y2="${y(v)}"/>`);
@@ -40,31 +66,36 @@
     parts.push(`<text class="axis-title" x="${PAD.left + plotW / 2}" y="${H - 6}" text-anchor="middle">ESFORÇO (tempo) →</text>`);
     parts.push(`<text class="axis-title" x="${-(PAD.top + plotH / 2)}" y="12" transform="rotate(-90)" text-anchor="middle">VALOR →</text>`);
 
-    // Pontos coincidentes são distribuídos em círculo para não se esconderem.
+    // Projetos no mesmo ponto ficam lado a lado numa pequena grade; o que não cabe vira uma bolha "+N".
     const groups = {};
     items.forEach((it) => { (groups[`${it.esforco}-${it.valor}`] ||= []).push(it); });
     Object.values(groups).forEach((list) => {
-      const n = list.length;
-      list.forEach((it, i) => {
-        let dx = 0, dy = 0;
-        if (n > 1) {
-          const ang = (i / n) * 2 * Math.PI - Math.PI / 2, r = Math.min(22, 8 + n * 2.6);
-          dx = Math.cos(ang) * r; dy = Math.sin(ang) * r;
-        }
-        const cx = x(it.esforco) + dx, cy = y(it.valor) + dy;
-        const doing = it.status === "Em andamento";
-        const cls = ["bubble", doing ? "doing" : "", !S.matchesFilters(it) ? "faded" : ""].join(" ");
-        parts.push(`
-          <g class="${cls}" data-hl="${esc(it.id)}" data-action="edit-initiative" data-id="${esc(it.id)}" tabindex="0" role="button" aria-label="${esc(it.id + " " + it.nome)}">
-            <title>${esc(`${it.id} — ${it.nome}\nValor ${it.valor} · Esforço ${it.esforco} · V÷E ${fmtNum(ve(it))}\n${it.status} · ${it.onda}`)}</title>
-            <circle cx="${cx}" cy="${cy}" r="${doing ? 13 : 11}" style="fill:${A.area(it.area).cor}"/>
-            <text x="${cx}" y="${cy + 3}" text-anchor="middle">${esc(it.id)}</text>
-          </g>`);
+      list.sort((a, b) => (b.status === "Em andamento") - (a.status === "Em andamento") || a.id.localeCompare(b.id, "pt-BR", { numeric: true }));
+      const { cols, rows, up, down } = celula(list[0].esforco, list[0].valor);
+      const cap = cols * rows;
+      const mostrar = list.length > cap ? list.slice(0, cap - 1) : list;
+      const resto = list.slice(mostrar.length);
+      const n = mostrar.length + (resto.length ? 1 : 0);
+      const usadasCols = Math.min(cols, n), usadasRows = Math.ceil(n / cols);
+      const cy0 = Math.min(Math.max(y(list[0].valor) - ((usadasRows - 1) / 2) * PITCH, y(list[0].valor) - up + R),
+        y(list[0].valor) + down - R - (usadasRows - 1) * PITCH);
+      const pos = (k) => ({
+        cx: x(list[0].esforco) + ((k % cols) - (usadasCols - 1) / 2) * PITCH,
+        cy: cy0 + Math.floor(k / cols) * PITCH,
       });
+      mostrar.forEach((it, k) => { const p = pos(k); parts.push(bolha(S, it, p.cx, p.cy)); });
+      if (resto.length) {
+        const p = pos(mostrar.length);
+        parts.push(`
+          <g class="bubble more" tabindex="0">
+            <title>${esc(`Mais ${resto.length} projeto(s) neste ponto:\n` + resto.map((it) => `${it.id} — ${it.nome}`).join("\n"))}</title>
+            <circle cx="${p.cx}" cy="${p.cy}" r="${R}"/>
+            <text x="${p.cx}" y="${p.cy + 3}" text-anchor="middle">+${resto.length}</text>
+          </g>`);
+      }
     });
     return parts.join("");
   }
-
   A.views.priorizacao = function (S) {
     const el = document.getElementById("priorizacao-root");
     if (!el) return;

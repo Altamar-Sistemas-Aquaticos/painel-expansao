@@ -38,7 +38,7 @@
     const req = (key, label) => { if (!String(draft[key] ?? "").trim()) e.push({ key, msg: `${label} é obrigatório.` }); };
     req("nome", "Nome do projeto"); req("area", "Área"); req("responsavel", "Responsável pelo projeto");
     req("objetivo", "Objetivo"); req("prontoQuando", "Pronto quando");
-    req("valor", "Valor"); req("esforco", "Esforço"); req("onda", "Onda");
+    req("valor", "Valor"); req("esforco", "Esforço");
     if (draft.prontoQuando && S.calc.parseDate(draft.prontoQuando)) e.push({ key: "prontoQuando", msg: "“Pronto quando” deve descrever o resultado final, não uma data (a data vai em Prazo final)." });
     const dup = S.state.data.initiatives.find((i) => A.util.norm(i.nome) === A.util.norm(draft.nome));
     if (draft.nome && dup) e.push({ key: "nome", msg: `Já existe um projeto com esse nome (${dup.id}).` });
@@ -62,17 +62,6 @@
     const ultimo = acts.map((a) => a.prazo).filter(Boolean).sort().pop();
     if (draft.prazo && ultimo && ultimo > draft.prazo) e.push({ key: "prazo", msg: `Prazo final do projeto (${isoToBR(draft.prazo)}) antes do prazo da última atividade (${isoToBR(ultimo)}).` });
     return e;
-  }
-
-  function notices() {
-    const S = A.store;
-    const n = [];
-    const v = Number(draft.valor), es = Number(draft.esforco);
-    if (v && es && draft.onda === "Onda 1") {
-      const cut = S.calc.cutoff([...S.state.data.initiatives, { valor: v, esforco: es }]).value;
-      if (v / es < cut - 1e-9 && !draft.observacoes.trim()) n.push("Projeto abaixo da linha de corte na Onda 1: registre o motivo em Observações.");
-    }
-    return n;
   }
 
   /* ---------- Renderização ---------- */
@@ -111,7 +100,6 @@
           <div class="field"><label>Autor da ideia</label><select ${f("autor")}>${A.ui.peopleOptions(draft.autor || "", { blank: "Não informado" })}</select></div>
           <div class="field"><label>Valor *</label><select ${f("valor")}>${A.meta.valorOptions(draft.valor, "— Escolha —")}</select></div>
           <div class="field"><label>Esforço *</label><select ${f("esforco")}>${A.meta.esforcoOptions(draft.esforco, "— Escolha —")}</select></div>
-          <div class="field"><label>Onda *</label><select ${f("onda")}>${opt(A.meta.ONDAS.map((o) => [o.key, `${o.key} · ${o.periodo}`]), draft.onda)}</select></div>
         </div>
         <div class="calc-box" id="ficha-calc">${calcBox()}</div>
         <div class="form-grid">
@@ -187,18 +175,16 @@
     errors = validate();
     const errList = tried && errors.length
       ? `<div class="ficha-errors"><strong>${errors.length} pendência(s):</strong><ul>${errors.slice(0, 8).map((x) => `<li>${esc(x.msg)}</li>`).join("")}${errors.length > 8 ? `<li>+ ${errors.length - 8}…</li>` : ""}</ul></div>` : "";
-    const n = notices();
     $("ficha-body").innerHTML = `
       <div class="modal-head">
         <h3 id="ficha-title">Novo projeto</h3>
         <button class="btn btn-xs btn-ghost" data-ficha="close" aria-label="Fechar">✕</button>
       </div>
-      <p class="muted small" style="margin-top:0">O projeto entra na Triagem como <strong>Rascunho</strong>. O preenchimento fica guardado se você fechar a ficha antes de salvar.</p>
+      <p class="muted small" style="margin-top:0">O projeto entra na Triagem como <strong>Rascunho</strong>, na Fila. A onda é definida depois, na aba Ondas. O preenchimento fica guardado se você fechar a ficha antes de salvar.</p>
       ${errList}
       ${projectSection()}
       <div id="ficha-acts">${activitiesSection()}</div>
       <div id="ficha-raci">${raciSection()}</div>
-      ${n.map((x) => `<div class="act-blocked" style="margin-left:0">${esc(x)}</div>`).join("")}
       <div class="modal-foot">
         <button type="button" class="btn btn-sm btn-danger-ghost" data-ficha="discard">Descartar ficha</button>
         <div class="right">
@@ -245,7 +231,7 @@
     const S = A.store;
     const input = {
       nome: draft.nome.trim(), area: draft.area, responsavel: draft.responsavel, autor: draft.autor || "",
-      valor: Number(draft.valor), esforco: Number(draft.esforco), onda: draft.onda, prazo: isoToBR(draft.prazo),
+      valor: Number(draft.valor), esforco: Number(draft.esforco), onda: "Fila", prazo: isoToBR(draft.prazo),
       objetivo: draft.objetivo.trim(), prontoQuando: draft.prontoQuando.trim(), indicador: draft.indicador.trim(),
       investimento: draft.investimento ? "Sim" : "Não", observacoes: draft.observacoes.trim(),
     };
@@ -286,8 +272,6 @@
         draft.atividades.forEach((a) => { if (!Object.values(a.raci).includes("R")) a.raci[el.value] = "R"; });
         saveDraft();
         refresh("raci");
-      } else if (el.dataset.f === "onda" || el.dataset.f === "observacoes") {
-        render(); // reavalia o aviso de linha de corte
       } else if (el.dataset.raci != null) {
         const a = draft.atividades[Number(el.dataset.raci)];
         const nome = el.dataset.name, role = el.value;

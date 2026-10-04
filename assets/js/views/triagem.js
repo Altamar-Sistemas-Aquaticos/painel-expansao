@@ -10,6 +10,7 @@
   const FILTROS = [
     ["triar", "A triar"],
     ["semnota", "Sem nota"],
+    ["revisar", "Esforço a revisar"],
     ["Validado", "Validados"],
     ["ALL", "Todos"],
   ];
@@ -19,6 +20,7 @@
   const filtros = {
     triar: (it) => ativo(it) && (it.situacao === "Rascunho" || semNota(it)),
     semnota: (it) => ativo(it) && semNota(it),
+    revisar: (it) => ativo(it) && it.esforcoRevisar,
     Validado: (it) => ativo(it) && it.situacao === "Validado",
     ALL: () => true,
   };
@@ -56,7 +58,8 @@
         <td><select class="tri-sel tri-autor" data-tri-field="autor" data-id="${esc(it.id)}" aria-label="Autor de ${esc(it.id)}">${ui.peopleOptions(it.autor, { blank: "—" })}</select></td>
         <td class="muted small nowrap">${criado}</td>
         <td><select class="tri-sel tri-score ${it.valor ? "" : "empty"}" data-tri-field="valor" data-id="${esc(it.id)}" aria-label="Valor de ${esc(it.id)}">${A.meta.valorOptions(it.valor || "", "Valor?")}</select></td>
-        <td><select class="tri-sel tri-score ${it.esforco ? "" : "empty"}" data-tri-field="esforco" data-id="${esc(it.id)}" aria-label="Esforço de ${esc(it.id)}">${A.meta.esforcoOptions(it.esforco || "", "Esforço?")}</select></td>
+        <td class="nowrap"><select class="tri-sel tri-score ${it.esforco ? "" : "empty"} ${it.esforcoRevisar ? "revisar" : ""}" data-tri-field="esforco" data-id="${esc(it.id)}" aria-label="Esforço de ${esc(it.id)}"
+              title="${it.esforcoRevisar ? "Convertido da escala antiga: confirme ou ajuste" : ""}">${A.meta.esforcoOptions(it.esforco || "", "Esforço?")}</select>${it.esforcoRevisar ? `<button class="tri-ok" data-tri-confirm="${esc(it.id)}" title="O esforço está certo: confirmar">✓</button>` : ""}</td>
         <td class="num"><strong class="tri-ve ${scored ? (above ? "above" : "below") : ""}" title="${scored ? (above ? "Acima da linha de corte" : "Abaixo da linha de corte") : "Falta nota"}">${scored ? fmtNum(ve(it)) : "—"}</strong></td>
         <td class="small nowrap">${esc(it.prazo || "—")}</td>
         <td><span class="badge ${SIT_CLASS[it.situacao] || ""}">${esc(it.situacao)}</span></td>
@@ -119,6 +122,12 @@
     if (!form) return;
     form.addEventListener("submit", submitQuick);
     document.addEventListener("click", (e) => {
+      const ok = e.target.closest("[data-tri-confirm]");
+      if (ok) {
+        const r = A.store.confirmarEsforco(ok.dataset.triConfirm);
+        if (r.ok) toast(`Esforço de ${ok.dataset.triConfirm} confirmado.`);
+        return;
+      }
       const b = e.target.closest("[data-tri-filter]");
       if (!b) return;
       A.store.state.ui.triagemFiltro = b.dataset.triFilter;

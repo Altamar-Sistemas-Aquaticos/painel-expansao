@@ -58,8 +58,8 @@
     4: { curto: "6 meses", texto: "Atravessa duas ondas: vale dividir em fases" },
     5: { curto: "1 ano", texto: "Investimento, fornecedor externo ou muita incerteza: dividir em fases" },
   };
-  // Esforço da escala antiga (1, 2, 3, 5, 8 = 1 semana a 3+ meses) convertido para a nova (meses).
-  const ESFORCO_ANTIGO_PARA_NOVO = { 1: 1, 2: 1, 3: 1, 5: 2, 8: 3 };
+  // Esforço da escala antiga (1, 2, 3, 5, 8) renumerado nível a nível para a nova (1 a 5), mantendo a proporção entre projetos.
+  const ESFORCO_ANTIGO_PARA_NOVO = { 1: 1, 2: 2, 3: 3, 5: 4, 8: 5 };
 
   // Sprint de 4 semanas (3 sprints por onda) com 5 a 8 atividades; cada onda com até 8 projetos.
   const SPRINT_SEMANAS = 4;

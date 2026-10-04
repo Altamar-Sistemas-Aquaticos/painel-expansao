@@ -114,6 +114,7 @@
     },
     "finish-project": (id) => A.board.moveCard(id, "done"),
     "open-activity": (key) => A.sprint.openActivity(key),
+    "act-quick": (key, el) => A.board.quick(key, el.dataset.q),
     "plan-sprint": () => A.sprint.openPlan(),
     "new-sprint": () => A.sprint.novaSprint(),
     "delete-decision": (id) => A.forms.deleteDecision(id),
@@ -305,6 +306,7 @@
     const origin = S.load();
     A.forms.init();
     A.board.initDragAndDrop();
+    A.board.initKanbanControls();
     A.drill.initActivityEvents();
     A.ficha.init();
     A.cadastros.init();

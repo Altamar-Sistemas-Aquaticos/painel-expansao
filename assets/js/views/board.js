@@ -7,20 +7,34 @@
   const SEM_ORDER = { vermelho: 0, amarelo: 1, verde: 2 };
 
   /* ---------- Kanban da sprint ---------- */
+  const PROXIMA = { todo: "doing", doing: "done", waiting: "doing" };
+  const PROXIMA_LABEL = { todo: "Começar (Fazendo)", doing: "Concluir (Feito)", waiting: "Destravar (Fazendo)" };
+
   function actCard(S, it, a) {
     const r = S.raciPeople(a.raci, "R")[0];
-    const ck = a.checklist.length ? `${a.checklist.filter((x) => x.feito).length}/${a.checklist.length}` : "";
+    const col = S.activityCol(a);
+    const total = a.checklist.length, feitos = a.checklist.filter((x) => x.feito).length;
+    const proximo = a.checklist.find((x) => !x.feito);
+    const key = `${it.id}|${a.id}`;
+    const dica = [`${it.id} · ${it.nome}`, a.prazo ? `Prazo: ${a.prazo}` : "", a.entregavel ? `Entregável: ${a.entregavel}` : "", a.observacoes ? `Obs.: ${a.observacoes}` : ""].filter(Boolean).join("\n");
     return `
-      <div class="k-card act-card" draggable="true" data-drag="activity" data-ini="${esc(it.id)}" data-act="${esc(a.id)}"
-           data-action="open-activity" data-id="${esc(it.id)}|${esc(a.id)}" tabindex="0" role="button"
+      <div class="k-card act-card ${col}" draggable="true" data-drag="activity" data-ini="${esc(it.id)}" data-act="${esc(a.id)}"
+           data-action="open-activity" data-id="${esc(key)}" tabindex="0" role="button" title="${esc(dica)}"
            aria-label="${esc(a.nome)}, do projeto ${esc(it.id)}" style="--ac:${A.area(it.area).cor}">
-        <div class="act-card-proj"><span class="act-card-id">${esc(it.id)}</span><span class="act-card-pname">${esc(it.nome)}</span>${ui.dot(it.semaforo)}</div>
+        <div class="act-top">
+          <span class="act-card-id">${esc(it.id)}</span>
+          ${it.semaforo !== "verde" ? ui.dot(it.semaforo) : ""}
+          <span class="act-av ${r ? "" : "none"}" title="${esc(r ? `Responsável: ${r}` : "Sem responsável (R)")}">${esc(r ? A.util.initials(r) : "?")}</span>
+        </div>
         <div class="act-card-title">${esc(a.nome)}</div>
-        <div class="k-card-progress">${ui.progressBar(a.pct)}</div>
-        <div class="k-card-foot">
-          <span>👤 ${esc(r || "Sem R")}</span>
-          ${ck ? `<span title="Checklist">☑ ${ck}</span>` : ""}
-          ${a.prazo ? `<span>📅 ${esc(a.prazo)}</span>` : ""}
+        <div class="act-bottom">
+          <span class="act-ring" style="--p:${a.pct}" title="${a.pct}% concluído"><b>${a.pct}</b></span>
+          ${total ? `<span class="act-ck" title="Passos do checklist">☑ ${feitos}/${total}</span>` : ""}
+          <span class="act-quick no-print">
+            ${proximo && col !== "done" ? `<button class="q-btn" data-action="act-quick" data-id="${esc(key)}" data-q="step" title="Marcar passo: ${esc(proximo.texto)}">☐</button>` : ""}
+            ${col === "todo" || col === "doing" ? `<button class="q-btn warn" data-action="act-quick" data-id="${esc(key)}" data-q="block" title="Marcar como travado">⚠</button>` : ""}
+            ${PROXIMA[col] ? `<button class="q-btn go" data-action="act-quick" data-id="${esc(key)}" data-q="next" title="${PROXIMA_LABEL[col]}">→</button>` : ""}
+          </span>
         </div>
       </div>`;
   }
@@ -30,7 +44,12 @@
       return `<div class="sprint-head panel"><div><h2>Nenhuma sprint aberta</h2></div>
         <button class="btn btn-primary" data-action="new-sprint">Abrir sprint</button></div>`;
     }
-    const pct = si.total ? Math.round((si.feitas / si.total) * 100) : 0;
+    const { inicio, fim } = S.sprintDates(si.sp);
+    const hoje = new Date(); hoje.setHours(0, 0, 0, 0);
+    const dur = (fim - inicio) / 86400000 + 1;
+    const tempo = Math.max(0, Math.min(100, Math.round(((hoje - inicio) / 86400000 + 1) / dur * 100)));
+    const entrega = si.total ? Math.round(si.items.reduce((s, { a }) => s + a.pct, 0) / si.total) : 0;
+    const atrasada = si.total && entrega < tempo - 15;
     const limiteCls = si.acima ? "bad" : si.abaixo ? "warnc" : "good";
     return `
       <div class="sprint-head panel">
@@ -38,51 +57,124 @@
           <div class="sprint-head-title">
             <h2>${esc(si.rotulo)} <span class="muted">· ${esc(si.periodo)}</span></h2>
             ${si.terminou ? `<span class="kchip bad">terminou</span>` : si.naoComecou ? `<span class="kchip warnc">começa em breve</span>` : `<span class="kchip good">faltam ${si.diasRestantes} dia(s)</span>`}
+            <span class="kchip ${limiteCls}" title="Limite combinado para cada sprint: de ${si.min} a ${si.max} atividades">${si.total} atividades · ${si.projetos} projeto(s)</span>
           </div>
           <div class="sprint-goal">${si.sp.objetivo ? `🎯 ${esc(si.sp.objetivo)}` : `<span class="muted">Sem objetivo definido. Defina no planejamento.</span>`}</div>
-          <div class="sprint-stats">
-            <span><strong>${si.feitas}</strong> de <strong>${si.total}</strong> atividades feitas</span>
-            <span>${si.projetos} projeto(s)</span>
-            <span class="kchip ${limiteCls}" title="Limite combinado para cada sprint">limite ${si.min} a ${si.max}</span>
+          <div class="sprint-meter ${atrasada ? "late" : ""}">
+            <div class="sm-row"><span>Tempo</span><div class="sm-bar time"><i style="width:${tempo}%"></i></div><b>${tempo}%</b></div>
+            <div class="sm-row"><span>Entrega</span><div class="sm-bar done"><i style="width:${entrega}%"></i></div><b>${entrega}%</b></div>
+            <div class="sm-note">${si.feitas} de ${si.total} atividades feitas${atrasada ? " · <strong>a entrega está atrás do tempo</strong>" : ""}</div>
           </div>
-          <div class="sprint-bar"><span style="width:${pct}%"></span></div>
         </div>
         <div class="sprint-head-actions no-print">
           <button class="btn btn-primary" data-action="plan-sprint">🗓️ Planejar sprint</button>
           <button class="btn btn-outline" data-action="new-sprint" title="Encerra esta sprint e abre a próxima; o que não foi feito passa para ela">Encerrar e abrir a ${si.sp.numero + 1}</button>
         </div>
-      </div>
-      <p class="muted small sprint-note">O backlog saiu do Kanban: aqui ficam só as atividades combinadas para esta sprint. Os demais projetos estão em <a href="#ondas">Ondas</a> e <a href="#priorizacao">Priorização</a>.</p>`;
+      </div>`;
+  }
+
+  function toolbar(S) {
+    const g = S.state.ui.kanbanGroup || "none";
+    const opt = (k, l) => `<button class="seg-btn ${g === k ? "active" : ""}" data-kb-group="${k}">${l}</button>`;
+    const user = S.state.settings.user;
+    return `
+      <div class="kb-toolbar no-print">
+        <span class="muted small">Agrupar:</span>
+        <div class="seg">${opt("none", "Nenhum")}${opt("projeto", "Projeto")}${opt("pessoa", "Responsável")}</div>
+        ${user ? `<label class="checkbox kb-mine"><input type="checkbox" data-kb-mine ${S.state.ui.kanbanMine ? "checked" : ""}> Só as minhas (${esc(user)})</label>` : ""}
+        <span class="spacer"></span>
+        <span class="muted small">O backlog fica em <a href="#ondas">Ondas</a> e <a href="#priorizacao">Priorização</a>.</span>
+      </div>`;
+  }
+
+  function colunas(S, list, si, comCabecalho = true) {
+    const cols = Object.fromEntries(A.meta.SPRINT_COLUNAS.map((c) => [c.key, []]));
+    list.forEach((x) => cols[S.activityCol(x.a)].push(x));
+    Object.values(cols).forEach((l) => l.sort((x, y) =>
+      SEM_ORDER[x.it.semaforo] - SEM_ORDER[y.it.semaforo] || x.it.id.localeCompare(y.it.id, "pt-BR", { numeric: true })));
+    return A.meta.SPRINT_COLUNAS.map((c) => `
+      <section class="k-col ${c.key}" data-drop-act="${c.key}" aria-label="${esc(c.label)}">
+        ${comCabecalho ? `<div class="k-head"><div><div class="k-title">${esc(c.label)}</div><div class="k-hint">${esc(c.hint)}</div></div>
+          <span class="badge ${c.key === "doing" ? "accent" : c.key === "waiting" && cols[c.key].length ? "warn" : ""}">${cols[c.key].length}</span></div>` : ""}
+        <div class="k-list">
+          ${cols[c.key].length ? cols[c.key].map(({ it, a }) => actCard(S, it, a)).join("")
+            : comCabecalho ? `<div class="muted small k-empty">${c.key === "todo" && !si.total ? "Use “Planejar sprint” para escolher as atividades" : "Arraste atividades para cá"}</div>` : ""}
+        </div>
+      </section>`).join("");
   }
 
   A.views.kanban = function (S) {
     const si = A.sprintInfo(S);
-    document.getElementById("sprint-head").innerHTML = sprintHead(S, si);
-    const items = si.items.filter(({ it }) => S.matchesFilters(it));
-    const cols = Object.fromEntries(A.meta.SPRINT_COLUNAS.map((c) => [c.key, []]));
-    items.forEach((x) => cols[S.activityCol(x.a)].push(x));
-    Object.values(cols).forEach((list) => list.sort((x, y) =>
-      SEM_ORDER[x.it.semaforo] - SEM_ORDER[y.it.semaforo] || x.it.id.localeCompare(y.it.id, "pt-BR", { numeric: true })));
-
-    document.getElementById("kanban-board").innerHTML = A.meta.SPRINT_COLUNAS.map((c) => {
-      const list = cols[c.key];
-      return `
-        <section class="k-col ${c.key}" data-drop-act="${c.key}" aria-label="${esc(c.label)}">
-          <div class="k-head">
-            <div>
-              <div class="k-title">${esc(c.label)}</div>
-              <div class="k-hint">${esc(c.hint)}</div>
-            </div>
-            <span class="badge ${c.key === "doing" ? "accent" : c.key === "waiting" && list.length ? "warn" : ""}">${list.length}</span>
-          </div>
-          <div class="k-list">
-            ${list.length ? list.map(({ it, a }) => actCard(S, it, a)).join("")
-              : `<div class="muted small" style="text-align:center; padding:1rem 0">${c.key === "todo" && !si.total ? "Use “Planejar sprint” para escolher as atividades" : "Arraste atividades para cá"}</div>`}
-          </div>
-        </section>`;
-    }).join("");
+    const ui_ = S.state.ui;
+    document.getElementById("sprint-head").innerHTML = sprintHead(S, si) + toolbar(S);
+    const user = S.state.settings.user;
+    const items = si.items.filter(({ it, a }) => S.matchesFilters(it) && (!ui_.kanbanMine || S.raciPeople(a.raci, "R")[0] === user));
+    const board = document.getElementById("kanban-board");
+    const g = ui_.kanbanGroup || "none";
+    if (g === "none") {
+      board.className = "kanban sprint-board";
+      board.innerHTML = colunas(S, items, si);
+      return;
+    }
+    // Faixas: uma por projeto ou por responsável, cruzando as 4 colunas.
+    const chave = g === "projeto" ? ({ it }) => it.id : ({ a }) => S.raciPeople(a.raci, "R")[0] || "Sem responsável";
+    const grupos = new Map();
+    items.forEach((x) => { const k = chave(x); if (!grupos.has(k)) grupos.set(k, []); grupos.get(k).push(x); });
+    const ordenados = [...grupos.entries()].sort((p, q) => p[0].localeCompare(q[0], "pt-BR", { numeric: true }));
+    board.className = "kanban-lanes";
+    board.innerHTML = `
+      <div class="lane-colheads">${A.meta.SPRINT_COLUNAS.map((c) => `<div class="k-title">${esc(c.label)}</div>`).join("")}</div>
+      ${ordenados.map(([k, list]) => {
+        const feitas = list.filter(({ a }) => a.status === "Concluído").length;
+        const pct = Math.round(list.reduce((s, { a }) => s + a.pct, 0) / list.length);
+        const it = g === "projeto" ? list[0].it : null;
+        const titulo = it
+          ? `<span class="act-card-id" style="--ac:${A.area(it.area).cor}">${esc(it.id)}</span> <a href="${A.drill.projectHref(it.id)}" data-nav>${esc(it.nome)}</a>`
+          : `<span class="act-av">${esc(A.util.initials(k))}</span> <strong>${esc(k)}</strong>`;
+        return `
+          <div class="lane">
+            <div class="lane-head">${titulo}<span class="muted small">${feitas}/${list.length} feitas · ${pct}%</span></div>
+            <div class="lane-cols">${colunas(S, list, si, false)}</div>
+          </div>`;
+      }).join("") || `<div class="empty">Nenhuma atividade na sprint com esses filtros.</div>`}`;
   };
 
+  // Ações rápidas do card (sem abrir a atividade).
+  function quick(key, q) {
+    const S = A.store;
+    const [ini, act] = key.split("|");
+    const a = S.findActivity(ini, act);
+    if (!a) return;
+    const col = S.activityCol(a);
+    if (q === "step") {
+      const prox = a.checklist.find((x) => !x.feito);
+      if (!prox) return;
+      const r = S.saveActivity(ini, act, { checklist: a.checklist.map((x) => (x.id === prox.id ? { ...x, feito: true } : x)) }, { source: "Kanban" });
+      if (r.ok) toast(`Passo marcado: ${prox.texto}`);
+      if (col === "todo") S.moveActivity(ini, act, "doing");
+    } else if (q === "next" && PROXIMA[col]) {
+      moveActivity(ini, act, PROXIMA[col]);
+    } else if (q === "block") {
+      moveActivity(ini, act, "waiting");
+      A.sprint.openActivity(key);
+      setTimeout(() => document.getElementById("act-obs")?.focus(), 60);
+      toast("Escreva o que está travando a atividade.", "warn");
+    }
+  }
+
+  function initKanbanControls() {
+    document.addEventListener("click", (e) => {
+      const b = e.target.closest("[data-kb-group]");
+      if (!b) return;
+      A.store.state.ui.kanbanGroup = b.dataset.kbGroup;
+      A.store.emit();
+    });
+    document.addEventListener("change", (e) => {
+      if (!e.target.matches("[data-kb-mine]")) return;
+      A.store.state.ui.kanbanMine = e.target.checked;
+      A.store.emit();
+    });
+  }
   /* ---------- Ondas ---------- */
   A.views.waves = function (S) {
     const { ve } = S.calc;
@@ -204,5 +296,5 @@
     else toast(`${id} movido para ${onda}.`);
   }
 
-  A.board = { initDragAndDrop, moveCard, moveActivity };
+  A.board = { initDragAndDrop, initKanbanControls, moveCard, moveActivity, quick };
 })();
