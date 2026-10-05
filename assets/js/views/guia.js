@@ -79,7 +79,7 @@
     const meu = S.areas().find((a) => v.setores.includes(a.key)) || { cor: "#2b8a3e", code: "V" };
     return `
       <div class="guia">
-        ${indice([["gl-programa", "O programa"], ["gl-papel", "Seu papel"], ["gl-codigos", "Os códigos"], ["gl-palavras", "Palavras"], ["gl-semana", "Toda semana"], ["gl-card", "Atualizar um card"], ["gl-travou", "Quando travar"]])}
+        ${indice([["gl-programa", "O programa"], ["gl-papel", "Seu papel"], ["gl-codigos", "Os códigos"], ["gl-palavras", "Palavras"], ["gl-plano", "Montar o plano"], ["gl-semana", "Toda semana"], ["gl-card", "Atualizar um card"], ["gl-travou", "Quando travar"]])}
         <div class="guia-body">
           <section class="panel guia-sec" id="gl-programa">
             <h3>O Programa de Expansão</h3>
@@ -104,6 +104,19 @@
           <section class="panel guia-sec" id="gl-palavras">
             <h3>Palavras que vamos usar</h3>
             ${termos(true)}
+          </section>
+
+          <section class="panel guia-sec" id="gl-plano">
+            <h3>Como montar o plano do projeto</h3>
+            <p>O <strong>plano do projeto</strong> é a lista de tudo o que precisa acontecer para o projeto ficar pronto, cada coisa com
+            responsável e prazo. Ele fica na página do projeto (clique no nome do projeto em qualquer card).</p>
+            <ol class="guia-steps">
+              ${passo(1, "Escreva as atividades", "No campo “O que precisa ser feito”, escreva, escolha o responsável e o prazo e aperte Enter. Dá para colar uma lista inteira: cada linha vira uma atividade.")}
+              ${passo(2, "Marque os marcos com ◆", "Marco é uma entrega importante (ex.: “orçamento aprovado”). Ele aparece em destaque e mostra se o projeto está no caminho.")}
+              ${passo(3, "Confira o revisor", "O quadro amarelo avisa o que falta: atividade sem responsável, sem prazo ou passando do prazo do projeto.")}
+              ${passo(4, "Envie para aprovação", "Clique em “Enviar para aprovação”. O Pedro ou a diretoria aprovam ou pedem ajuste. Depois de aprovado, as atividades de cada mês vão sozinhas para o Kanban.")}
+            </ol>
+            <p class="muted small">Atividade é o menor pedaço do plano. Dentro dela, no Kanban, você pode listar passos para conferir o andamento.</p>
           </section>
 
           <section class="panel guia-sec" id="gl-semana">
@@ -257,8 +270,10 @@
           <section class="panel guia-sec" id="guia-regras">
             <h3>Regras do jogo</h3>
             <ul class="guia-rules">
-              <li><strong>Até ${limite} projetos por setor no ciclo.</strong> Marcados na Priorização, na coluna “Ciclo”. Projeto que não terminou passa sozinho para o ciclo seguinte.</li>
-              <li><strong>Ciclo = mês do calendário.</strong> Três ciclos formam uma onda (trimestre).</li>
+              <li><strong>Até ${limite} projetos por setor no ciclo.</strong> Marcados na Priorização (“Entra”). Projeto que não terminou passa sozinho para o ciclo seguinte.</li>
+              <li><strong>Ciclo = mês do calendário.</strong> Três ciclos formam uma onda (trimestre). No primeiro acesso do mês, o painel encerra o ciclo anterior e abre o novo sozinho, já com o que foi planejado em “em planejamento”.</li>
+              <li><strong>Plano do projeto.</strong> O líder monta as atividades (com responsável, prazo e ◆ nos marcos) e envia; você ou a diretoria aprovam ou pedem ajuste, na página do projeto. Ao aprovar, os prazos viram a referência e os atrasos aparecem como “+N d”.</li>
+              <li><strong>Kanban automático.</strong> Projeto que entra no ciclo leva para o Kanban as atividades com prazo no mês (e as atrasadas). Ajustes finos: “Colocar no Kanban” / “Tirar do Kanban” na atividade.</li>
               <li><strong>Semáforo.</strong> 🟢 no prazo · 🟡 atenção · 🔴 travado, precisa de decisão.</li>
               <li><strong>Situação do cadastro.</strong> <span class="badge warn">Rascunho</span> acabou de entrar ·
                 <span class="badge ok">Validado</span> passou pela triagem e pode entrar no ciclo.</li>

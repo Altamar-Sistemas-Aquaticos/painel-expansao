@@ -10,6 +10,13 @@
   const PROXIMA = { todo: "doing", doing: "done", waiting: "doing" };
   const PROXIMA_LABEL = { todo: "Começar (Fazendo)", doing: "Concluir (Feito)", waiting: "Destravar (Fazendo)" };
 
+  // Prazo vencido e a atividade ainda não terminou.
+  function atrasada(S, a) {
+    const d = S.calc.parseDate(a.prazo);
+    const hoje = new Date(); hoje.setHours(0, 0, 0, 0);
+    return !!d && d < hoje && a.status !== "Concluído" && a.status !== "Cancelado";
+  }
+
   function actCard(S, it, a) {
     const r = S.raciPeople(a.raci, "R")[0];
     const col = S.activityCol(a);
@@ -24,11 +31,12 @@
            data-action="open-activity" data-id="${esc(key)}" tabindex="0" role="button" title="${esc(dica)}"
            aria-label="${esc(a.nome)}, do projeto ${esc(it.id)}" style="--ac:${A.area(it.area).cor}">
         <div class="act-top">
-          <span class="act-card-id">${esc(it.id)}</span>
-          ${it.semaforo !== "verde" ? ui.dot(it.semaforo) : ""}
+          <span class="act-card-proj" title="${esc(`${it.id} · ${it.nome} (${it.area})`)}">
+            ${it.semaforo !== "verde" ? ui.dot(it.semaforo) : ""}<span class="act-card-pname">${esc(it.nome)}</span></span>
           <span class="act-av ${r ? "" : "none"}" title="${esc(r ? `Responsável: ${r}` : "Sem responsável (R)")}">${esc(r ? A.util.initials(r) : "?")}</span>
         </div>
         <div class="act-card-title">${esc(a.nome)}</div>
+        ${a.prazo ? `<div class="act-prazo ${atrasada(S, a) ? "late" : ""}" title="Prazo da atividade">📅 ${esc(a.prazo)}${atrasada(S, a) ? " · atrasada" : ""}</div>` : ""}
         <div class="act-bottom">
           <span class="act-ring" style="--p:${a.pct}" title="${a.pct}% concluído"><b>${a.pct}</b></span>
           ${total ? `<span class="act-ck" title="Passos do checklist">☑ ${feitos}/${total}</span>` : ""}

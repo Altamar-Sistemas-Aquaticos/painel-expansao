@@ -23,9 +23,9 @@
   ];
 
   const ONDAS = [
-    { key: "Onda 1", periodo: "Out–Dez/2026", titulo: "Arrumar a casa e gerar receita rápida", descricao: "Processos internos essenciais e conversão rápida de propostas na mesa", color: "var(--area-p)" },
-    { key: "Onda 2", periodo: "Jan–Mar/2027", titulo: "Ferramentas e produtos que vendem", descricao: "Skids padronizados, parcerias com construtores e esteira de dimensionamento SSV/RAS", color: "var(--area-v)" },
-    { key: "Onda 3", periodo: "Abr–Jun/2027", titulo: "Escalar e padronizar", descricao: "Oferta de fazenda completa, alinhamento Vendas × Marketing e padronização TAP", color: "var(--area-m)" },
+    { key: "Onda 1", inicio: "2026-10-01", fim: "2026-12-31", periodo: "Out–Dez/2026", titulo: "Arrumar a casa e gerar receita rápida", descricao: "Processos internos essenciais e conversão rápida de propostas na mesa", color: "var(--area-p)" },
+    { key: "Onda 2", inicio: "2027-01-01", fim: "2027-03-31", periodo: "Jan–Mar/2027", titulo: "Ferramentas e produtos que vendem", descricao: "Skids padronizados, parcerias com construtores e esteira de dimensionamento SSV/RAS", color: "var(--area-v)" },
+    { key: "Onda 3", inicio: "2027-04-01", fim: "2027-06-30", periodo: "Abr–Jun/2027", titulo: "Escalar e padronizar", descricao: "Oferta de fazenda completa, alinhamento Vendas × Marketing e padronização TAP", color: "var(--area-m)" },
     { key: "Fila", periodo: "Sem data", titulo: "Fila sequencial", descricao: "Aguardando destravamento, capacidade ou investimento prévio", color: "var(--area-q)" },
   ];
 

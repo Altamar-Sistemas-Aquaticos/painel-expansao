@@ -343,11 +343,18 @@
 
   /* ---------- Boot ---------- */
   function boot() {
+    // Resumo da virada automática do mês (ciclo encerrado e o novo aberto).
+    A.avisarViradaDoMes = (resumos) => {
+      if (!resumos?.length) return;
+      const r = resumos[resumos.length - 1];
+      toast(`Novo mês: ${r.encerrado} encerrado (${r.feitas} atividade(s) feita(s), ${r.levadas} passaram adiante). ${r.aberto} aberto${r.projetos ? ` com ${r.projetos} projeto(s) que continuam` : ""}.`, "ok", 12000);
+    };
     const origin = S.load();
     A.forms.init();
     A.board.initDragAndDrop();
     A.board.initKanbanControls();
     A.drill.initActivityEvents();
+    A.plano.init();
     A.ficha.init();
     A.cadastros.init();
     A.triagem.init();
@@ -401,8 +408,11 @@
 
     if (origin === "migrated") toast("Seus dados do painel anterior foram migrados automaticamente.", "ok", 6000);
     if (origin === "upgraded") toast("Painel atualizado: projetos organizados por eixo (veja o Guia) e esforço em meses, com os convertidos marcados na Triagem.", "ok", 9000);
-    if (A.nuvem.configurado) A.nuvem.iniciar(); // login e dados compartilhados
-    else if (!S.state.settings.user) A.forms.openUserForm(true);
+    if (A.nuvem.configurado) A.nuvem.iniciar(); // login e dados compartilhados (a virada do mês acontece depois de carregar)
+    else {
+      if (!S.state.settings.user) A.forms.openUserForm(true);
+      A.avisarViradaDoMes(S.virarMes());
+    }
   }
 
   if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", boot);

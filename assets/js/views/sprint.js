@@ -96,15 +96,28 @@
 
   /* ---------- Janela da atividade ---------- */
   let atual = null; // { ini, act }
+  let ultimoSalvo = ""; // hora da última gravação feita nesta janela
 
+  // Campos que a pessoa pode estar digitando: o redesenho da janela não pode apagar o que ainda não foi salvo.
+  const CAMPOS_DIGITANDO = ["ck-new", "act-obs", "act-prazo"];
   function renderActivity() {
+    const rascunho = Object.fromEntries(CAMPOS_DIGITANDO.map((id) => [id, $(id)?.value]));
+    const foco = document.activeElement?.id;
+    desenharAtividade();
+    if (rascunho["ck-new"]) $("ck-new").value = rascunho["ck-new"];
+    // Observação e prazo: mantém o texto digitado só se ainda estiver sendo editado.
+    ["act-obs", "act-prazo"].forEach((id) => { if (foco === id && rascunho[id] != null && $(id)) $(id).value = rascunho[id]; });
+    if (foco && $(foco)) $(foco).focus();
+  }
+
+  function desenharAtividade() {
     const S = A.store;
     if (!atual) return;
     const it = S.findInitiative(atual.ini);
     const a = S.findActivity(atual.ini, atual.act);
     if (!it || !a) { closeModal("modal-activity"); atual = null; return; }
     const sp = S.sprintAtual();
-    const naSprint = sp && a.sprint === sp.id;
+    const naSprint = sp && S.noKanban(it, a, sp);
     const col = S.activityCol(a);
     const r = S.raciPeople(a.raci, "R")[0] || "";
     const feitos = a.checklist.filter((x) => x.feito).length;
@@ -157,9 +170,10 @@
             </li>`).join("")}
         </ul>
         <form id="ck-form" class="act-check-add" autocomplete="off">
-          <input id="ck-new" class="input input-sm" placeholder="Adicionar passo (ex.: enviar minuta para a Maíra) e Enter">
-          <button class="btn btn-sm btn-outline" type="submit">+ Passo</button>
+          <input id="ck-new" class="input input-sm" placeholder="Novo passo (ex.: enviar minuta para a Maíra)">
+          <button class="btn btn-sm btn-outline" type="submit">+ Adicionar passo</button>
         </form>
+        <div class="muted small act-check-dica">Digite o passo e clique em “+ Adicionar passo” (ou Enter). Ele aparece na lista acima, já salvo.</div>
       </section>
 
       <div class="field">
@@ -169,9 +183,12 @@
 
       <div class="modal-foot">
         <div class="row">
-          ${sp ? `<button type="button" class="btn btn-sm ${naSprint ? "btn-danger-ghost" : "btn-outline"}" id="act-sprint-toggle">${naSprint ? "Tirar do ciclo" : `Incluir no ${esc(A.store.nomeCiclo(sp))}`}</button>` : ""}
+          ${sp ? `<button type="button" class="btn btn-sm ${naSprint ? "btn-danger-ghost" : "btn-outline"}" id="act-sprint-toggle">${naSprint ? "Tirar do Kanban" : "Colocar no Kanban"}</button>` : ""}
         </div>
-        <div class="right"><button type="button" class="btn btn-primary" data-action="close-modal" data-target="modal-activity">Fechar</button></div>
+        <div class="right">
+          <span class="act-salvo muted small" id="act-salvo">${ultimoSalvo ? `✓ Salvo às ${ultimoSalvo}` : ""}</span>
+          <button type="button" class="btn btn-primary" id="act-salvar">Salvar</button>
+        </div>
       </div>`;
     $("act-body").classList.toggle("somente-leitura", somenteLeitura);
     if (soVe) { $("act-r").disabled = true; $("act-prazo").disabled = true; }
@@ -181,13 +198,45 @@
     const [ini, act] = String(key).split("|");
     if (!A.store.findActivity(ini, act)) return toast("Atividade não encontrada.", "error");
     atual = { ini, act };
-    renderActivity();
+    ultimoSalvo = "";
+    if ($("ck-new")) $("ck-new").value = "";
+    desenharAtividade();
     openModal("modal-activity");
   }
 
   const cur = () => A.store.findActivity(atual.ini, atual.act);
   // Grava pela mesma via do Kanban (inclusive para quem só visualiza e é o responsável R da atividade).
-  const saveAct = (patch) => A.board.salvarAtividade(atual.ini, atual.act, patch);
+  const saveAct = (patch) => Promise.resolve(A.board.salvarAtividade(atual.ini, atual.act, patch)).then((r) => {
+    if (r?.ok !== false) marcarSalvo();
+    return r;
+  });
+  function marcarSalvo() {
+    ultimoSalvo = new Date().toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" });
+    const el = $("act-salvo");
+    if (el) { el.textContent = `✓ Salvo às ${ultimoSalvo}`; el.classList.remove("pisca"); void el.offsetWidth; el.classList.add("pisca"); }
+  }
+
+  // Salvar geral: grava o que ainda está nos campos (passo digitado, observação, prazo) e fecha.
+  async function salvarTudo({ fechar = true } = {}) {
+    if (!atual || !cur()) return;
+    const a = cur();
+    const patch = {};
+    const passo = $("ck-new")?.value.trim();
+    if (passo) patch.checklist = [...a.checklist, { texto: passo, feito: false }];
+    const obs = $("act-obs")?.value;
+    if (obs != null && obs !== a.observacoes) patch.observacoes = obs;
+    const prazo = $("act-prazo")?.value.trim();
+    if (prazo != null && !$("act-prazo").disabled && prazo !== a.prazo) patch.prazo = prazo;
+    if (Object.keys(patch).length) {
+      const r = await saveAct(patch);
+      if (r?.ok === false) return;
+      if ($("ck-new")) $("ck-new").value = "";
+    }
+    if (fechar) {
+      closeModal("modal-activity");
+      toast(Object.keys(patch).length ? "Atividade salva." : "Tudo já estava salvo.");
+    }
+  }
 
   function init() {
     $("plan-body").addEventListener("change", (e) => {
@@ -222,9 +271,9 @@
       if (del) saveAct({ checklist: cur().checklist.filter((x) => x.id !== del.dataset.ckDel) });
       if (e.target.id === "act-sprint-toggle") {
         const sp = A.store.sprintAtual();
-        const dentro = cur().sprint === sp.id;
-        Promise.resolve(saveAct({ sprint: dentro ? "" : sp.id }))
-          .then((r) => { if (r?.ok) toast(dentro ? "Atividade tirada do ciclo." : "Atividade incluída no ciclo."); });
+        const dentro = A.store.noKanban(A.store.findInitiative(atual.ini), cur(), sp);
+        Promise.resolve(saveAct({ sprint: dentro ? `-${sp.id}` : sp.id }))
+          .then((r) => { if (r?.ok !== false) toast(dentro ? "Atividade tirada do Kanban." : "Atividade colocada no Kanban."); });
       }
       if (e.target.closest("[data-close-act]")) closeModal("modal-activity");
     });
@@ -232,17 +281,19 @@
       if (e.target.id !== "ck-form") return;
       e.preventDefault();
       const texto = $("ck-new").value.trim();
-      if (!texto) return;
-      Promise.resolve(saveAct({ checklist: [...cur().checklist, { texto, feito: false }] }))
-        .then((r) => { if (r?.ok) setTimeout(() => $("ck-new")?.focus(), 0); });
+      if (!texto) return toast("Escreva o passo antes de adicionar.", "warn");
+      $("ck-new").value = ""; // limpa já, para o redesenho não trazer o texto de volta
+      saveAct({ checklist: [...cur().checklist, { texto, feito: false }] })
+        .then((r) => { if (r?.ok === false) $("ck-new").value = texto; setTimeout(() => $("ck-new")?.focus(), 0); });
     });
-    // Mantém a janela atualizada quando os dados mudam (ex.: arrastar o card com ela aberta).
+    body.addEventListener("click", (e) => { if (e.target.id === "act-salvar") salvarTudo(); });
+    // Fechar no ✕ ou fora da janela também guarda o que ficou digitado (nada se perde).
+    $("modal-activity").addEventListener("modal:dismiss", () => salvarTudo({ fechar: false }));
+    // Mantém a janela atualizada quando os dados mudam (ex.: arrastar o card com ela aberta),
+    // sem apagar o que está sendo digitado.
     A.store.subscribe(() => {
       if (!atual || !$("modal-activity").classList.contains("open")) return;
-      const focado = document.activeElement?.id;
-      if (focado === "act-obs" || focado === "act-prazo") return; // não atrapalha quem digita
       renderActivity();
-      if (focado) $(focado)?.focus();
     });
   }
 

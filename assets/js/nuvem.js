@@ -69,6 +69,63 @@
     ligarTempoReal();
     if (membro.perfil === "admin") carregarMembros();
     A.financeiro?.carregar();
+    entrarOnline();
+  }
+
+  /* ---------- Quem está online (as bolinhas só aparecem para o administrador) ---------- */
+  const ABA_NOME = {
+    programa: "Programa", executivo: "Painel executivo", guia: "Guia", triagem: "Triagem", priorizacao: "Priorização", ondas: "Ondas",
+    kanban: "Kanban", overview: "Cronograma", decisoes: "Decisões", historico: "Histórico", projeto: "ficha de um projeto", setor: "página de setor", cadastros: "Cadastros",
+  };
+  let canalOnline = null;
+  const entrouEm = new Date().toISOString();
+  const abaAtual = () => location.hash.slice(1).split("/")[0] || "executivo";
+
+  function entrarOnline() {
+    if (canalOnline || !sb || !membro) return;
+    canalOnline = sb.channel("online-altamar", { config: { presence: { key: membro.email } } });
+    canalOnline
+      .on("presence", { event: "sync" }, renderOnline)
+      .subscribe((st) => { if (st === "SUBSCRIBED") marcarPresenca(); });
+  }
+  function marcarPresenca() {
+    if (canalOnline && membro) canalOnline.track({ nome: membro.nome, aba: abaAtual(), desde: entrouEm }).catch(() => {});
+  }
+  function sairOnline() {
+    if (!canalOnline) return;
+    try { canalOnline.untrack(); sb.removeChannel(canalOnline); } catch {}
+    canalOnline = null;
+    renderOnline();
+  }
+
+  const iniciais = (nome) => {
+    const p = String(nome || "?").trim().split(/\s+/);
+    return (p.length > 1 ? p[0][0] + p[p.length - 1][0] : p[0].slice(0, 2)).toUpperCase();
+  };
+  // Cor da bolinha: a do setor que a pessoa lidera (ou do setor dela no cadastro).
+  function corDe(nome) {
+    const S = A.store;
+    const lidera = S.areas().find((a) => a.lider === nome);
+    if (lidera) return lidera.cor;
+    const p = (S.state.data.config?.pessoas || []).find((x) => x.nome === nome);
+    return (p && S.findArea(p.area)?.cor) || "#5b6472";
+  }
+
+  function renderOnline() {
+    const el = $("online");
+    if (!el) return;
+    if (!canalOnline || membro?.perfil !== "admin") { el.classList.add("hidden"); el.innerHTML = ""; return; }
+    const hora = (iso) => new Date(iso).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" });
+    // Uma bolinha por pessoa, mesmo com o painel aberto em várias abas do navegador.
+    const pessoas = Object.entries(canalOnline.presenceState()).map(([email, metas]) => {
+      const m = metas[metas.length - 1] || {};
+      const desde = metas.map((x) => x.desde).filter(Boolean).sort()[0];
+      return { email, nome: m.nome || email, aba: m.aba, desde, eu: email === membro.email };
+    }).sort((a, b) => a.eu - b.eu || a.nome.localeCompare(b.nome, "pt-BR"));
+    el.classList.toggle("hidden", !pessoas.length);
+    el.innerHTML = pessoas.map((p) => `
+      <span class="online-av ${p.eu ? "eu" : ""}" style="--c:${corDe(p.nome)}" tabindex="0"
+        title="${esc(`${p.nome}${p.eu ? " (você)" : ""} · online\nNa aba: ${ABA_NOME[p.aba] || p.aba || "—"}${p.desde ? `\nEntrou às ${hora(p.desde)}` : ""}`)}">${esc(iniciais(p.nome))}</span>`).join("");
   }
 
   async function buscar({ primeiraVez = false } = {}) {
@@ -101,6 +158,8 @@
     setStatus(`☁️ Sincronizado · última alteração de ${data.atualizado_por || "—"} às ${horaDe(data.atualizado_em)}`);
     // Dados antigos que migraram de versão: quem pode escrever já devolve a versão nova ao banco.
     if (primeiraVez && origem === "upgraded" && podeEscrever()) agendar();
+    // Virada do mês: quem pode gravar encerra o ciclo que terminou e abre o novo (uma vez; os outros recebem pronto).
+    if (primeiraVez && podeEscrever()) A.avisarViradaDoMes?.(A.store.virarMes());
   }
 
   function ligarTempoReal() {
@@ -162,6 +221,24 @@
         : msg.includes("Could not find") || msg.includes("does not exist") ? "O banco ainda não tem a regra para atualizar atividades. Avise o administrador (script 02)."
         : "Não foi possível salvar a atividade. Tente de novo.", "error", 6000);
       await buscar();
+      return { ok: false };
+    }
+    versao = data;
+    await buscar();
+    return { ok: true };
+  }
+
+  // Líder (perfil Visualização) envia o plano do projeto para aprovação; o banco confere se ele lidera o setor.
+  async function enviarPlano(iniId, atividades) {
+    if (!sb || !membro) return { ok: false };
+    setStatus("Enviando o plano…");
+    const { data, error } = await sb.rpc("enviar_plano", { p_ini: iniId, p_atividades: atividades });
+    if (error) {
+      const msg = String(error.message || "");
+      toast(msg.includes("nao_lider") ? "Você só pode enviar o plano dos projetos do setor que lidera."
+        : msg.includes("Could not find") || msg.includes("does not exist") ? "O banco ainda não tem a regra do plano do projeto. Avise o administrador (script 04)."
+        : "Não foi possível enviar o plano. Tente de novo.", "error", 7000);
+      setStatus("⚠️ O plano não foi enviado");
       return { ok: false };
     }
     versao = data;
@@ -247,6 +324,7 @@
     await sb.auth.signOut();
     membro = null; versao = null;
     A.financeiro?.limpar();
+    sairOnline();
     delete document.body.dataset.perfil;
     abrirLogin("entrar");
   }
@@ -362,12 +440,14 @@
       salvarMembro(el.dataset.membro, { [el.dataset.campo]: el.type === "checkbox" ? el.checked : el.value });
     });
     document.addEventListener("submit", (e) => { if (e.target.id === "acesso-form") novoMembro(e); });
+    window.addEventListener("hashchange", marcarPresenca);
     $("menu-sair").classList.remove("hidden");
     $("menu-sair").addEventListener("click", () => sair());
   }
 
   A.nuvem = {
-    configurado, init, iniciar, agendar, sair, conectado, renderMembros, atualizarMinhaAtividade,
+    configurado, init, iniciar, agendar, sair, conectado, renderMembros, atualizarMinhaAtividade, enviarPlano,
+    podeEscrever: () => !configurado || podeEscrever(),
     status: () => status,
     perfil: () => membro?.perfil || null,
     cliente: () => (membro ? sb : null),

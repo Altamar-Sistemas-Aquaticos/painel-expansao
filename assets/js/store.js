@@ -8,11 +8,24 @@
   const SETTINGS_KEY = "altamar_painel_settings_v2";
   const LEGACY_INI = "altamar_expansao_iniciativas_v1";
   const LEGACY_DEC = "altamar_expansao_decisoes_v1";
-  const SCHEMA_VERSION = 8; // 4: esforço em meses, sprints e checklist · 5: "esforço a revisar" · 6: eixos e fases · 7: setores com líder e ciclo mensal
+  const SCHEMA_VERSION = 10; // 4: esforço em meses, sprints e checklist · 5: "esforço a revisar" · 6: eixos e fases · 7: setores com líder e ciclo mensal · 9: onda acompanha o ciclo
   const PORTFOLIO_BASE_DATE = "2026-09-01T12:00:00.000Z"; // data-base dos 29 projetos iniciais
   const HISTORY_LIMIT = 2000;
 
   const ONDA_KEYS = ONDAS.map((o) => o.key);
+  // Onda (trimestre) em que cai uma data; fora do horizonte das ondas, nenhuma.
+  function ondaDaData(d) {
+    if (!d) return null;
+    const iso = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+    return ONDAS.find((o) => o.inicio && iso >= o.inicio && iso <= o.fim)?.key || null;
+  }
+  // Ao entrar num ciclo, o projeto passa para a onda daquele mês, se estava na Fila ou numa onda mais adiante.
+  function ondaAoEntrar(ondaAtual, inicioDoCiclo) {
+    const nova = ondaDaData(inicioDoCiclo);
+    if (!nova) return ondaAtual;
+    const ordem = (k) => (k === "Fila" || !ONDA_KEYS.includes(k) ? Infinity : ONDA_KEYS.indexOf(k));
+    return ordem(ondaAtual) > ordem(nova) ? nova : ondaAtual;
+  }
   const SEMAFORO_KEYS = SEMAFOROS.map((s) => s.key);
   const COLUNA_KEYS = COLUNAS.map((c) => c.key);
   const STATUS_BY_COLUNA = Object.fromEntries(COLUNAS.map((c) => [c.key, c.status]));
@@ -33,7 +46,7 @@
   const ACTIVITY_FIELDS = {
     nome: "Atividade", entregavel: "Entregável", pct: "% concluído", status: "Status", raci: "RACI",
     inicio: "Início", prazo: "Prazo", dependeDe: "Depende de", observacoes: "Observações",
-    sprint: "Ciclo", esperando: "Esperando / travada", checklist: "Checklist",
+    sprint: "Ciclo", esperando: "Esperando / travada", checklist: "Checklist", marco: "Marco",
   };
   const DECISION_FIELDS = {
     data: "Data", quem: "Quem decide", grupo: "Projeto", pauta: "Pauta", status: "Status", resultado: "Decisão / encaminhamento",
@@ -200,7 +213,26 @@
       prazo: String(raw.prazo ?? "").trim(),
       dependeDe: String(raw.dependeDe ?? "").trim(),
       observacoes: String(raw.observacoes ?? "").trim(),
+      marco: !!raw.marco, // ◆ entrega importante do projeto (destaque na lista e na linha do tempo)
     };
+  }
+
+  // Proposta de plano enviada pelo líder do setor: fica separada até o gestor aprovar.
+  function normalizeProposta(raw) {
+    if (!raw || !Array.isArray(raw.atividades)) return null;
+    return {
+      atividades: raw.atividades.map(normalizeActivity).filter((a) => a.nome),
+      por: String(raw.por ?? "").trim(),
+      em: raw.em || new Date().toISOString(),
+      status: raw.status === "ajuste" ? "ajuste" : "enviado",
+      comentario: String(raw.comentario ?? "").trim(),
+      ajustePor: String(raw.ajustePor ?? "").trim(),
+    };
+  }
+  // Plano aprovado (linha de base): os prazos combinados, para comparar "previsto × atual".
+  function normalizeBase(raw) {
+    if (!raw || typeof raw.prazos !== "object" || !raw.prazos) return null;
+    return { em: raw.em || "", por: String(raw.por ?? ""), prazos: Object.fromEntries(Object.entries(raw.prazos).map(([k, v]) => [k, String(v ?? "")])) };
   }
 
   // Atividades iniciais da planilha (activities-seed.js), usadas quando a iniciativa ainda não tem o campo.
@@ -257,6 +289,8 @@
       atividades: Array.isArray(raw.atividades)
         ? raw.atividades.map(normalizeActivity).filter((a) => a.nome)
         : seedActivities(String(raw.id ?? "").trim().toUpperCase()),
+      planoProposta: normalizeProposta(raw.planoProposta),
+      planoBase: normalizeBase(raw.planoBase),
       criadoEm: raw.criadoEm || new Date().toISOString(),
       atualizadoEm: raw.atualizadoEm || raw.criadoEm || new Date().toISOString(),
     };
@@ -484,7 +518,28 @@
           });
           data.config.areas.forEach((ar) => { ar.lider = troca(ar.lider); });
         }
-      }      // Antes da versão 6 não havia eixos: aplica a classificação inicial combinada com a diretoria.
+      }
+      if (!(raw.version >= 10)) {
+        // Marcos e atividades viram uma lista só: cada marco do antigo "checklist do projeto" vira uma atividade ◆.
+        data.initiatives.forEach((it) => {
+          (it.checklist || []).forEach((m) => {
+            if (it.atividades.some((a) => a.marco && a.nome === m.texto)) return;
+            it.atividades.push(normalizeActivity({
+              nome: m.texto, prazo: m.data, marco: true, status: m.feito ? "Concluído" : "A fazer",
+              raci: it.responsavel ? { [it.responsavel]: "R" } : {},
+            }));
+          });
+          it.checklist = [];
+        });
+      }
+      if (!(raw.version >= 9)) {
+        // A onda passa a acompanhar o ciclo: projeto escolhido para um ciclo e ainda na Fila vai para a onda daquele mês.
+        data.initiatives.forEach((it) => {
+          const sp = it.ciclo && data.sprints.find((s) => s.id === it.ciclo);
+          if (sp) it.onda = ondaAoEntrar(it.onda, fromIso(sp.inicio));
+        });
+      }
+      // Antes da versão 6 não havia eixos: aplica a classificação inicial combinada com a diretoria.
       if (!(raw.version >= 6)) {
         data.initiatives.forEach((it) => {
           if (!it.eixo && A.meta.EIXO_INICIAL[it.id] && data.config.eixos.some((e) => e.key === A.meta.EIXO_INICIAL[it.id])) it.eixo = A.meta.EIXO_INICIAL[it.id];
@@ -785,13 +840,30 @@
   const sprintAtual = () => [...store.data.sprints].reverse().find((s) => !s.encerrada) || null;
   const findSprint = (id) => store.data.sprints.find((s) => s.id === id) || null;
   // Atividades (com o projeto) de uma sprint.
+  // Está no Kanban do ciclo? Colocada à mão (sprint = id do ciclo) ou automática: projeto no ciclo e
+  // prazo dentro do mês (ou vencido e não terminado). "-S3" = tirada à mão do Kanban do ciclo S3.
+  function noKanban(it, a, sp = sprintAtual()) {
+    if (!sp || a.status === "Cancelado" || it.status === "Cancelado") return false;
+    if (a.sprint === sp.id) return true;
+    if (a.sprint === `-${sp.id}` || it.ciclo !== sp.id) return false;
+    const d = parseDate(a.prazo);
+    if (!d) return false;
+    const { inicio, fim } = sprintDates(sp);
+    return d <= fim && (d >= inicio || a.status !== "Concluído");
+  }
   function sprintItems(sp = sprintAtual()) {
     if (!sp) return [];
     const out = [];
     store.data.initiatives.forEach((it) => it.atividades.forEach((a) => {
-      if (a.sprint === sp.id && a.status !== "Cancelado" && it.status !== "Cancelado") out.push({ it, a });
+      if (noKanban(it, a, sp)) out.push({ it, a });
     }));
     return out;
+  }
+  // Colocar ou tirar a atividade do Kanban do ciclo atual.
+  function setNoKanban(iniId, actId, entra) {
+    const sp = sprintAtual();
+    if (!sp) return { ok: false, error: "Nenhum ciclo aberto." };
+    return saveActivity(iniId, actId, { sprint: entra ? sp.id : `-${sp.id}` }, { source: "Kanban" });
   }
   const activityCol = (a) => (a.status === "Concluído" ? "done" : a.status === "Em andamento" ? (a.esperando ? "waiting" : "doing") : "todo");
   const sprintDates = (sp) => ({ inicio: fromIso(sp.inicio), fim: fromIso(sp.fim) });
@@ -804,8 +876,8 @@
     const entries = [];
     store.data.initiatives.forEach((it) => it.atividades.forEach((a) => {
       const quer = set.has(`${it.id}|${a.id}`);
-      if (quer === (a.sprint === sp.id)) return;
-      const r = saveActivity(it.id, a.id, { sprint: quer ? sp.id : "" }, { source: "Ciclo", silent: true });
+      if (quer === noKanban(it, a, sp)) return;
+      const r = saveActivity(it.id, a.id, { sprint: quer ? sp.id : `-${sp.id}` }, { source: "Ciclo", silent: true });
       if (r.entry) entries.push(r.entry);
     }));
     const changes = [];
@@ -860,6 +932,7 @@
         const vai = noProximoCiclo(it);
         if (vai && it.ciclo === atual.id) projetosLevados++;
         it.ciclo = vai ? nova.id : it.ciclo === atual.id ? "" : it.ciclo;
+        if (vai) it.onda = ondaAoEntrar(it.onda, fromIso(nova.inicio));
         if (!vai) it.estrategico = it.ciclo ? it.estrategico : false;
         it.proximoCiclo = "";
       });
@@ -874,6 +947,22 @@
     if (atual) entries.push(entry("sprint", atual.id, "encerrou", `${nomeCiclo(atual)} encerrado: ${feitas} feita(s), ${levadas} levada(s) para o ${nomeCiclo(nova)}`, [], "Ciclo"));
     commit(entries);
     return { ok: true, sprint: nova, levadas, feitas, projetosLevados };
+  }
+
+  // Virada do mês: se o ciclo aberto já terminou, encerra e abre o do mês atual (aplicando o planejamento feito
+  // na Priorização). Repete se o painel ficou meses sem ser aberto. Devolve um resumo por ciclo encerrado.
+  function virarMes() {
+    const hoje = new Date(); hoje.setHours(0, 0, 0, 0);
+    const resumos = [];
+    for (let i = 0; i < 12; i++) {
+      const sp = sprintAtual();
+      if (!sp || hoje <= fromIso(sp.fim)) break;
+      const nome = nomeCiclo(sp);
+      const r = novaSprint();
+      if (!r.ok) break;
+      resumos.push({ encerrado: nome, aberto: nomeCiclo(r.sprint), feitas: r.feitas, levadas: r.levadas, projetos: r.projetosLevados });
+    }
+    return resumos;
   }
 
   function saveSprint(patch) {
@@ -930,7 +1019,7 @@
     const it = findInitiative(id);
     if (!it) return { ok: false, error: "Projeto não encontrado." };
     if (noCiclo && (!it.valor || !it.esforco)) return { ok: false, error: "Dê valor e esforço ao projeto antes de colocá-lo no ciclo." };
-    return saveInitiative(noCiclo ? { ciclo: sp.id } : { ciclo: "", estrategico: false, estrategicoMotivo: "" }, id, { source: "Priorização", motivo });
+    return saveInitiative(noCiclo ? { ciclo: sp.id, onda: ondaAoEntrar(it.onda, fromIso(sp.inicio)) } : { ciclo: "", estrategico: false, estrategicoMotivo: "" }, id, { source: "Priorização", motivo });
   }
   // Depois da 1ª semana do ciclo, trocar projetos é uma repriorização: pede motivo (fica no histórico).
   function cicloJaAndando() {
@@ -974,7 +1063,7 @@
     if (!it) return { ok: false, error: "Projeto não encontrado." };
     if (!String(motivo || "").trim()) return { ok: false, error: "Escreva o motivo da escolha estratégica." };
     const marca = { estrategico: true, estrategicoMotivo: String(motivo).trim() };
-    return saveInitiative(proximo ? { ...marca, proximoCiclo: "sim" } : { ...marca, ciclo: sp.id }, id, { source: proximo ? "Planejamento do próximo ciclo" : "Priorização" });
+    return saveInitiative(proximo ? { ...marca, proximoCiclo: "sim" } : { ...marca, ciclo: sp.id, onda: ondaAoEntrar(it.onda, fromIso(sp.inicio)) }, id, { source: proximo ? "Planejamento do próximo ciclo" : "Priorização" });
   }
 
   /* ---------- Ficha do projeto: dependências, ritmo, marcos e fila ---------- */
@@ -988,9 +1077,7 @@
   // Ritmo do projeto contra o próprio plano: % feito × % esperado hoje (pelo início e pelo prazo).
   function ritmo(it) {
     const ini = parseDate(it.inicio), fim = parseDate(it.prazo);
-    const feitoEtapas = progress(it);
-    const marcos = it.checklist || [];
-    const feito = feitoEtapas ?? (marcos.length ? Math.round((marcos.filter((m) => m.feito).length / marcos.length) * 100) : 0);
+    const feito = progress(it) ?? 0;
     if (!ini || !fim || fim <= ini) return { feito, esperado: null, situacao: null };
     const hoje = new Date(); hoje.setHours(0, 0, 0, 0);
     const esperado = Math.max(0, Math.min(100, Math.round(((hoje - ini) / (fim - ini)) * 100)));
@@ -998,11 +1085,143 @@
     const situacao = it.status === "Concluído" ? "concluido" : hoje < ini ? "nao-comecou" : dif >= 5 ? "adiantado" : dif >= -10 ? "no-ritmo" : dif >= -25 ? "atencao" : "atrasado";
     return { feito, esperado, situacao, ini, fim };
   }
-  // Próximo marco ainda não entregue (o de data mais próxima).
+  // Próximo marco (◆) ainda não entregue, o de data mais próxima. { texto, data, d, marco }
   function proximoMarco(it) {
-    return (it.checklist || []).filter((m) => !m.feito)
-      .map((m) => ({ ...m, d: parseDate(m.data) }))
-      .sort((a, b) => (a.d ? a.d.getTime() : Infinity) - (b.d ? b.d.getTime() : Infinity))[0] || null;
+    const abertas = it.atividades.filter((a) => a.status !== "Concluído" && a.status !== "Cancelado")
+      .map((a) => ({ texto: a.nome, data: a.prazo, d: parseDate(a.prazo), marco: a.marco }))
+      .sort((a, b) => (a.d ? a.d.getTime() : Infinity) - (b.d ? b.d.getTime() : Infinity));
+    return abertas.find((a) => a.marco) || null;
+  }
+
+  /* ---------- Plano do projeto ---------- */
+  // Revisor: o que falta ou não fecha no plano (lista de atividades do projeto ou de uma proposta).
+  function revisorPlano(it, atividades = it.atividades) {
+    const w = [];
+    const acts = atividades.filter((a) => a.status !== "Cancelado");
+    if (!acts.length) return ["Nenhuma atividade ainda: comece pelo que precisa acontecer primeiro."];
+    const semR = acts.filter((a) => !raciPeople(a.raci, "R").length);
+    if (semR.length) w.push(`${semR.length === 1 ? `“${semR[0].nome}” está` : `${semR.length} atividades estão`} sem responsável.`);
+    const semPrazo = acts.filter((a) => !parseDate(a.prazo) && a.status !== "Concluído");
+    if (semPrazo.length) w.push(`${semPrazo.length === 1 ? `“${semPrazo[0].nome}” está` : `${semPrazo.length} atividades estão`} sem prazo.`);
+    const fimProj = parseDate(it.prazo);
+    if (fimProj) acts.filter((a) => parseDate(a.prazo) > fimProj)
+      .forEach((a) => w.push(`“${a.nome}” (${a.prazo}) passa do prazo do projeto (${it.prazo}).`));
+    acts.forEach((a) => {
+      const ini = parseDate(a.inicio), fim = parseDate(a.prazo);
+      if (ini && fim && (fim - ini) / 86400000 > 35) w.push(`“${a.nome}” dura mais de um mês: quebre em partes menores para caber no ciclo.`);
+      const dep = parseInt(a.dependeDe, 10) && atividades[parseInt(a.dependeDe, 10) - 1];
+      const fimDep = dep && parseDate(dep.prazo);
+      if (fimDep && fim && fimDep > fim) w.push(`“${a.nome}” depende de “${dep.nome}”, que termina depois dela.`);
+    });
+    if (!acts.some((a) => a.marco)) w.push("Nenhum marco (◆): marque as entregas importantes para acompanhar o projeto.");
+    // Pessoa com muitas atividades abertas no mesmo mês.
+    const carga = {};
+    acts.filter((a) => a.status !== "Concluído").forEach((a) => {
+      const r = raciPeople(a.raci, "R")[0], d = parseDate(a.prazo);
+      if (!r || !d) return;
+      const k = `${r}|${d.getFullYear()}-${d.getMonth()}`;
+      carga[k] = (carga[k] || 0) + 1;
+    });
+    Object.entries(carga).filter(([, n]) => n > 5).forEach(([k, n]) => {
+      const [nome, ym] = k.split("|");
+      const [y, m] = ym.split("-").map(Number);
+      w.push(`${nome} tem ${n} atividades com prazo em ${new Date(y, m, 1).toLocaleDateString("pt-BR", { month: "long" })} só neste projeto.`);
+    });
+    return w;
+  }
+
+  // Cadastro rápido: várias atividades de uma vez (uma por linha ao colar uma lista).
+  function adicionarAtividades(iniId, lista, { source = "Plano do projeto" } = {}) {
+    const it = findInitiative(iniId);
+    if (!it) return { ok: false, error: "Projeto não encontrado." };
+    const entries = [];
+    lista.forEach((x) => {
+      const r = saveActivity(iniId, null, x, { source, silent: true });
+      if (r.entry) entries.push(r.entry);
+    });
+    if (!entries.length) return { ok: false, error: "Escreva o que precisa ser feito." };
+    commit(entries.reverse());
+    return { ok: true, total: entries.length };
+  }
+
+  // Tirar do plano: atividade ainda intocada sai; a que já andou é cancelada (o que foi feito fica registrado).
+  function removerDoPlano(iniId, actId) {
+    const it = findInitiative(iniId);
+    const a = findActivity(iniId, actId);
+    if (!it || !a) return { ok: false, error: "Atividade não encontrada." };
+    const intocada = a.status === "A fazer" && !a.pct && !a.checklist.some((x) => x.feito);
+    if (!intocada) return { ...saveActivity(iniId, actId, { status: "Cancelado" }, { source: "Plano do projeto" }), cancelada: true };
+    it.atividades = it.atividades.filter((x) => x.id !== actId);
+    commit([entry("atividade", it.id, "excluiu", `${it.id} · ${a.nome}`, [], "Plano do projeto")]);
+    return { ok: true };
+  }
+
+  // Ao aprovar: guarda os prazos combinados como referência ("previsto").
+  const fotoDoPlano = (it) => ({ em: new Date().toISOString(), por: store.settings.user || "", prazos: Object.fromEntries(it.atividades.map((a) => [a.id, a.prazo])) });
+
+  // Líder envia o plano (quando não há banco, ou para o gestor testar "ver como"): fica como proposta.
+  function enviarProposta(iniId, atividades) {
+    const it = findInitiative(iniId);
+    if (!it) return { ok: false, error: "Projeto não encontrado." };
+    it.planoProposta = normalizeProposta({ atividades, por: store.settings.user || "", em: new Date().toISOString(), status: "enviado" });
+    commit([entry("iniciativa", it.id, "propôs", `${it.id} · plano do projeto enviado para aprovação (${it.planoProposta.atividades.length} atividades)`, [], "Plano do projeto")]);
+    return { ok: true };
+  }
+
+  // O que a proposta muda no plano atual: novas, alteradas (com os campos) e retiradas.
+  const CAMPOS_PLANO = { nome: "Atividade", prazo: "Prazo", inicio: "Início", entregavel: "Entregável", marco: "Marco", dependeDe: "Depende de", raci: "Responsável" };
+  function diferencasDaProposta(it) {
+    const p = it.planoProposta;
+    if (!p) return null;
+    const atuais = new Map(it.atividades.map((a) => [a.id, a]));
+    const novas = [], alteradas = [];
+    p.atividades.forEach((a) => {
+      const antes = atuais.get(a.id);
+      if (!antes) return novas.push(a);
+      const mud = diff(antes, a, CAMPOS_PLANO);
+      if (mud.length) alteradas.push({ a, antes, mudancas: mud });
+    });
+    const ids = new Set(p.atividades.map((a) => a.id));
+    const retiradas = it.atividades.filter((a) => !ids.has(a.id) && a.status !== "Cancelado");
+    return { novas, alteradas, retiradas };
+  }
+
+  // Aprovar: a proposta vira o plano (mantendo o andamento das atividades que já existiam) e os prazos viram a referência.
+  function aprovarPlano(iniId) {
+    const it = findInitiative(iniId);
+    if (!it) return { ok: false, error: "Projeto não encontrado." };
+    const changes = [];
+    if (it.planoProposta) {
+      const d = diferencasDaProposta(it);
+      const atuais = new Map(it.atividades.map((a) => [a.id, a]));
+      const novaLista = it.planoProposta.atividades.map((p) => {
+        const antes = atuais.get(p.id);
+        if (!antes) return normalizeActivity({ ...p, status: "A fazer", pct: 0, sprint: "", checklist: [], esperando: false });
+        return normalizeActivity({ ...antes, nome: p.nome, prazo: p.prazo, inicio: p.inicio, entregavel: p.entregavel, marco: p.marco, dependeDe: p.dependeDe, raci: p.raci });
+      });
+      // Retiradas: as intocadas saem; as que já andaram ficam canceladas.
+      d.retiradas.forEach((a) => {
+        if (a.status === "A fazer" && !a.pct) return;
+        novaLista.push(normalizeActivity({ ...a, status: "Cancelado" }));
+      });
+      it.atividades = novaLista;
+      changes.push({ field: "plano", label: "Plano", from: `proposto por ${it.planoProposta.por || "—"}`,
+        to: `${d.novas.length} nova(s), ${d.alteradas.length} alterada(s), ${d.retiradas.length} retirada(s)` });
+      it.planoProposta = null;
+    }
+    it.planoBase = fotoDoPlano(it);
+    it.atualizadoEm = new Date().toISOString();
+    commit([entry("iniciativa", it.id, "aprovou", `${it.id} · plano do projeto aprovado`, changes, "Plano do projeto")]);
+    return { ok: true };
+  }
+
+  function pedirAjustePlano(iniId, comentario) {
+    const it = findInitiative(iniId);
+    if (!it?.planoProposta) return { ok: false, error: "Não há proposta de plano para este projeto." };
+    if (!String(comentario || "").trim()) return { ok: false, error: "Escreva o que precisa ser ajustado." };
+    it.planoProposta = { ...it.planoProposta, status: "ajuste", comentario: String(comentario).trim(), ajustePor: store.settings.user || "" };
+    commit([entry("iniciativa", it.id, "pediu ajuste", `${it.id} · plano do projeto`, [{ field: "comentario", label: "Ajuste pedido", from: "", to: String(comentario).trim() }], "Plano do projeto")]);
+    return { ok: true };
   }
   // Há quantos ciclos (meses) o projeto validado espera na fila, fora do ciclo e sem começar.
   function tempoNaFila(it) {
@@ -1429,7 +1648,8 @@
     calc: { ve, cutoff, isAboveCut, wipCount, snapFib, snapEsforco, progress, parseDate, weekKey, sprintLimites, projetosPorOnda },
     eixos, findEixo, saveEixo, deleteEixo, eixoUso, criarFase, fasesDe,
     sprints, sprintAtual, findSprint, nomeCiclo, rotuloCiclo, proximoCicloInfo, noProximoCiclo, projetosNoProximo, setNoProximo,
-    destrava, custoAtraso, wsjf, sprintItems, activityCol, sprintDates, planSprint, moveActivity, novaSprint, saveSprint, saveChecklist,
+    destrava, custoAtraso, wsjf, sprintItems, noKanban, setNoKanban, virarMes, activityCol,
+    revisorPlano, adicionarAtividades, removerDoPlano, enviarProposta, diferencasDaProposta, aprovarPlano, pedirAjustePlano, sprintDates, planSprint, moveActivity, novaSprint, saveSprint, saveChecklist,
     findInitiative, nextId, saveInitiative, createProject, quickIdea, saveConfig, deleteInitiative, canDelete, advanceSituacao,
     moveToColumn, setOnda, setStatus, warnings, confirmarEsforco, setNoCiclo, projetosNoCiclo, setEstrategico, cicloJaAndando,
     dependenciasPendentes, liberaQuem, ritmo, proximoMarco, tempoNaFila,

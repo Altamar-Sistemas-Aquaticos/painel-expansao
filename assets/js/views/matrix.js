@@ -221,7 +221,7 @@
           </span>
           <span class="pr-ve" title="${ordem === "wsjf" ? esc(tipCdA) : `Valor ${it.valor} ÷ Esforço ${it.esforco}`}">${fmtNum(metrica(it))}</span>
           <label class="pr-ciclo" title="${podeCiclo ? (noCiclo ? `Em ${esc(nomeC)}: clique para tirar` : `Colocar em ${esc(nomeC)}`) : "Valide o projeto na Triagem antes de colocá-lo no ciclo"}">
-            <input type="checkbox" data-pr-ciclo="${esc(it.id)}" ${noCiclo ? "checked" : ""} ${podeCiclo && sp ? "" : "disabled"}><span>${noCiclo ? "No ciclo" : "Ciclo"}</span>
+            <input type="checkbox" data-pr-ciclo="${esc(it.id)}" ${noCiclo ? "checked" : ""} ${podeCiclo && sp ? "" : "disabled"}><span>${noCiclo ? "✓ Entrou" : "Entra"}</span>
           </label>
           ${!noCiclo && !isAbove && podeCiclo && sp ? `<button class="pr-star" data-pr-estrategico="${esc(it.id)}" title="Escolha estratégica: colocar no ciclo mesmo abaixo da linha de corte">⭐</button>` : ""}
         </li>`;
@@ -254,8 +254,8 @@
           <h2>Priorização</h2>
           <div class="muted">${proximo
             ? `Planejando <strong>${esc(nomeC)}</strong> sem mexer no ciclo em andamento. Projetos que não terminaram continuam (“continua”); desmarque o que deve sair.`
-            : setor ? `Projetos de <strong>${esc(setor.key)}</strong> (líder: ${esc(setor.lider || "a definir")}), comparados entre si. Marque na coluna “Ciclo” os que entram: até ${limite} por setor.`
-            : `Todos os setores juntos. Marque na coluna “Ciclo” os projetos que entram: até ${limite} por setor.`}</div>
+            : setor ? `Projetos de <strong>${esc(setor.key)}</strong> (líder: ${esc(setor.lider || "a definir")}), comparados entre si. Marque “Entra” nos projetos que andam em ${esc(nomeC.toLowerCase())}: até ${limite} por setor. As atividades deles com prazo no mês vão sozinhas para o Kanban.`
+            : `Todos os setores juntos. Marque “Entra” nos projetos que andam em ${esc(nomeC.toLowerCase())}: até ${limite} por setor. As atividades deles com prazo no mês vão sozinhas para o Kanban.`}</div>
         </div>
         <div class="row">
           <span class="badge ok">${above} acima do corte</span>
@@ -293,7 +293,7 @@
           <div class="pr-legend">${S.areas().map((a) => ui.areaBadge(a.key)).join("")}<span class="muted small"><span class="legend-ring"></span> em andamento</span></div>
         </section>
         <section class="panel pr-rank">
-          <div class="pr-rank-head"><span>#</span><span>ID</span><span>Projeto</span><span title="${ordem === "wsjf" ? "Custo do atraso ÷ esforço" : "Valor ÷ esforço"}">${ordem === "wsjf" ? "CdA÷E" : "V÷E"}</span><span>Ciclo</span></div>
+          <div class="pr-rank-head"><span>#</span><span>ID</span><span>Projeto</span><span title="${ordem === "wsjf" ? "Custo do atraso ÷ esforço" : "Valor ÷ esforço"}">${ordem === "wsjf" ? "CdA÷E" : "V÷E"}</span><span class="pr-col-ciclo">Ciclo de ${esc(nomeC.toLowerCase())}</span></div>
           <ol class="pr-list">${ranked.map(linha).join("") || `<li>${ui.empty("Nenhum projeto com nota neste setor.")}</li>`}</ol>
         </section>
       </div>`}`;
