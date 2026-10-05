@@ -36,21 +36,29 @@
     const valor = Number($("ini-valor").value);
     const esforco = Number($("ini-esforco").value);
     if (!valor || !esforco) {
-      $("ini-calc").innerHTML = `<span class="muted">Defina valor e esforço para calcular o V ÷ E e comparar com a linha de corte.</span>`;
+      $("ini-calc").innerHTML = `<span class="muted">Dê valor e esforço para ver o V÷E</span>`;
       return;
     }
-    const veVal = esforco ? valor / esforco : 0;
+    const veVal = valor / esforco;
     // A linha de corte considera os valores que estão sendo editados.
     const others = S.state.data.initiatives.filter((i) => i.id !== editingId);
     const cut = S.calc.cutoff([...others, { valor, esforco }]).value;
     const above = veVal >= cut - 1e-9;
-    $("ini-calc").innerHTML = `
-      <span>V ÷ E: <strong style="color:${above ? "var(--ok)" : "var(--text-muted)"}">${fmtNum(veVal)}</strong></span>
-      <span>Tempo estimado: <strong>${esc(A.meta.tempoPorEsforco(esforco))}</strong></span>
-      <span>Linha de corte: <strong>${fmtNum(cut)}</strong></span>
-      <span class="badge ${above ? "ok" : ""}">${above ? "Acima da linha — prioritária" : "Abaixo da linha"}</span>`;
+    $("ini-calc").innerHTML = `<span class="${above ? "ini-acima" : "ini-abaixo"}" title="Linha de corte: ${fmtNum(cut)} (média do programa). Acima dela, o projeto é candidato natural ao ciclo.">V÷E <strong>${fmtNum(veVal)}</strong> · ${above ? "acima da linha" : "abaixo da linha"}</span>`;
   }
 
+  // Cor do setor no cabeçalho e o código automático.
+  function pintarCabecalho() {
+    const a = A.area($("ini-area").value);
+    $("ini-modal-box").style.setProperty("--ac", a.cor);
+    $("ini-id-badge").textContent = $("ini-id").value || "—";
+  }
+  // Resumo do que já está preenchido nas seções recolhidas.
+  function resumirSecoes() {
+    const partes = [$("ini-responsavel").value && `líder ${$("ini-responsavel").value}`, $("ini-prazo").value && `prazo ${$("ini-prazo").value}`].filter(Boolean);
+    $("ini-andamento-resumo").textContent = partes.length ? ` · ${partes.join(" · ")}` : "";
+    $("ini-descricao-resumo").textContent = $("ini-objetivo").value.trim() ? " · preenchida" : "";
+  }
   // Prazo e dias corridos andam juntos: preencher um calcula o outro (a partir do início, ou de hoje).
   const DIA = 86400000;
   const fmtBR = (d) => d.toLocaleDateString("pt-BR");
@@ -84,6 +92,7 @@
     if (!/^[A-Z]+\d+$/.test($("ini-id").value.trim().toUpperCase())) return;
     $("ini-id").value = it && it.area === area && !codigoDeOutroSetor(it.id, area) ? it.id : S.nextId(area);
     $("ini-error").textContent = it && $("ini-id").value !== it.id ? `Mudou de setor: ao salvar, ${it.id} passa a ser ${$("ini-id").value}.` : "";
+    pintarCabecalho();
   }
 
   function openInitiativeForm(id = null) {
@@ -99,7 +108,7 @@
       semaforo: "verde", responsavel: S.state.settings.user || "", prazo: "", observacoes: "", enabler: false,
       situacao: "Rascunho", objetivo: "", prontoQuando: "", indicador: "", investimento: "Não",
     };
-    $("ini-modal-title").textContent = it ? `Editar ${it.id} · ${it.area}` : "Novo projeto";
+    $("ini-modal-title").textContent = it ? (it.criadoEm ? `criado em ${new Date(it.criadoEm).toLocaleDateString("pt-BR")}` : "Editar projeto") : "Novo projeto";
     $("ini-id").value = data.id;
     $("ini-nome").value = data.nome;
     $("ini-area").innerHTML = A.ui.areaOptions(data.area);
@@ -107,20 +116,15 @@
     $("ini-autor").textContent = data.autor || "Não informado";
     $("ini-situacao").value = data.situacao;
     $("ini-objetivo").value = data.objetivo || "";
-    $("ini-pronto").value = data.prontoQuando || "";
-    $("ini-indicador").value = data.indicador || "";
-    $("ini-invest").checked = data.investimento === "Sim";
     $("ini-valor").value = data.valor || "";
     $("ini-esforco").value = data.esforco || "";
     $("ini-urgencia").value = data.urgencia || "";
-    $("ini-onda").textContent = data.onda === "Fila" ? "Fila (sem onda)" : data.onda;
     $("ini-status").value = data.status;
     $("ini-semaforo").value = data.semaforo;
     $("ini-inicio").value = data.inicio || "";
     $("ini-prazo").value = data.prazo;
     atualizarDias();
     $("ini-obs").value = data.observacoes;
-    $("ini-enabler").checked = !!data.enabler;
     $("ini-error").textContent = "";
     // Projeto que já mudou de setor mas ficou com o código antigo (ex.: M9 em Vendas): sugere o código do setor.
     if (it && codigoDeOutroSetor(it.id, it.area)) {
@@ -132,11 +136,16 @@
 
     const decs = it ? S.state.data.decisions.filter((d) => d.grupo === it.id) : [];
     $("ini-related").innerHTML = decs.length
-      ? `<div class="field"><label>Decisões vinculadas</label>${decs.map((d) =>
-          `<div class="dec-snippet" data-action="edit-decision" data-id="${esc(d.id)}" role="button" tabindex="0">${A.ui.decisionBadge(d.status)} ${esc(d.pauta)}</div>`).join("")}</div>`
+      ? `<div class="ini-decisoes"><span class="muted small" title="Perguntas levadas à diretoria sobre este projeto. Ficam na aba Decisões até serem resolvidas.">⚖ Decisões da diretoria sobre este projeto:</span>${decs.map((d) =>
+          `<div class="dec-snippet" data-action="edit-decision" data-id="${esc(d.id)}" role="button" tabindex="0" title="Abrir a decisão">${A.ui.decisionBadge(d.status)} ${esc(d.pauta)}</div>`).join("")}</div>`
       : "";
     $("ini-meta").textContent = it ? `Atualizada em ${A.util.fmtDateTime(it.atualizadoEm)}` : "";
 
+    // Seções opcionais: abertas quando é projeto novo ou quando já têm conteúdo.
+    $("ini-andamento").open = !it || !!(data.prazo || data.inicio);
+    $("ini-descricao").open = !it || !!(data.objetivo || data.observacoes);
+    pintarCabecalho();
+    resumirSecoes();
     updateCalcBox();
     openModal("modal-initiative");
     setTimeout(() => $("ini-nome").focus(), 40);
@@ -158,12 +167,8 @@
       inicio: $("ini-inicio").value.trim(),
       prazo: $("ini-prazo").value,
       observacoes: $("ini-obs").value,
-      enabler: $("ini-enabler").checked,
       situacao: $("ini-situacao").value,
       objetivo: $("ini-objetivo").value,
-      prontoQuando: $("ini-pronto").value,
-      indicador: $("ini-indicador").value,
-      investimento: $("ini-invest").checked ? "Sim" : "Não",
     };
     const r = S.saveInitiative(input, editingId);
     if (!r.ok) {
@@ -401,8 +406,13 @@
     $("ini-valor").addEventListener("change", updateCalcBox);
     $("ini-esforco").addEventListener("change", updateCalcBox);
     $("ini-area").addEventListener("change", codigoAoTrocarSetor);
-    // A onda é decidida na aba Ondas: o link fecha a janela e leva até lá.
-    $("modal-initiative").addEventListener("click", (e) => { if (e.target.closest("[data-close-ini]")) closeModal("modal-initiative"); });
+    ["ini-responsavel", "ini-prazo", "ini-objetivo", "ini-dias"].forEach((id) => $(id).addEventListener("input", resumirSecoes));
+    $("ini-responsavel").addEventListener("change", resumirSecoes);
+    // 🎯 Valor pelos círculos de impacto, também no card.
+    $("ini-impacto").addEventListener("click", async () => {
+      const v = await A.impacto.escolher($("ini-valor").value, $("ini-nome").value || "Qual o alcance do projeto?");
+      if (v != null) { $("ini-valor").value = v; updateCalcBox(); }
+    });
     $("ini-delete").addEventListener("click", () => editingId && deleteInitiative(editingId));
     $("ini-add-decision").addEventListener("click", () => {
       const id = editingId;

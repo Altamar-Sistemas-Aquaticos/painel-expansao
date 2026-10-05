@@ -246,6 +246,33 @@
     return { ok: true };
   }
 
+  /* ---------- Anexos (arquivos guardados no banco, pasta "anexos") ---------- */
+  const BUCKET = "anexos";
+  async function enviarAnexo(file, iniId, actId) {
+    if (!sb || !membro) return { ok: false };
+    const limpo = file.name.normalize("NFD").replace(/[̀-ͯ]/g, "").replace(/[^\w.-]+/g, "_").slice(-80);
+    const caminho = `${iniId}/${actId}/${Date.now()}_${limpo}`;
+    const { error } = await sb.storage.from(BUCKET).upload(caminho, file, { upsert: false, contentType: file.type || undefined });
+    if (error) {
+      const msg = String(error.message || "");
+      toast(/bucket|not found/i.test(msg) ? "O banco ainda não tem a pasta de anexos. Avise o administrador (script 05)."
+        : /size|large/i.test(msg) ? "Arquivo grande demais (até 20 MB)." : "Não foi possível enviar o arquivo. Tente de novo.", "error", 7000);
+      return { ok: false };
+    }
+    return { ok: true, caminho };
+  }
+  // Link temporário (1 hora) para abrir o arquivo: só quem é membro consegue gerar.
+  async function linkAnexo(caminho) {
+    if (!sb || !membro) { toast("Entre com seu login para abrir arquivos anexados.", "warn"); return null; }
+    const { data, error } = await sb.storage.from(BUCKET).createSignedUrl(caminho, 3600);
+    if (error) { toast("Não foi possível abrir o arquivo.", "error"); return null; }
+    return data.signedUrl;
+  }
+  async function apagarAnexo(caminho) {
+    if (!sb || !membro || !caminho) return;
+    await sb.storage.from(BUCKET).remove([caminho]);
+  }
+
   /* ---------- Login ---------- */
   const TELAS = {
     entrar: { titulo: "Entrar no painel", botao: "Entrar", senha: true },
@@ -346,7 +373,7 @@
         <div>
           <h3 class="panel-title">Acesso ao painel</h3>
           <div class="muted small">Quem pode entrar e com qual perfil. Depois de cadastrada, a pessoa abre o painel e clica em “Primeiro acesso? Crie sua senha”.
-          <strong>Administrador</strong>: tudo · <strong>Diretoria</strong>: altera projetos, ondas, ciclo e decisões · <strong>Visualização</strong>: só vê.</div>
+          <strong>Administrador</strong>: tudo · <strong>Diretoria</strong>: altera projetos, ciclo e decisões · <strong>Visualização</strong>: só vê.</div>
         </div>
       </div>
       <div class="table-wrap">
@@ -446,7 +473,7 @@
   }
 
   A.nuvem = {
-    configurado, init, iniciar, agendar, sair, conectado, renderMembros, atualizarMinhaAtividade, enviarPlano,
+    configurado, init, iniciar, agendar, sair, conectado, renderMembros, atualizarMinhaAtividade, enviarPlano, enviarAnexo, linkAnexo, apagarAnexo,
     podeEscrever: () => !configurado || podeEscrever(),
     status: () => status,
     perfil: () => membro?.perfil || null,

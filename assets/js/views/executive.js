@@ -132,7 +132,7 @@
     if (od.atividades.length) items.push({ sev: "alert", text: `${od.atividades.length} atividade(s) atrasada(s)`, sub: [...new Set(od.atividades.map((x) => x.it.id))].slice(0, 5).join(", "), go: "overview" });
     const si = A.sprintInfo(S);
     if (!si.sp || si.terminou) items.push({ sev: "alert", text: si.sp ? `${si.rotulo} terminou em ${si.fimTxt}` : "Nenhum ciclo aberto", sub: "Encerrar e planejar o próximo ciclo", go: "kanban" });
-    else if (!si.total) items.push({ sev: "alert", text: `Planejar o ${si.rotulo}`, sub: `Escolher de ${si.min} a ${si.max} atividades dos projetos da onda`, go: "kanban" });
+    else if (!si.total) items.push({ sev: "alert", text: `Planejar o ${si.rotulo}`, sub: `Escolher de ${si.min} a ${si.max} atividades dos projetos do ciclo`, go: "kanban" });
     else if (si.acima) items.push({ sev: "alert", text: `${si.rotulo} com ${si.total} atividades (máximo ${si.max})`, sub: "Tirar atividades do ciclo ou ajustar o limite", go: "kanban" });
     else if (si.abaixo) items.push({ sev: "warn", text: `${si.rotulo} com só ${si.total} atividade(s) (mínimo ${si.min})`, sub: "Dá para puxar mais atividades no planejamento", go: "kanban" });
 
@@ -158,9 +158,9 @@
 
     const drafts = all.filter((i) => i.situacao === "Rascunho");
     if (drafts.length) items.push({ sev: "accent", text: `Validar ${drafts.length} rascunho(s)`, sub: drafts.map((i) => i.id).join(", "), go: "triagem" });
-    // Projeto validado parado na fila há uma onda inteira: a diretoria decide de propósito o que fica para trás.
+    // Projeto validado parado na fila há 3 meses ou mais: a diretoria decide de propósito o que fica para trás.
     const parados = all.filter((i) => (S.tempoNaFila(i) ?? 0) >= 3);
-    if (parados.length) items.push({ sev: "warn", text: `${parados.length} projeto(s) na fila há uma onda inteira`, sub: `Decidir: subir (⭐), dividir em fases ou arquivar · ${parados.slice(0, 5).map((i) => i.id).join(", ")}`, go: "priorizacao" });
+    if (parados.length) items.push({ sev: "warn", text: `${parados.length} projeto(s) na fila há 3 meses ou mais`, sub: `Decidir: subir (⭐), dividir em fases ou arquivar · ${parados.slice(0, 5).map((i) => i.id).join(", ")}`, go: "priorizacao" });
     const semNota = all.filter((i) => isOpen(i.status) && (!i.valor || !i.esforco));
     if (semNota.length) items.push({ sev: "accent", text: `Dar nota a ${semNota.length} ideia(s) na Triagem`, sub: semNota.slice(0, 5).map((i) => i.id).join(", "), go: "triagem" });
 
@@ -449,7 +449,7 @@
                 <div class="minha-acoes">
                   ${col === "todo" ? `<button class="btn btn-xs btn-outline" data-action="act-quick" data-id="${esc(key)}" data-q="next">▶ Começar</button>` : ""}
                   ${col === "doing" ? `<button class="btn btn-xs btn-outline" data-action="act-quick" data-id="${esc(key)}" data-q="block">⚠ Travou</button><button class="btn btn-xs btn-primary" data-action="act-quick" data-id="${esc(key)}" data-q="next">✓ Concluir</button>` : ""}
-                  ${col === "waiting" ? `<button class="btn btn-xs btn-outline" data-action="act-quick" data-id="${esc(key)}" data-q="next">▶ Destravar</button>` : ""}
+                  ${col === "waiting" || col === "blocked" ? `<button class="btn btn-xs btn-outline" data-action="act-quick" data-id="${esc(key)}" data-q="next">▶ Destravar</button>` : ""}
                 </div>
               </article>`;
           }).join("")}
@@ -465,7 +465,7 @@
     const a = A.store.findActivity(ini, act);
     if (!a) return;
     const patch = { checklist: a.checklist.map((x) => (x.id === ck ? { ...x, feito: cb.checked } : x)) };
-    if (cb.checked && a.status === "A fazer") Object.assign(patch, { status: "Em andamento", esperando: false });
+    if (cb.checked && a.status === "A fazer") Object.assign(patch, { status: "Em andamento", esperando: false, travado: false });
     A.board.salvarAtividade(ini, act, patch, "Painel executivo");
   });
   /* ---------- Render ---------- */

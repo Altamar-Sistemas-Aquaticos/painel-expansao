@@ -46,7 +46,7 @@
   const ACTIVITY_FIELDS = {
     nome: "Atividade", entregavel: "Entregável", pct: "% concluído", status: "Status", raci: "RACI",
     inicio: "Início", prazo: "Prazo", dependeDe: "Depende de", observacoes: "Observações",
-    sprint: "Ciclo", esperando: "Esperando / travada", checklist: "Checklist", marco: "Marco",
+    sprint: "Ciclo", esperando: "Esperando", travado: "Travada", checklist: "Checklist", marco: "Marco", anexos: "Anexos",
   };
   const DECISION_FIELDS = {
     data: "Data", quem: "Quem decide", grupo: "Projeto", pauta: "Pauta", status: "Status", resultado: "Decisão / encaminhamento",
@@ -180,7 +180,7 @@
 
   function normalizeChecklist(raw) {
     return (Array.isArray(raw) ? raw : [])
-      .map((x) => ({ id: x.id || uid("ck"), texto: String(x.texto ?? "").trim(), feito: !!x.feito }))
+      .map((x) => ({ id: x.id || uid("ck"), texto: String(x.texto ?? "").trim(), feito: !!x.feito, data: String(x.data ?? "").trim() }))
       .filter((x) => x.texto);
   }
 
@@ -203,7 +203,13 @@
       pct: pctChecklist ?? clampPct(raw.pct ?? (status === "Concluído" ? 100 : 0)),
       status,
       sprint: String(raw.sprint ?? "").trim(),
-      esperando: status === "Em andamento" && !!raw.esperando,
+      // Em andamento pode estar "esperando" (depende de alguém de fora) ou "travada" (problema que precisa de decisão).
+      travado: status === "Em andamento" && !!raw.travado,
+      esperando: status === "Em andamento" && !raw.travado && !!raw.esperando,
+      // Anexos: arquivos guardados no banco ou links (Drive, OneDrive…). { id, nome, tipo: "arquivo"|"link", url, caminho, por, em, tamanho }
+      anexos: (Array.isArray(raw.anexos) ? raw.anexos : []).filter((x) => x && (x.url || x.caminho)).map((x) => ({
+        id: x.id || uid("ax"), nome: String(x.nome ?? "").trim() || "anexo", tipo: x.tipo === "arquivo" ? "arquivo" : "link",
+        url: String(x.url ?? ""), caminho: String(x.caminho ?? ""), por: String(x.por ?? ""), em: x.em || "", tamanho: Number(x.tamanho) || 0 })),
       checklist,
       raci,
       // Derivados da RACI (mantidos para exportação e telas resumidas).
@@ -865,7 +871,7 @@
     if (!sp) return { ok: false, error: "Nenhum ciclo aberto." };
     return saveActivity(iniId, actId, { sprint: entra ? sp.id : `-${sp.id}` }, { source: "Kanban" });
   }
-  const activityCol = (a) => (a.status === "Concluído" ? "done" : a.status === "Em andamento" ? (a.esperando ? "waiting" : "doing") : "todo");
+  const activityCol = (a) => (a.status === "Concluído" ? "done" : a.status === "Em andamento" ? (a.travado ? "blocked" : a.esperando ? "waiting" : "doing") : "todo");
   const sprintDates = (sp) => ({ inicio: fromIso(sp.inicio), fim: fromIso(sp.fim) });
 
   // Planejamento: `selecionadas` = lista de "iniId|actId" que ficam na sprint atual (as demais saem).
@@ -898,10 +904,11 @@
     if (!it || !a) return { ok: false, error: "Atividade não encontrada." };
     if (activityCol(a) === col) return { ok: true, unchanged: true };
     const patch = {
-      todo: { status: "A fazer", esperando: false },
-      doing: { status: "Em andamento", esperando: false },
-      waiting: { status: "Em andamento", esperando: true },
-      done: { status: "Concluído", esperando: false },
+      todo: { status: "A fazer", esperando: false, travado: false },
+      doing: { status: "Em andamento", esperando: false, travado: false },
+      waiting: { status: "Em andamento", esperando: true, travado: false },
+      blocked: { status: "Em andamento", esperando: false, travado: true },
+      done: { status: "Concluído", esperando: false, travado: false },
     }[col];
     if (!patch) return { ok: false, error: "Coluna inválida." };
     if (a.status === "Concluído" && col !== "done" && !a.checklist.length) patch.pct = Math.min(a.pct, 90);

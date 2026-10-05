@@ -42,7 +42,7 @@
   function situacao(S, a) {
     if (a.status === "Cancelado") return ["Cancelada", "cancelada"];
     const col = S.activityCol(a);
-    return { todo: ["A fazer", "todo"], doing: ["Fazendo", "doing"], waiting: ["Travada", "waiting"], done: ["Feito", "done"] }[col];
+    return { todo: ["A fazer", "todo"], doing: ["Fazendo", "doing"], waiting: ["Esperando", "waiting"], blocked: ["Travada", "blocked"], done: ["Feito", "done"] }[col];
   }
 
   function linha(S, it, a, lider) {

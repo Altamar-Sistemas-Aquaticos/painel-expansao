@@ -7,8 +7,8 @@
   const SEM_ORDER = { vermelho: 0, amarelo: 1, verde: 2 };
 
   /* ---------- Kanban da sprint ---------- */
-  const PROXIMA = { todo: "doing", doing: "done", waiting: "doing" };
-  const PROXIMA_LABEL = { todo: "Começar (Fazendo)", doing: "Concluir (Feito)", waiting: "Destravar (Fazendo)" };
+  const PROXIMA = { todo: "doing", doing: "done", waiting: "doing", blocked: "doing" };
+  const PROXIMA_LABEL = { todo: "Começar: mover para Fazendo", doing: "Concluir: mover para Feito", waiting: "Voltou: mover para Fazendo", blocked: "Destravou: mover para Fazendo" };
 
   // Prazo vencido e a atividade ainda não terminou.
   function atrasada(S, a) {
@@ -17,7 +17,7 @@
     return !!d && d < hoje && a.status !== "Concluído" && a.status !== "Cancelado";
   }
 
-  function actCard(S, it, a) {
+  function actCard(S, it, a, { compacto = false } = {}) {
     const r = S.raciPeople(a.raci, "R")[0];
     const col = S.activityCol(a);
     const total = a.checklist.length, feitos = a.checklist.filter((x) => x.feito).length;
@@ -25,30 +25,30 @@
     const key = `${it.id}|${a.id}`;
     // Quem só visualiza mexe apenas nas atividades em que é o responsável (R).
     const pode = !viaBanco() || r === A.store.state.settings.user;
-    const dica = [`${it.id} · ${it.nome}`, a.prazo ? `Prazo: ${a.prazo}` : "", a.entregavel ? `Entregável: ${a.entregavel}` : "", a.observacoes ? `Obs.: ${a.observacoes}` : ""].filter(Boolean).join("\n");
+    const late = atrasada(S, a);
+    const dica = [`${it.id} · ${it.nome}`, a.prazo ? `Prazo: ${a.prazo}` : "", a.entregavel ? `Entregável: ${a.entregavel}` : "", a.observacoes ? `Obs.: ${a.observacoes}` : "", "Clique para abrir"].filter(Boolean).join("\n");
     return `
-      <div class="k-card act-card ${col}" draggable="true" data-drag="activity" data-ini="${esc(it.id)}" data-act="${esc(a.id)}"
+      <div class="k-card act-card ${col} ${compacto ? "compacto" : ""}" draggable="true" data-drag="activity" data-ini="${esc(it.id)}" data-act="${esc(a.id)}"
            data-action="open-activity" data-id="${esc(key)}" tabindex="0" role="button" title="${esc(dica)}"
-           aria-label="${esc(a.nome)}, do projeto ${esc(it.id)}" style="--ac:${A.area(it.area).cor}">
+           aria-label="${esc(a.nome)}, do projeto ${esc(it.nome)}" style="--ac:${A.area(it.area).cor}">
         <div class="act-top">
-          <span class="act-card-proj" title="${esc(`${it.id} · ${it.nome} (${it.area})`)}">
-            ${it.semaforo !== "verde" ? ui.dot(it.semaforo) : ""}<span class="act-card-pname">${esc(it.nome)}</span></span>
+          <span class="act-card-proj">${it.semaforo !== "verde" ? ui.dot(it.semaforo) : ""}<span class="act-card-pname">${esc(it.nome)}</span></span>
           <span class="act-av ${r ? "" : "none"}" title="${esc(r ? `Responsável: ${r}` : "Sem responsável (R)")}">${esc(r ? A.util.initials(r) : "?")}</span>
         </div>
-        <div class="act-card-title">${esc(a.nome)}</div>
-        ${a.prazo ? `<div class="act-prazo ${atrasada(S, a) ? "late" : ""}" title="Prazo da atividade">📅 ${esc(a.prazo)}${atrasada(S, a) ? " · atrasada" : ""}</div>` : ""}
-        <div class="act-bottom">
-          <span class="act-ring" style="--p:${a.pct}" title="${a.pct}% concluído"><b>${a.pct}</b></span>
-          ${total ? `<span class="act-ck" title="Passos do checklist">☑ ${feitos}/${total}</span>` : ""}
-          ${pode ? `<span class="act-quick no-print">
-            ${proximo && col !== "done" ? `<button class="q-btn" data-action="act-quick" data-id="${esc(key)}" data-q="step" title="Marcar passo: ${esc(proximo.texto)}">☐</button>` : ""}
-            ${col === "todo" || col === "doing" ? `<button class="q-btn warn" data-action="act-quick" data-id="${esc(key)}" data-q="block" title="Marcar como travado">⚠</button>` : ""}
-            ${PROXIMA[col] ? `<button class="q-btn go" data-action="act-quick" data-id="${esc(key)}" data-q="next" title="${PROXIMA_LABEL[col]}">→</button>` : ""}
-          </span>` : ""}
+        <div class="act-card-title">${a.marco ? "◆ " : ""}${esc(a.nome)}</div>
+        <div class="act-meta">
+          ${a.prazo ? `<span class="act-prazo ${late ? "late" : ""}" title="Prazo da atividade">📅 ${esc(a.prazo)}${late ? " · atrasada" : ""}</span>` : ""}
+          ${total ? `<span class="act-ck" title="${feitos} de ${total} passos feitos">☑ ${feitos}/${total}</span>` : ""}
+          ${a.anexos?.length ? `<span class="act-ck" title="${a.anexos.length} anexo(s)">📎 ${a.anexos.length}</span>` : ""}
         </div>
+        ${pode && proximo && col !== "done" ? `<button class="act-passo no-print" data-action="act-quick" data-id="${esc(key)}" data-q="step" title="Clique para marcar este passo como feito">
+          <span class="act-passo-box"></span><span><small>Próximo passo</small>${esc(proximo.texto)}</span></button>` : ""}
+        ${pode ? `<div class="act-quick no-print">
+          ${col === "todo" || col === "doing" || col === "waiting" ? `<button class="q-btn warn" data-action="act-quick" data-id="${esc(key)}" data-q="block" title="Travou: precisa de decisão ou ajuda (vai para Travado)">⚠ Travou</button>` : ""}
+          ${PROXIMA[col] ? `<button class="q-btn go" data-action="act-quick" data-id="${esc(key)}" data-q="next" title="${PROXIMA_LABEL[col]}">${col === "doing" ? "✓ Concluir" : "▶ Fazendo"}</button>` : ""}
+        </div>` : ""}
       </div>`;
   }
-
   function sprintHead(S, si) {
     if (!si.sp) {
       return `<div class="sprint-head panel"><div><h2>Nenhum ciclo aberto</h2></div>
@@ -83,42 +83,77 @@
       </div>`;
   }
 
-  // Filtro "Responsável": só aparece quando há duas ou mais pessoas com etapas na tela (equipe do líder).
+  // Filtro "Responsável": só aparece quando há duas ou mais pessoas com atividades na tela.
   function toolbar(S, responsaveis) {
     const sel = S.state.ui.kanbanResp || "";
-    const lider = A.visao.atual().tipo === "lider";
-    if (responsaveis.length < 2 && lider) return "";
+    if (responsaveis.length < 2) return "";
     return `
       <div class="kb-toolbar no-print">
-        ${responsaveis.length >= 2 ? `
-          <label class="kb-resp"><span class="muted small">Responsável:</span>
-            <select class="input input-sm" data-kb-resp>
-              <option value="">Todos</option>
-              ${responsaveis.map((n) => `<option ${n === sel ? "selected" : ""}>${esc(n)}</option>`).join("")}
-            </select>
-          </label>` : ""}
-        <span class="spacer"></span>
-        ${lider ? "" : `<span class="muted small">Os demais projetos ficam em <a href="#ondas">Ondas</a> e <a href="#priorizacao">Priorização</a>.</span>`}
+        <label class="kb-resp"><span class="muted small">Responsável:</span>
+          <select class="input input-sm" data-kb-resp>
+            <option value="">Todos</option>
+            ${responsaveis.map((n) => `<option ${n === sel ? "selected" : ""}>${esc(n)}</option>`).join("")}
+          </select>
+        </label>
       </div>`;
   }
-  function colunas(S, list, si, comCabecalho = true) {
+
+  const agrupar = (S, list) => {
     const cols = Object.fromEntries(A.meta.SPRINT_COLUNAS.map((c) => [c.key, []]));
     list.forEach((x) => cols[S.activityCol(x.a)].push(x));
     Object.values(cols).forEach((l) => l.sort((x, y) =>
       SEM_ORDER[x.it.semaforo] - SEM_ORDER[y.it.semaforo] || x.it.id.localeCompare(y.it.id, "pt-BR", { numeric: true })));
+    return cols;
+  };
+  const cabecalhoColuna = (c, n) => `
+    <div class="kb-col-head ${c.key}" title="${esc(c.hint)}"><span>${esc(c.label)}</span><b>${n}</b></div>`;
+
+  // Líder: o Kanban clássico do setor, com cabeçalhos fortes.
+  function colunas(S, list, si) {
+    const cols = agrupar(S, list);
     return A.meta.SPRINT_COLUNAS.map((c) => `
       <section class="k-col ${c.key}" data-drop-act="${c.key}" aria-label="${esc(c.label)}">
-        ${comCabecalho ? `<div class="k-head"><div><div class="k-title">${esc(c.label)}</div><div class="k-hint">${esc(c.hint)}</div></div>
-          <span class="badge ${c.key === "doing" ? "accent" : c.key === "waiting" && cols[c.key].length ? "warn" : ""}">${cols[c.key].length}</span></div>` : ""}
+        ${cabecalhoColuna(c, cols[c.key].length)}
         <div class="k-list">
           ${cols[c.key].length ? cols[c.key].map(({ it, a }) => actCard(S, it, a)).join("")
-            : comCabecalho ? `<div class="muted small k-empty">${c.key === "todo" && !si.total ? "Use “Planejar ciclo” para escolher as atividades" : "Arraste atividades para cá"}</div>` : ""}
+            : `<div class="muted small k-empty">${c.key === "todo" && !si.total ? "Nada combinado ainda para este ciclo" : "Arraste atividades para cá"}</div>`}
         </div>
       </section>`).join("");
   }
 
+  // Gestor e diretoria: uma página só, com uma faixa por setor e as cinco situações lado a lado.
+  function faixasPorSetor(S, list) {
+    const COLS = A.meta.SPRINT_COLUNAS;
+    const total = agrupar(S, list);
+    const setores = S.areas().map((a) => ({ a, itens: list.filter(({ it }) => it.area === a.key) }));
+    const comAtividade = setores.filter((s) => s.itens.length);
+    const vazios = setores.filter((s) => !s.itens.length).map((s) => s.a.key);
+    return `
+      <div class="kb-lanes" style="--ncols:${COLS.length}">
+        <div class="kb-lane kb-lane-head"><span></span>${COLS.map((c) => cabecalhoColuna(c, total[c.key].length)).join("")}</div>
+        ${comAtividade.map(({ a, itens }) => {
+          const cols = agrupar(S, itens);
+          const feitas = cols.done.length;
+          const pct = Math.round((feitas / itens.length) * 100);
+          const problemas = cols.blocked.length;
+          return `
+            <div class="kb-lane" style="--ac:${a.cor}">
+              <div class="kb-lane-nome">
+                <strong>${esc(a.key)}</strong>
+                <span>${esc(a.lider || "líder a definir")} · ${itens.length} ativ.</span>
+                <span class="kb-lane-barra" title="${feitas} de ${itens.length} feitas"><i style="width:${pct}%"></i></span>
+                ${problemas ? `<span class="kb-lane-alerta">${problemas} travada${problemas === 1 ? "" : "s"}</span>` : ""}
+              </div>
+              ${COLS.map((c) => `<div class="kb-cell ${c.key}" data-drop-act="${c.key}">${cols[c.key].map(({ it, a: at }) => actCard(S, it, at, { compacto: true })).join("")}</div>`).join("")}
+            </div>`;
+        }).join("") || `<div class="kb-vazio">Nenhuma atividade no Kanban deste ciclo ainda. Escolha os projetos na Priorização e monte o plano de cada um.</div>`}
+        ${vazios.length ? `<div class="kb-sem muted small">Sem atividades no ciclo: ${esc(vazios.join(", "))}</div>` : ""}
+      </div>`;
+  }
+
   A.views.kanban = function (S) {
     const si = A.sprintInfo(S);
+    const lider = A.visao.atual().tipo === "lider";
     // O líder de setor vê só os projetos do próprio setor.
     const doSetor = si.items.filter(({ it }) => A.visao.veProjeto(it) && S.matchesFilters(it));
     const responsaveis = [...new Set(doSetor.map(({ a }) => S.raciPeople(a.raci, "R")[0]).filter(Boolean))].sort((a, b) => a.localeCompare(b, "pt-BR"));
@@ -126,17 +161,18 @@
     if (resp && !responsaveis.includes(resp)) resp = S.state.ui.kanbanResp = "";
     const items = resp ? doSetor.filter(({ a }) => S.raciPeople(a.raci, "R")[0] === resp) : doSetor;
     // Para o líder, os números do cabeçalho são só do setor dele.
-    const siTela = A.visao.atual().tipo !== "lider" ? si : {
+    const siTela = !lider ? si : {
       ...si, items: doSetor, total: doSetor.length, acima: false, abaixo: false,
       feitas: doSetor.filter(({ a }) => a.status === "Concluído").length,
       projetos: new Set(doSetor.map(({ it }) => it.id)).size,
     };
     document.getElementById("sprint-head").innerHTML = sprintHead(S, siTela) + toolbar(S, responsaveis);
     const board = document.getElementById("kanban-board");
-    board.className = "kanban sprint-board";
-    board.innerHTML = colunas(S, items, si);
-  };
-  // Ações rápidas do card (sem abrir a atividade).
+    // Com o filtro de um setor só, a visão do gestor também vira o Kanban clássico.
+    const classico = lider || S.state.ui.area !== "ALL";
+    board.className = classico ? "kanban sprint-board" : "kb-gestor";
+    board.innerHTML = classico ? colunas(S, items, si) : faixasPorSetor(S, items);
+  };  // Ações rápidas do card (sem abrir a atividade).
   function quick(key, q) {
     const S = A.store;
     const [ini, act] = key.split("|");
@@ -147,12 +183,12 @@
       const prox = a.checklist.find((x) => !x.feito);
       if (!prox) return;
       const patch = { checklist: a.checklist.map((x) => (x.id === prox.id ? { ...x, feito: true } : x)) };
-      if (col === "todo") Object.assign(patch, { status: "Em andamento", esperando: false });
+      if (col === "todo") Object.assign(patch, { status: "Em andamento", esperando: false, travado: false });
       Promise.resolve(salvarAtividade(ini, act, patch)).then((r) => { if (r?.ok) toast(`Passo marcado: ${prox.texto}`); });
     } else if (q === "next" && PROXIMA[col]) {
       moveActivity(ini, act, PROXIMA[col]);
     } else if (q === "block") {
-      moveActivity(ini, act, "waiting");
+      moveActivity(ini, act, "blocked");
       A.sprint.openActivity(key);
       setTimeout(() => document.getElementById("act-obs")?.focus(), 60);
       toast("Escreva o que está travando a atividade.", "warn");
@@ -279,8 +315,9 @@
   async function moveActivity(iniId, actId, col) {
     const S = A.store;
     if (viaBanco()) {
-      const patch = { todo: { status: "A fazer", esperando: false }, doing: { status: "Em andamento", esperando: false },
-        waiting: { status: "Em andamento", esperando: true }, done: { status: "Concluído", esperando: false } }[col];
+      const patch = { todo: { status: "A fazer", esperando: false, travado: false }, doing: { status: "Em andamento", esperando: false, travado: false },
+        waiting: { status: "Em andamento", esperando: true, travado: false }, blocked: { status: "Em andamento", esperando: false, travado: true },
+        done: { status: "Concluído", esperando: false, travado: false } }[col];
       const r = await A.nuvem.atualizarMinhaAtividade(iniId, actId, patch);
       if (r.ok) toast(`Atividade movida para “${A.meta.SPRINT_COLUNAS.find((c) => c.key === col)?.label}”.`);
       return;

@@ -27,14 +27,14 @@
     const projetos = S.state.data.initiatives
       .filter((it) => it.situacao !== "Rascunho" && it.status !== "Concluído" && it.status !== "Cancelado" && it.atividades.some(aberta))
       .map((it) => ({ it, sel: it.atividades.filter((a) => plano.has(`${it.id}|${a.id}`)).length }))
-      .sort((x, y) => (y.sel > 0) - (x.sel > 0) || ONDA_ORDER[x.it.onda] - ONDA_ORDER[y.it.onda] || S.calc.ve(y.it) - S.calc.ve(x.it));
+      .sort((x, y) => (y.sel > 0) - (x.sel > 0) || (y.it.ciclo === (S.sprintAtual() || {}).id) - (x.it.ciclo === (S.sprintAtual() || {}).id) || S.calc.ve(y.it) - S.calc.ve(x.it));
 
     $("plan-body").innerHTML = `
       <div class="modal-head">
         <h3>Planejar o ${esc(si.rotulo)} <span class="muted small">· ${esc(si.periodo)}</span></h3>
         <button class="btn btn-xs btn-ghost" data-action="close-modal" data-target="modal-sprint" aria-label="Fechar">✕</button>
       </div>
-      <p class="muted small" style="margin-top:0">Escolha as atividades que vão andar nestas 4 semanas. Comece pelos projetos da onda atual e pelos que já estão em andamento.</p>
+      <p class="muted small" style="margin-top:0">Escolha as atividades que vão andar nestas 4 semanas. Comece pelos projetos escolhidos para o ciclo e pelos que já estão em andamento.</p>
       <div class="field">
         <label for="plan-objetivo">Objetivo do ciclo</label>
         <input id="plan-objetivo" class="input" value="${esc(sp.objetivo)}" placeholder="ex.: primeiras entregas de Vendas e o formulário de requisitos rodando" autocomplete="off">
@@ -42,11 +42,10 @@
       <div id="plan-counter" class="plan-counter"></div>
       <div class="plan-list">
         ${projetos.map(({ it, sel }) => `
-          <details class="plan-proj" ${sel || it.onda === "Onda 1" ? "open" : ""} style="--ac:${A.area(it.area).cor}">
+          <details class="plan-proj" ${sel || it.ciclo === (S.sprintAtual() || {}).id ? "open" : ""} style="--ac:${A.area(it.area).cor}">
             <summary>
               <span class="act-card-id">${esc(it.id)}</span>
               <span class="plan-proj-name">${esc(it.nome)}</span>
-              <span class="badge">${esc(it.onda)}</span>
               <span class="muted small" data-plan-count="${esc(it.id)}">${sel ? `${sel} no ciclo` : ""}</span>
             </summary>
             ${it.atividades.filter(aberta).map((a) => {
@@ -95,16 +94,19 @@
   }
 
   /* ---------- Janela da atividade ---------- */
+  const isoDeBr = (br) => { const d = A.store.calc.parseDate(br); return d ? `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}` : ""; };
+  const brDeIso = (iso) => { const m = String(iso || "").match(/^(\d{4})-(\d{2})-(\d{2})$/); return m ? `${m[3]}/${m[2]}/${m[1]}` : ""; };
   let atual = null; // { ini, act }
   let ultimoSalvo = ""; // hora da última gravação feita nesta janela
 
   // Campos que a pessoa pode estar digitando: o redesenho da janela não pode apagar o que ainda não foi salvo.
-  const CAMPOS_DIGITANDO = ["ck-new", "act-obs", "act-prazo"];
+  const CAMPOS_DIGITANDO = ["ck-new", "ck-new-data", "act-obs", "act-prazo"];
   function renderActivity() {
     const rascunho = Object.fromEntries(CAMPOS_DIGITANDO.map((id) => [id, $(id)?.value]));
     const foco = document.activeElement?.id;
     desenharAtividade();
     if (rascunho["ck-new"]) $("ck-new").value = rascunho["ck-new"];
+    if (rascunho["ck-new-data"]) $("ck-new-data").value = rascunho["ck-new-data"];
     // Observação e prazo: mantém o texto digitado só se ainda estiver sendo editado.
     ["act-obs", "act-prazo"].forEach((id) => { if (foco === id && rascunho[id] != null && $(id)) $(id).value = rascunho[id]; });
     if (foco && $(foco)) $(foco).focus();
@@ -163,17 +165,40 @@
         </div>
         ${a.checklist.length ? `<div class="act-check-bar"><span style="width:${a.pct}%"></span></div>` : ""}
         <ul class="act-check-list">
-          ${a.checklist.map((x) => `
-            <li class="${x.feito ? "done" : ""}">
+          ${a.checklist.map((x) => {
+            const d = S.calc.parseDate(x.data);
+            const vencido = d && !x.feito && d < new Date(new Date().setHours(0, 0, 0, 0));
+            return `
+            <li class="${x.feito ? "done" : ""} ${vencido ? "vencido" : ""}">
               <label><input type="checkbox" data-ck-toggle="${esc(x.id)}" ${x.feito ? "checked" : ""}> <span>${esc(x.texto)}</span></label>
+              <input type="date" class="ck-data" data-ck-data="${esc(x.id)}" value="${isoDeBr(x.data)}" title="Prazo do passo (opcional)" aria-label="Prazo do passo">
               <button type="button" class="raci-x" data-ck-del="${esc(x.id)}" aria-label="Remover passo">✕</button>
-            </li>`).join("")}
+            </li>`;
+          }).join("")}
         </ul>
         <form id="ck-form" class="act-check-add" autocomplete="off">
           <input id="ck-new" class="input input-sm" placeholder="Novo passo (ex.: enviar minuta para a Maíra)">
+          <input id="ck-new-data" type="date" class="input input-sm" title="Prazo do passo (opcional)" aria-label="Prazo do passo">
           <button class="btn btn-sm btn-outline" type="submit">+ Adicionar passo</button>
         </form>
-        <div class="muted small act-check-dica">Digite o passo e clique em “+ Adicionar passo” (ou Enter). Ele aparece na lista acima, já salvo.</div>
+        <div class="muted small act-check-dica">Passos são as pequenas tarefas da atividade. O prazo de cada passo é opcional. Ao adicionar, o passo já fica salvo.</div>
+      </section>
+
+      <section class="act-anexos">
+        <div class="act-check-head"><strong>📎 Anexos</strong><span class="muted small">arquivos ou links (Drive, OneDrive…)</span></div>
+        <ul class="act-anexos-lista">
+          ${(a.anexos || []).map((x) => `
+            <li>
+              <button type="button" class="link-btn" data-ax-abrir="${esc(x.id)}" title="Abrir">${x.tipo === "arquivo" ? "📄" : "🔗"} ${esc(x.nome)}</button>
+              <span class="muted small">${esc(x.por || "")}${x.em ? ` · ${new Date(x.em).toLocaleDateString("pt-BR")}` : ""}${x.tamanho ? ` · ${Math.max(1, Math.round(x.tamanho / 1024))} KB` : ""}</span>
+              <button type="button" class="raci-x" data-ax-del="${esc(x.id)}" aria-label="Remover anexo" title="Remover">✕</button>
+            </li>`).join("") || `<li class="muted small">Nenhum anexo ainda.</li>`}
+        </ul>
+        <div class="act-anexos-acoes">
+          <button type="button" class="btn btn-sm btn-outline" id="ax-arquivo" title="Até 20 MB por arquivo">📎 Anexar arquivo</button>
+          <button type="button" class="btn btn-sm btn-outline" id="ax-link">🔗 Adicionar link</button>
+          <input type="file" id="ax-input" hidden>
+        </div>
       </section>
 
       <div class="field">
@@ -222,7 +247,7 @@
     const a = cur();
     const patch = {};
     const passo = $("ck-new")?.value.trim();
-    if (passo) patch.checklist = [...a.checklist, { texto: passo, feito: false }];
+    if (passo) patch.checklist = [...a.checklist, { texto: passo, feito: false, data: brDeIso($("ck-new-data")?.value) }];
     const obs = $("act-obs")?.value;
     if (obs != null && obs !== a.observacoes) patch.observacoes = obs;
     const prazo = $("act-prazo")?.value.trim();
@@ -236,6 +261,16 @@
       closeModal("modal-activity");
       toast(Object.keys(patch).length ? "Atividade salva." : "Tudo já estava salvo.");
     }
+  }
+
+  // Envia o arquivo para o banco (até 20 MB) e registra o anexo na atividade.
+  async function anexarArquivo(file) {
+    if (file.size > 20 * 1024 * 1024) return toast("Arquivo maior que 20 MB. Use um link do Drive ou OneDrive.", "warn", 6000);
+    toast(`Enviando “${file.name}”…`, "ok", 2500);
+    const r = await A.nuvem.enviarAnexo(file, atual.ini, atual.act);
+    if (!r.ok) return;
+    await saveAct({ anexos: [...(cur().anexos || []), { tipo: "arquivo", caminho: r.caminho, nome: file.name, tamanho: file.size, por: A.store.state.settings.user || "", em: new Date().toISOString() }] });
+    toast("Arquivo anexado.");
   }
 
   function init() {
@@ -261,6 +296,9 @@
         if (!r.ok) toast(r.error, "error");
       } else if (el.id === "act-prazo") saveAct({ prazo: el.value.trim() });
       else if (el.id === "act-obs") saveAct({ observacoes: el.value });
+      else if (el.dataset.ckData) {
+        saveAct({ checklist: cur().checklist.map((x) => (x.id === el.dataset.ckData ? { ...x, data: brDeIso(el.value) } : x)) });
+      } else if (el.id === "ax-input" && el.files?.[0]) anexarArquivo(el.files[0]).finally(() => { el.value = ""; });
       else if (el.dataset.ckToggle) {
         saveAct({ checklist: cur().checklist.map((x) => (x.id === el.dataset.ckToggle ? { ...x, feito: el.checked } : x)) });
       }
@@ -283,10 +321,45 @@
       const texto = $("ck-new").value.trim();
       if (!texto) return toast("Escreva o passo antes de adicionar.", "warn");
       $("ck-new").value = ""; // limpa já, para o redesenho não trazer o texto de volta
-      saveAct({ checklist: [...cur().checklist, { texto, feito: false }] })
+      const data = brDeIso($("ck-new-data").value);
+      $("ck-new-data").value = "";
+      saveAct({ checklist: [...cur().checklist, { texto, feito: false, data }] })
         .then((r) => { if (r?.ok === false) $("ck-new").value = texto; setTimeout(() => $("ck-new")?.focus(), 0); });
     });
     body.addEventListener("click", (e) => { if (e.target.id === "act-salvar") salvarTudo(); });
+    // Anexos: arquivo (guardado no banco) ou link.
+    body.addEventListener("click", async (e) => {
+      if (!atual) return;
+      if (e.target.id === "ax-arquivo") {
+        if (!A.nuvem?.conectado?.()) return toast("Anexar arquivo precisa do banco compartilhado (entre com seu login). Use “Adicionar link”.", "warn", 6000);
+        return $("ax-input").click();
+      }
+      if (e.target.id === "ax-link") {
+        const url = await A.util.pedirTexto("Cole o link do arquivo (Google Drive, OneDrive, site…). Confira se quem precisa tem acesso a ele.",
+          { title: "🔗 Adicionar link", okLabel: "Continuar", placeholder: "https://…", obrigatorio: true });
+        if (!url) return;
+        if (!/^https?:\/\//i.test(url.trim())) return toast("O link precisa começar com http:// ou https://", "warn");
+        const nome = await A.util.pedirTexto("Que nome mostrar para este link?", { title: "🔗 Nome do link", okLabel: "Adicionar", placeholder: "ex.: Orçamento do fornecedor" });
+        if (nome == null) return;
+        return saveAct({ anexos: [...(cur().anexos || []), { tipo: "link", url: url.trim(), nome: nome.trim() || url.trim(), por: A.store.state.settings.user || "", em: new Date().toISOString() }] })
+          .then((r) => { if (r?.ok !== false) toast("Link adicionado."); });
+      }
+      const abrir = e.target.closest("[data-ax-abrir]");
+      if (abrir) {
+        const x = (cur().anexos || []).find((y) => y.id === abrir.dataset.axAbrir);
+        if (!x) return;
+        const url = x.tipo === "arquivo" ? await A.nuvem?.linkAnexo?.(x.caminho) : x.url;
+        if (url) window.open(url, "_blank", "noopener");
+        return;
+      }
+      const del = e.target.closest("[data-ax-del]");
+      if (del) {
+        const x = (cur().anexos || []).find((y) => y.id === del.dataset.axDel);
+        if (!x || !(await A.util.confirmDialog(`Remover o anexo “${x.nome}”?`, { title: "Remover anexo", okLabel: "Remover", danger: true }))) return;
+        const r = await saveAct({ anexos: cur().anexos.filter((y) => y.id !== x.id) });
+        if (r?.ok !== false && x.tipo === "arquivo") A.nuvem?.apagarAnexo?.(x.caminho);
+      }
+    });
     // Fechar no ✕ ou fora da janela também guarda o que ficou digitado (nada se perde).
     $("modal-activity").addEventListener("modal:dismiss", () => salvarTudo({ fechar: false }));
     // Mantém a janela atualizada quando os dados mudam (ex.: arrastar o card com ela aberta),

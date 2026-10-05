@@ -61,13 +61,14 @@
       <table class="data guia-termos">
         <thead><tr><th>Palavra</th><th>O que é</th><th>Exemplo</th></tr></thead>
         <tbody>
-          ${porLider ? "" : `<tr><td><strong>Onda</strong></td><td>Os projetos escolhidos para um trimestre</td><td>Onda 1 = out a dez</td></tr>`}
+          ${porLider ? "" : `<tr><td><strong>Onda</strong></td><td>Um trimestre (3 ciclos). <em>Por enquanto não usamos no painel:</em> o foco é decidir mês a mês. Vamos voltar a ela quando todos tiverem pegado o jeito.</td><td>Onda 1 = out a dez</td></tr>`}
           <tr><td><strong>Ciclo</strong></td><td>Um mês de trabalho. Em outras empresas se chama <em>sprint</em></td><td>Ciclo de novembro: 1 a 30/11</td></tr>
           <tr><td><strong>Projeto</strong></td><td>Uma melhoria com começo, fim e um resultado</td><td>V1 · Lista de prospecção</td></tr>
           <tr><td><strong>Etapa</strong></td><td>Uma tarefa do projeto. Cada card do Kanban é uma etapa</td><td>“Levantar 50 contatos de zoológicos”</td></tr>
           <tr><td><strong>Checklist</strong></td><td>Os passos de uma etapa, que você marca conforme faz</td><td>☑ Montar planilha · ☐ Validar com o Pedro</td></tr>
           <tr><td><strong>Responsável (R)</strong></td><td>Quem faz a etapa. Cada etapa tem um só</td><td>R: Isabela</td></tr>
-          <tr><td><strong>Travado</strong></td><td>Etapa parada esperando alguém ou uma decisão</td><td>“Aguardando o orçamento do fornecedor”</td></tr>
+          <tr><td><strong>Esperando</strong></td><td>Atividade parada por alguém de fora (fornecedor, cliente)</td><td>“Aguardando o orçamento do fornecedor”</td></tr>
+          <tr><td><strong>Travado</strong></td><td>Atividade parada por um problema que precisa de decisão ou ajuda</td><td>“Sem verba aprovada para comprar”</td></tr>
           <tr><td><strong>Prazo</strong></td><td>Até quando a etapa precisa estar pronta</td><td>15/11/2026</td></tr>
         </tbody>
       </table>
@@ -123,9 +124,9 @@
             <h3>Toda semana: uns 10 minutos</h3>
             <ol class="guia-steps">
               ${passo(1, "Abra o Kanban", "Você vê só os cards do seu setor.", ["kanban", "Kanban"])}
-              ${passo(2, "Marque os passos que foram feitos", "No card, clique no ☐ ou abra o card e marque o checklist. A porcentagem sobe sozinha.")}
-              ${passo(3, "Mova os cards", "Começou? Mova para “Fazendo”. Terminou? Para “Feito”. Dá para arrastar ou usar a seta → do card.")}
-              ${passo(4, "Travou? Avise", "Use o ⚠ do card e escreva o motivo. O Pedro vê na hora.")}
+              ${passo(2, "Marque os passos que foram feitos", "No card, clique em “Próximo passo” para marcar como feito, ou abra o card e marque o checklist. A porcentagem sobe sozinha.")}
+              ${passo(3, "Mova os cards", "Começou? “▶ Fazendo”. Terminou? “✓ Concluir”. Dá para arrastar também. Depende de alguém de fora? Arraste para “Esperando”.")}
+              ${passo(4, "Travou? Avise", "Use “⚠ Travou” no card e escreva o motivo. O card vai para “Travado” e o Pedro vê na hora.")}
             </ol>
           </section>
 
@@ -141,8 +142,8 @@
                 <li><strong>Código e cor</strong>: o projeto e o setor da etapa.</li>
                 <li><strong>Bolinha com iniciais</strong>: quem é o responsável.</li>
                 <li><strong>Anel</strong>: quanto da etapa já foi feito. <strong>☑ 2/5</strong>: passos do checklist.</li>
-                <li><strong>☐</strong> marca o próximo passo · <strong>⚠</strong> avisa que travou · <strong>→</strong> passa para a próxima coluna.</li>
-                <li>Clicando no card, você vê tudo: prazo, checklist completo e observações.</li>
+                <li><strong>Próximo passo</strong>: clique para marcar como feito · <strong>⚠ Travou</strong>: precisa de decisão ou ajuda · <strong>▶ Fazendo / ✓ Concluir</strong>: passa para a próxima coluna.</li>
+                <li>Clicando no card, você vê tudo: prazo, passos (com prazo, se quiser), observações e anexos (arquivo ou link).</li>
               </ul>
             </div>
           </section>
@@ -165,8 +166,8 @@
     const limite = A.meta.LIMITE_PROJETOS_SETOR;
     return `
       <div class="guia">
-        ${indice([["guia-programa", "Programa e projeto"], ["guia-setores", "Setores e líderes"], ["guia-termos", "Onda, ciclo, etapa"], ["guia-codigos", "Os códigos"],
-          ["guia-escalas", "Valor e esforço"], ["guia-corte", "V÷E e custo do atraso"], ["guia-deps", "Dependências"], ["guia-abaixo", "Abaixo da linha"], ["guia-regras", "Regras"], ["guia-raci", "RACI"], ["guia-abas", "Mapa das abas"], ["guia-roteiro", "Reuniões"]])}
+        ${indice([["guia-programa", "Programa e projeto"], ["guia-setores", "Setores e líderes"], ["guia-termos", "Ciclo e atividade"], ["guia-codigos", "Os códigos"],
+          ["guia-escalas", "Valor e esforço"], ["guia-corte", "V÷E e urgência"], ["guia-deps", "Dependências"], ["guia-abaixo", "Abaixo da linha"], ["guia-regras", "Regras"], ["guia-raci", "RACI"], ["guia-abas", "Mapa das abas"], ["guia-roteiro", "Reuniões"]])}
         <div class="guia-body">
 
           <section class="panel guia-sec" id="guia-programa">
@@ -194,7 +195,7 @@
           </section>
 
           <section class="panel guia-sec" id="guia-termos">
-            <h3>Onda, ciclo, etapa e checklist</h3>
+            <h3>Ciclo, atividade e checklist</h3>
             ${termos(false)}
             <p class="muted small">Um projeto longo (6 meses, 1 ano) fica no ciclo até terminar: não precisa ser escolhido de novo todo mês. A cada mês ele se compromete só com as etapas daquele mês.</p>
           </section>
@@ -223,23 +224,10 @@
             <p><strong>V÷E</strong> = valor dividido pelo esforço: quanto retorno cada mês de trabalho traz. Valor 5 em 1 mês dá <strong>5,0</strong>;
             valor 8 em 1 ano dá <strong>1,6</strong>. A <strong>linha de corte</strong> é a média ponderada (Σ Valor ÷ Σ Esforço), hoje
             <strong>${fmtNum(cut.value)}</strong>. Na Priorização, cada setor tem a sua própria linha, comparando projetos parecidos entre si.</p>
-            <h4>Segunda opinião: custo do atraso (WSJF)</h4>
-            <p><strong>WSJF</strong> vem do inglês <em>Weighted Shortest Job First</em>: “primeiro o trabalho mais curto, pesado pelo que se perde esperando”.
-            É uma ferramenta do método ágil (SAFe) para responder a uma pergunta que o V÷E não responde: <strong>o que custa mais caro deixar para depois?</strong>
-            No painel ela aparece com o nome <strong>custo do atraso</strong>, na Priorização, em <em>Ordenar por: Custo do atraso</em>.</p>
-            <p class="guia-formula"><strong>Custo do atraso = Valor + Urgência + Destrava</strong><br>
-            <strong>Ordem = Custo do atraso ÷ Esforço</strong></p>
-            <ul class="guia-rules">
-              <li><strong>Valor</strong>: a mesma nota da Triagem (quanto o projeto ajuda a Altamar).</li>
-              <li><strong>Urgência</strong>: quanto se perde a cada mês de espera. Nota dada na Triagem:
-                ${Object.entries(A.meta.URGENCIA_ESCALA).map(([k, v]) => `<strong>${k}</strong> ${esc(v.curto)}`).join(" · ")}.</li>
-              <li><strong>Destrava</strong>: calculado sozinho pelo painel. Conta quantos projetos <strong>ainda não terminados</strong> estão esperando por este
-                (os que têm este projeto na seção 🔗 Dependências da ficha). Quanto mais gente parada esperando, mais caro é atrasar este projeto:
-                <strong>nenhum</strong> = 0 · <strong>um</strong> = 2 · <strong>dois</strong> = 3 · <strong>três ou mais</strong> = 5.</li>
-            </ul>
-            <p><strong>Exemplo:</strong> P3 tem valor 3, urgência 5 (este trimestre) e dois projetos esperando por ele (destrava 3). Custo do atraso = 3 + 5 + 3 = <strong>11</strong>.
-            Com esforço 2, a ordem fica 11 ÷ 2 = <strong>5,5</strong>. No V÷E ele daria só 3 ÷ 2 = 1,5: parece pouco importante, mas atrasá-lo trava outros projetos.</p>
-            <p>Use as duas ordens na reunião: se um projeto sobe muito no custo do atraso, é sinal de que esperar vai sair caro, mesmo com o V÷E baixo.</p>
+            <h4>E a urgência?</h4>
+            <p>A <strong>urgência</strong> (nota da Triagem) não muda a ordem: ela aparece como <strong>etiqueta</strong> ao lado do projeto
+            (<em>Agora</em>, <em>Este trimestre</em>…). Use para desempatar e para enxergar o que não pode esperar, mesmo com V÷E parecido:</p>
+            <p class="guia-formula">${Object.entries(A.meta.URGENCIA_ESCALA).map(([k, v]) => `<strong>${k}</strong> ${esc(v.curto)}`).join(" · ")}</p>
           </section>
 
           <section class="panel guia-sec" id="guia-deps">
@@ -251,7 +239,7 @@
               <li><strong>“…depois que X começar”</strong> (<em>início → início</em>, sigla <strong>II</strong> ou <strong>SS</strong>, <em>start-to-start</em>).
                 Os dois podem andar juntos, mas este não pode sair na frente. Ex.: o treinamento da equipe de Vendas pode começar assim que o novo processo de vendas <strong>começar</strong>.</li>
             </ul>
-            <p class="muted small">Se a dependência ainda não aconteceu, o projeto mostra ⚠ na Priorização e ⏳ na ficha. Cada dependência também aumenta o <strong>Destrava</strong> do projeto de quem se depende.</p>
+            <p class="muted small">Se a dependência ainda não aconteceu, o projeto mostra ⚠ na Priorização e ⏳ na ficha.</p>
           </section>
           <section class="panel guia-sec" id="guia-abaixo">
             <h3>E os projetos abaixo da linha?</h3>
@@ -260,7 +248,7 @@
             <ul class="guia-rules">
               <li><strong>⭐ Escolha estratégica.</strong> Das ${limite} vagas de cada setor, <strong>uma</strong> pode ir para um projeto abaixo da linha, por decisão da diretoria.
                 Na Priorização, use o ⭐ ao lado do projeto e escreva o motivo, que fica no histórico. É o caminho para os projetos que aumentam o valor da empresa no longo prazo.</li>
-              <li><strong>⏳ Nada esquecido em silêncio.</strong> Cada projeto validado mostra há quantos ciclos espera na fila. Depois de uma onda inteira (3 ciclos),
+              <li><strong>⏳ Nada esquecido em silêncio.</strong> Cada projeto validado mostra há quantos ciclos espera na fila. Depois de 3 ciclos (3 meses),
                 ele aparece com o alerta <em>“decidir”</em> na Priorização e no Painel executivo: <strong>subir</strong> (⭐), <strong>dividir em fases</strong> ou <strong>arquivar</strong>.</li>
               <li><strong>✂ Dividir antes de descartar.</strong> Muitos projetos ficam abaixo da linha por serem longos. Uma primeira fase de 1 ou 2 meses
                 (um diagnóstico, um piloto) costuma subir para cima da linha e destravar o resto. Use “✂ Fase” na Triagem.</li>
@@ -270,8 +258,8 @@
           <section class="panel guia-sec" id="guia-regras">
             <h3>Regras do jogo</h3>
             <ul class="guia-rules">
-              <li><strong>Até ${limite} projetos por setor no ciclo.</strong> Marcados na Priorização (“Entra”). Projeto que não terminou passa sozinho para o ciclo seguinte.</li>
-              <li><strong>Ciclo = mês do calendário.</strong> Três ciclos formam uma onda (trimestre). No primeiro acesso do mês, o painel encerra o ciclo anterior e abre o novo sozinho, já com o que foi planejado em “em planejamento”.</li>
+              <li><strong>Até ${limite} projetos por setor no ciclo.</strong> Escolhidos na Priorização com “Colocar no ciclo”. Projeto que não terminou passa sozinho para o ciclo seguinte.</li>
+              <li><strong>Ciclo = mês do calendário.</strong> No primeiro acesso do mês, o painel encerra o ciclo anterior e abre o novo sozinho, já com o que foi planejado em “em planejamento”.</li>
               <li><strong>Plano do projeto.</strong> O líder monta as atividades (com responsável, prazo e ◆ nos marcos) e envia; você ou a diretoria aprovam ou pedem ajuste, na página do projeto. Ao aprovar, os prazos viram a referência e os atrasos aparecem como “+N d”.</li>
               <li><strong>Kanban automático.</strong> Projeto que entra no ciclo leva para o Kanban as atividades com prazo no mês (e as atrasadas). Ajustes finos: “Colocar no Kanban” / “Tirar do Kanban” na atividade.</li>
               <li><strong>Semáforo.</strong> 🟢 no prazo · 🟡 atenção · 🔴 travado, precisa de decisão.</li>
@@ -298,7 +286,6 @@
                 ["executivo", "📊 Painel executivo", "O que resolver, o ciclo e a agenda de 4 semanas."],
                 ["triagem", "📝 Triagem", "Toda ideia nova entra aqui. Dar valor, esforço e validar."],
                 ["priorizacao", "🎯 Priorização", "Ranking por setor e a escolha dos projetos de cada ciclo."],
-                ["ondas", "🌊 Ondas", "Em que trimestre cada projeto entra."],
                 ["kanban", "📋 Kanban", "As etapas do ciclo. Cada líder vê só o próprio setor."],
                 ["overview", "🗓️ Cronograma", "Linha do tempo de todos os projetos."],
                 ["decisoes", "⚖️ Decisões", "Pauta e decisões da diretoria."],
@@ -321,16 +308,8 @@
               [
                 passo(1, "Fechar o ciclo (15 min)", "O que cada setor entregou, o que não entregou e por quê. Etapas pendentes passam sozinhas para o próximo ciclo.", ["kanban", "Kanban"]),
                 passo(2, "Ideias novas (10 min)", "Triagem: dar valor e esforço ao que chegou no mês.", ["triagem", "Triagem"]),
-                passo(3, "Escolher os projetos (25 min)", `Priorização, setor por setor: marcar na coluna “Ciclo” até ${limite} projetos de cada setor.`, ["priorizacao", "Priorização"]),
-                passo(4, "Combinar com os líderes (10 min)", "O Pedro repassa a cada líder os projetos do mês; o líder cadastra as etapas no Kanban."),
-              ])}
-            ${reuniao("🌊", "Reunião trimestral", "A cada 3 ciclos, na virada da onda", "90 min",
-              "Olhar o trimestre que passou e decidir a próxima onda.",
-              [
-                passo(1, "Fechar a onda (20 min)", "O que foi concluído, o que continua e o que volta para a Fila.", ["ondas", "Ondas"]),
-                passo(2, "Revisar notas (20 min)", "O valor ou o esforço de algum projeto mudou com o que aprendemos?", ["triagem", "Triagem"]),
-                passo(3, "Montar a próxima onda (40 min)", "Priorização por setor e arrastar na aba Ondas.", ["priorizacao", "Priorização"]),
-                passo(4, "Ajustar a capacidade (10 min)", "Algum setor precisa de mais ou menos projetos por ciclo?"),
+                passo(3, "Escolher os projetos (25 min)", `Priorização, setor por setor: colocar no ciclo até ${limite} projetos de cada setor.`, ["priorizacao", "Priorização"]),
+                passo(4, "Combinar com os líderes (10 min)", "O Pedro repassa a cada líder os projetos do mês; o líder monta o plano do projeto e envia para aprovação."),
               ])}
           </section>
         </div>

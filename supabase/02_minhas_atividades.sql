@@ -48,9 +48,9 @@ begin
   -- Só campos de andamento
   select coalesce(jsonb_object_agg(key, value), '{}'::jsonb) into v_permitido
     from jsonb_each(p_patch)
-   where key in ('status', 'esperando', 'checklist', 'observacoes', 'pct');
+   where key in ('status', 'esperando', 'travado', 'checklist', 'observacoes', 'pct', 'anexos');
   v_novo := v_a || v_permitido;
-  if v_novo ->> 'status' = 'Concluído' then v_novo := v_novo || '{"pct": 100, "esperando": false}'::jsonb; end if;
+  if v_novo ->> 'status' = 'Concluído' then v_novo := v_novo || '{"pct": 100, "esperando": false, "travado": false}'::jsonb; end if;
 
   -- Histórico (mesmo formato do painel)
   if v_permitido ? 'status' and (v_a ->> 'status') is distinct from (v_novo ->> 'status') then

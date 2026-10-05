@@ -179,7 +179,7 @@
         <h3 id="ficha-title">Novo projeto</h3>
         <button class="btn btn-xs btn-ghost" data-ficha="close" aria-label="Fechar">✕</button>
       </div>
-      <p class="muted small" style="margin-top:0">O projeto entra na Triagem como <strong>Rascunho</strong>, na Fila. A onda é definida depois, na aba Ondas. O preenchimento fica guardado se você fechar a ficha antes de salvar.</p>
+      <p class="muted small" style="margin-top:0">O projeto entra na Triagem como <strong>Rascunho</strong>, para ser avaliado. O preenchimento fica guardado se você fechar a ficha antes de salvar.</p>
       ${errList}
       ${projectSection()}
       <div id="ficha-acts">${activitiesSection()}</div>

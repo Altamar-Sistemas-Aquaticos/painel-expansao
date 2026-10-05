@@ -169,7 +169,6 @@
             <span class="ov-id muted">${n + 1}</span>
             <span class="ov-name">${esc(at.nome)} <span class="muted small">${S.raciPeople(at.raci, "R")[0] ? `· R: ${esc(S.raciPeople(at.raci, "R")[0])}` : ""}</span></span>
             <span><span class="badge ${STATUS_CLASS[at.status] || ""}">${esc(at.status)}</span></span>
-            <span class="ov-col-onda"></span>
             <span class="ov-date">${esc(at.inicio || "—")}</span>
             <span class="ov-date">${esc(at.prazo || "—")}</span>
             <span>${ui.progressBar(at.pct)}</span>
@@ -184,7 +183,6 @@
               ${it.situacao === "Rascunho" ? `<span class="badge warn">Rascunho</span>` : `<span class="badge ${STATUS_CLASS[it.status] || ""}">${esc(it.status)}</span>`}
               ${late ? `<span class="badge alert">Atrasado</span>` : ""}
             </span>
-            <span class="ov-col-onda muted small">${esc(it.onda)}</span>
             <span class="ov-date">${fmt(dates.start)}</span>
             <span class="ov-date ${late ? "late" : ""}">${fmt(dates.end)}</span>
             <span>${ui.progressBar(pct)}</span>
@@ -207,7 +205,7 @@
       <div class="page-head">
         <div>
           <h2>Visão geral do portfólio</h2>
-          <div class="muted">Tudo junto, por área. Clique num anel para ir à área; na seta ▸ para ver as atividades. Datas com “~” são estimadas pela onda ou por prazos aproximados.</div>
+          <div class="muted">Tudo junto, por área. Clique num anel para ir à área; na seta ▸ para ver as atividades. Datas com “~” são estimadas por prazos aproximados.</div>
         </div>
         <div class="row no-print">
           <button class="btn btn-xs btn-outline" data-ov-all="open">Abrir todas as atividades</button>
@@ -226,7 +224,7 @@
       ${A.financeiro?.painelGeral(S) || ""}
       <div class="ov-table">
         <div class="ov-row ov-header">
-          <span></span><span>ID</span><span>Projeto</span><span>Status</span><span class="ov-col-onda">Onda</span>
+          <span></span><span>ID</span><span>Projeto</span><span>Status</span>
           <span>Início</span><span>Término</span><span>Conclusão</span>
           ${timelineHead(scale)}
         </div>

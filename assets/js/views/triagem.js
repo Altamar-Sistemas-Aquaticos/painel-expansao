@@ -9,8 +9,8 @@
   const NEXT_LABEL = { Rascunho: "Validar" };
   // Três visões fixas; "Esforço a revisar" só aparece enquanto houver projeto convertido da escala antiga.
   const FILTROS = [
-    ["triar", "A triar"],
-    ["Validado", "Validados"],
+    ["triar", "Validar backlog"],
+    ["Validado", "Backlogs validados"],
     ["ALL", "Todos"],
     ["revisar", "Esforço a revisar"],
   ];

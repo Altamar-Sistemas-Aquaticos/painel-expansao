@@ -69,8 +69,8 @@
   const ESFORCO_ESCALA = {
     1: { curto: "1 mês", texto: "Entrega em até um mês" },
     2: { curto: "2 meses", texto: "Algumas etapas, pouca dependência de outras áreas" },
-    3: { curto: "3 meses", texto: "Ocupa uma onda inteira (um trimestre)" },
-    4: { curto: "6 meses", texto: "Atravessa duas ondas: vale dividir em fases" },
+    3: { curto: "3 meses", texto: "Um trimestre inteiro" },
+    4: { curto: "6 meses", texto: "Dois trimestres: vale dividir em fases" },
     5: { curto: "1 ano", texto: "Investimento, fornecedor externo ou muita incerteza: dividir em fases" },
   };
   // Esforço da escala antiga (1, 2, 3, 5, 8) renumerado nível a nível para a nova (1 a 5), mantendo a proporção entre projetos.
@@ -106,7 +106,8 @@
   const SPRINT_COLUNAS = [
     { key: "todo", label: "A fazer", hint: "Combinado para este ciclo" },
     { key: "doing", label: "Fazendo", hint: "Em execução" },
-    { key: "waiting", label: "Esperando / Travado", hint: "Depende de alguém ou de decisão" },
+    { key: "waiting", label: "Esperando", hint: "Depende de alguém de fora (fornecedor, cliente)" },
+    { key: "blocked", label: "Travado", hint: "Parado: precisa de decisão ou ajuda" },
     { key: "done", label: "Feito", hint: "Entregue" },
   ];
   const WIP_MIN = 4;

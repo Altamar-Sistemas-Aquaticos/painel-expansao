@@ -5,7 +5,8 @@
   const { toast, closeModal, closeTopModal, confirmDialog, downloadBlob, esc, initials } = A.util;
   const $ = (id) => document.getElementById(id);
 
-  const TABS = ["programa", "executivo", "guia", "triagem", "priorizacao", "ondas", "kanban", "overview", "decisoes", "historico", "cadastros"];
+  // A aba Ondas está guardada: o foco agora é o mês a mês (ciclos). A onda fica só como explicação no Guia.
+  const TABS = ["programa", "executivo", "guia", "triagem", "priorizacao", "kanban", "overview", "decisoes", "historico", "cadastros"];
   // Endereços antigos (favoritos e links salvos) continuam funcionando.
   const ALIASES = { portfolio: "triagem", matriz: "priorizacao", ranking: "priorizacao", cronograma: "overview" };
   const TAB_KEY = "altamar_painel_tab";
@@ -56,7 +57,8 @@
       S.areas().map((a) => `<button class="btn btn-xs btn-outline" data-filter-area="${esc(a.key)}">${esc(a.key)}</button>`).join("");
     document.querySelectorAll("[data-filter-area]").forEach((b) => b.classList.toggle("active", b.dataset.filterArea === S.state.ui.area));
     $("filter-status").value = S.state.ui.status;
-    $("filter-onda").value = S.state.ui.onda;
+    S.state.ui.onda = "ALL"; // filtro de onda guardado (as ondas estão fora das telas por enquanto)
+    $("filter-onda").value = "ALL";
     if (document.activeElement !== $("filter-search")) $("filter-search").value = S.state.ui.search;
     $("filter-clear").classList.toggle("hidden", !S.hasActiveFilters());
   }

@@ -77,7 +77,6 @@
                 <div class="li-meta">
                   ${statusBadge(it.status)}
                   <span>V÷E <strong>${fmtNum(ve(it))}</strong></span>
-                  <span>${esc(it.onda)}</span>
                   <span>${it.atividades.length} atividade${it.atividades.length === 1 ? "" : "s"}</span>
                   <span>Resp.: ${esc(it.responsavel || "A definir")}</span>
                 </div>
@@ -249,7 +248,7 @@
     const col = S.activityCol(a);
     const r = S.raciPeople(a.raci, "R")[0];
     const ck = a.checklist.length ? `${a.checklist.filter((x) => x.feito).length}/${a.checklist.length}` : "";
-    const ROT = { todo: "A fazer", doing: "Fazendo", waiting: "Travado", done: "Feito" };
+    const ROT = { todo: "A fazer", doing: "Fazendo", waiting: "Esperando", blocked: "Travado", done: "Feito" };
     return `
       <button class="ficha-etapa ${col} ${a.status === "Cancelado" ? "cancelada" : ""}" data-action="open-activity" data-id="${esc(it.id)}|${esc(a.id)}" title="Abrir a etapa">
         <span class="ficha-etapa-n">${n}</span>
@@ -318,7 +317,7 @@
               ${noCiclo ? `<span class="badge accent">📋 No ${esc(S.nomeCiclo(sp))}</span>` : `<span class="badge">Fora do ciclo</span>`}
               ${it.estrategico && noCiclo ? `<span class="badge warn" title="${esc(it.estrategicoMotivo)}">⭐ Escolha estratégica</span>` : ""}
               ${it.valor && it.esforco ? `<span class="muted small">V${it.valor} · E${it.esforco} · V÷E ${fmtNum(ve(it))}</span>` : ""}
-              ${it.valor && it.esforco ? `<span class="muted small" title="${esc(`(Valor ${it.valor} + Urgência ${it.urgencia || 0} + Destrava ${S.destrava(it)}) ÷ Esforço ${it.esforco}`)}">· Urgência ${it.urgencia ? `${it.urgencia} (${esc(A.meta.URGENCIA_ESCALA[it.urgencia]?.curto || "")})` : "a definir"} · Custo do atraso ÷ E ${fmtNum(S.wsjf(it))}</span>` : ""}
+              ${it.urgencia ? `<span class="urg-tag u${it.urgencia}" title="Urgência: quanto se perde a cada mês de espera">⏱ ${esc(A.meta.URGENCIA_ESCALA[it.urgencia]?.curto || "")}</span>` : ""}
             </div>
           </div>
           <div class="ficha-acoes no-print">

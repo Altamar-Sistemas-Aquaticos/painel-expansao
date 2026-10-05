@@ -41,12 +41,12 @@
     const unicos = (list, key) => [...new Map(list.map((x) => [key(x), x])).values()];
 
     // Sprint: atividades em aberto, na ordem do quadro.
-    const ordemCol = { waiting: 0, doing: 1, todo: 2, done: 3 };
+    const ordemCol = { blocked: 0, waiting: 1, doing: 2, todo: 3, done: 4 };
     const emAndamento = si.items.filter(({ a }) => a.status !== "Concluído")
       .sort((x, y) => ordemCol[S.activityCol(x.a)] - ordemCol[S.activityCol(y.a)] || y.a.pct - x.a.pct);
 
     // Travado ou em risco.
-    const esperando = si.items.filter(({ a }) => S.activityCol(a) === "waiting");
+    const esperando = si.items.filter(({ a }) => ["waiting", "blocked"].includes(S.activityCol(a)));
     const projRisco = all.filter((i) => aberto(i.status) && i.situacao !== "Rascunho" && i.semaforo !== "verde")
       .sort((a, b) => (a.semaforo === "vermelho" ? -1 : 1) - (b.semaforo === "vermelho" ? -1 : 1));
     const atraso = A.metrics ? A.metrics.overdue(S) : { total: 0, projetos: [], atividades: [] };
@@ -113,7 +113,7 @@
     amarelo: { cor: "#b45309", fundo: "#fef3c7", rotulo: "Atenção" },
     vermelho: { cor: "#b91c1c", fundo: "#fee2e2", rotulo: "Travado" },
   };
-  const COL_LABEL = { todo: "A fazer", doing: "Fazendo", waiting: "Travado", done: "Feito" };
+  const COL_LABEL = { todo: "A fazer", doing: "Fazendo", waiting: "Esperando", blocked: "Travado", done: "Feito" };
 
   function html(d) {
     const S = d.S;
