@@ -95,7 +95,7 @@
     });
     document.querySelectorAll(".view").forEach((v) => v.classList.toggle("active", v.id === `view-${route.view}`));
     // Os filtros de área/status/onda não se aplicam a estas telas.
-    document.querySelector(".filter-bar").classList.toggle("hidden", ["programa", "executivo", "guia", "decisoes", "historico", "cadastros"].includes(route.view));
+    document.querySelector(".filter-bar").classList.toggle("hidden", ["programa", "executivo", "guia", "triagem", "priorizacao", "decisoes", "historico", "cadastros"].includes(route.view));
     if (route.view === "setor") A.views.sector(S, route.param);
     if (route.view === "projeto") A.views.project(S, route.param);
     if (route.view !== prev.view || route.param !== prev.param) window.scrollTo(0, 0);

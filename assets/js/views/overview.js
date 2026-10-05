@@ -62,13 +62,14 @@
   const isLate = (it, dates) => dates.end && dates.end.d < today() && it.status !== "Concluído" && it.status !== "Cancelado";
 
   /* ---------- Anéis por área ---------- */
-  function ring(pct, color, size = 86) {
+  // Anel de progresso. Nos quadros coloridos (cor do setor), o anel e o número ficam brancos.
+  function ring(pct, color, size = 86, sobreCor = true) {
     const r = 34, c = 2 * Math.PI * r;
     const val = pct == null ? 0 : pct;
     return `
       <svg viewBox="0 0 86 86" width="${size}" height="${size}" aria-hidden="true">
-        <circle cx="43" cy="43" r="${r}" fill="none" stroke="var(--surface-3)" stroke-width="9"/>
-        ${val > 0 ? `<circle cx="43" cy="43" r="${r}" fill="none" stroke="${color}" stroke-width="9" stroke-linecap="round"
+        <circle cx="43" cy="43" r="${r}" fill="none" stroke="${sobreCor ? "rgba(255,255,255,0.28)" : "var(--surface-3)"}" stroke-width="9"/>
+        ${val > 0 ? `<circle cx="43" cy="43" r="${r}" fill="none" stroke="${sobreCor ? "#fff" : color}" stroke-width="9" stroke-linecap="round"
           stroke-dasharray="${(c * val) / 100} ${c}" transform="rotate(-90 43 43)"/>` : ""}
         <text x="43" y="48" text-anchor="middle" class="ov-ring-text">${pct == null ? "—" : pct + "%"}</text>
       </svg>`;
@@ -214,9 +215,9 @@
         </div>
       </div>
       <div class="ov-rings">
-        <div class="ov-ring ov-ring-total">
+        <div class="ov-ring ov-ring-total" style="--ac:var(--brand-bg)">
           ${ring(overall, "var(--accent)")}
-          <span class="ov-ring-name">Portfólio</span>
+          <span class="ov-ring-name">Programa</span>
           <span class="ov-ring-meta">${all.length} projetos · ${all.filter((i) => i.status === "Em andamento").length} em andamento</span>
           <span class="ov-ring-meta">${all.filter((i) => i.status === "Concluído").length} concluídos</span>
         </div>

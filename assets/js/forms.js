@@ -26,6 +26,7 @@
     $("ini-situacao").innerHTML = optionList(A.store.SITUACOES);
     $("ini-valor").innerHTML = A.meta.valorOptions("");
     $("ini-esforco").innerHTML = A.meta.esforcoOptions("");
+    $("ini-urgencia").innerHTML = A.meta.urgenciaOptions("");
     $("ini-status").innerHTML = optionList(STATUS);
     $("ini-semaforo").innerHTML = optionList(SEMAFOROS.map((s) => [s.key, `${s.label} — ${s.desc}`]));
   }
@@ -87,7 +88,7 @@
     $("ini-nome").value = data.nome;
     $("ini-area").innerHTML = A.ui.areaOptions(data.area);
     $("ini-responsavel").innerHTML = A.ui.peopleOptions(data.responsavel, { blank: "A definir" });
-    $("ini-autor").innerHTML = A.ui.peopleOptions(data.autor, { blank: "Não informado" });
+    $("ini-autor").textContent = data.autor || "Não informado";
     $("ini-situacao").value = data.situacao;
     $("ini-objetivo").value = data.objetivo || "";
     $("ini-pronto").value = data.prontoQuando || "";
@@ -95,6 +96,7 @@
     $("ini-invest").checked = data.investimento === "Sim";
     $("ini-valor").value = data.valor || "";
     $("ini-esforco").value = data.esforco || "";
+    $("ini-urgencia").value = data.urgencia || "";
     $("ini-onda").textContent = data.onda === "Fila" ? "Fila (sem onda)" : data.onda;
     $("ini-status").value = data.status;
     $("ini-semaforo").value = data.semaforo;
@@ -126,9 +128,9 @@
       id: $("ini-id").value,
       nome: $("ini-nome").value,
       area: $("ini-area").value,
-      autor: $("ini-autor").value,
       valor: Number($("ini-valor").value),
       esforco: Number($("ini-esforco").value),
+      urgencia: Number($("ini-urgencia").value) || 0,
       status: $("ini-status").value,
       semaforo: $("ini-semaforo").value,
       responsavel: $("ini-responsavel").value,

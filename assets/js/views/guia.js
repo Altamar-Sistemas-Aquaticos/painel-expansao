@@ -153,7 +153,7 @@
     return `
       <div class="guia">
         ${indice([["guia-programa", "Programa e projeto"], ["guia-setores", "Setores e líderes"], ["guia-termos", "Onda, ciclo, etapa"], ["guia-codigos", "Os códigos"],
-          ["guia-escalas", "Valor e esforço"], ["guia-corte", "V÷E e linha de corte"], ["guia-abaixo", "Abaixo da linha"], ["guia-regras", "Regras"], ["guia-raci", "RACI"], ["guia-abas", "Mapa das abas"], ["guia-roteiro", "Reuniões"]])}
+          ["guia-escalas", "Valor e esforço"], ["guia-corte", "V÷E e custo do atraso"], ["guia-abaixo", "Abaixo da linha"], ["guia-regras", "Regras"], ["guia-raci", "RACI"], ["guia-abas", "Mapa das abas"], ["guia-roteiro", "Reuniões"]])}
         <div class="guia-body">
 
           <section class="panel guia-sec" id="guia-programa">
@@ -196,6 +196,13 @@
               ${escala("Valor", "Quanto isso ajuda a Altamar?", A.meta.FIBONACCI, A.meta.VALOR_ESCALA)}
               ${escala("Esforço", "Quanto tempo até a entrega final?", A.meta.ESFORCO_PONTOS, A.meta.ESFORCO_ESCALA)}
             </div>
+            <h4>Valor pelos círculos de impacto</h4>
+            <p>Na dúvida, pense em <strong>até onde o projeto chega</strong>: só uma tarefa, um setor, os clientes e a receita, ou o futuro da empresa.
+            Na Triagem, o botão 🎯 ao lado do valor abre estes círculos para escolher clicando.</p>
+            <div class="impacto-wrap">
+              ${A.impacto.svg(null)}
+              <ul class="impacto-legenda">${[1, 2, 3, 5, 8].map((v) => `<li><strong>${v}</strong><span><b>${esc(A.meta.VALOR_ESCALA[v].curto)}</b><br><span class="muted small">${esc(A.meta.VALOR_ESCALA[v].texto)}</span></span></li>`).join("")}</ul>
+            </div>
           </section>
 
           <section class="panel guia-sec" id="guia-corte">
@@ -203,6 +210,15 @@
             <p><strong>V÷E</strong> = valor dividido pelo esforço: quanto retorno cada mês de trabalho traz. Valor 5 em 1 mês dá <strong>5,0</strong>;
             valor 8 em 1 ano dá <strong>1,6</strong>. A <strong>linha de corte</strong> é a média ponderada (Σ Valor ÷ Σ Esforço), hoje
             <strong>${fmtNum(cut.value)}</strong>. Na Priorização, cada setor tem a sua própria linha, comparando projetos parecidos entre si.</p>
+            <h4>Segunda opinião: custo do atraso (WSJF)</h4>
+            <p>O V÷E mostra os ganhos rápidos, mas não diz <strong>o que perde mais se esperar</strong>. Para isso, a Priorização tem a opção
+            <em>Ordenar por: Custo do atraso</em>, uma ferramenta do método ágil (WSJF):</p>
+            <p class="guia-formula"><strong>(Valor + Urgência + Destrava) ÷ Esforço</strong></p>
+            <ul class="guia-rules">
+              <li><strong>Urgência</strong> (nota na Triagem): ${A.meta.URGENCIA_ESCALA ? Object.entries(A.meta.URGENCIA_ESCALA).map(([k, v]) => `${k} = ${esc(v.curto || v)}`).join(" · ") : "1 a 8"}.</li>
+              <li><strong>Destrava</strong> (automático): quantos projetos em andamento dependem deste. Nenhum = 0, um = 2, dois = 3, três ou mais = 5.</li>
+            </ul>
+            <p>Use as duas ordens na reunião: se um projeto sobe muito no custo do atraso, é sinal de que esperar vai sair caro, mesmo que o V÷E seja baixo.</p>
           </section>
 
           <section class="panel guia-sec" id="guia-abaixo">

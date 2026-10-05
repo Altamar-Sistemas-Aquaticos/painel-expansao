@@ -28,6 +28,7 @@
     investimento: "Exige investimento", situacao: "Situação do cadastro", autor: "Autor da ideia", esforcoRevisar: "Esforço a revisar", eixo: "Eixo", faseDe: "Fase do projeto",
     inicio: "Início", ciclo: "Ciclo", checklist: "Checklist do projeto", dependencias: "Depende de",
     estrategico: "Escolha estratégica", estrategicoMotivo: "Motivo da escolha estratégica",
+    urgencia: "Urgência", proximoCiclo: "Próximo ciclo",
   };
   const ACTIVITY_FIELDS = {
     nome: "Atividade", entregavel: "Entregável", pct: "% concluído", status: "Status", raci: "RACI",
@@ -234,6 +235,10 @@
         .filter((d, i, arr) => d.id && d.id !== String(raw.id ?? "").trim().toUpperCase() && arr.findIndex((x) => x.id === d.id) === i),
       // Escolha estratégica da diretoria: entra no ciclo mesmo abaixo da linha de corte (com o motivo registrado).
       estrategico: !!raw.estrategico,
+      // Urgência (custo de esperar), de 1 a 8 como o valor; 0 = a definir. Entra no WSJF.
+      urgencia: scoreOrZero(raw.urgencia),
+      // Planejamento do próximo ciclo: "sim" = entra, "nao" = sai, "" = segue a regra (continua se está no atual e não terminou).
+      proximoCiclo: raw.proximoCiclo === "sim" || raw.proximoCiclo === "nao" ? raw.proximoCiclo : "",
       estrategicoMotivo: String(raw.estrategicoMotivo ?? "").trim(),
       onda: ONDA_KEYS.includes(raw.onda) ? raw.onda : "Fila",
       status,
@@ -336,6 +341,20 @@
     return { id: `S${numero}`, numero, inicio: isoDay(ini), fim: isoDay(fimDoMes(ini)), objetivo, encerrada: false };
   }
   const MESES_NOME = ["janeiro", "fevereiro", "março", "abril", "maio", "junho", "julho", "agosto", "setembro", "outubro", "novembro", "dezembro"];
+  // Próximo ciclo (ainda não aberto): o mês seguinte ao atual.
+  function proximoCicloInfo() {
+    const atual = store.data.sprints && [...store.data.sprints].reverse().find((s) => !s.encerrada);
+    const base = atual ? addDays(fromIso(atual.fim), 1) : inicioDoMes();
+    const ini = inicioDoMes(base);
+    return { id: "PROXIMO", inicio: isoDay(ini), fim: isoDay(fimDoMes(ini)), virtual: true };
+  }
+  // "Outubro · em andamento", "Novembro · em planejamento", "Setembro · encerrado".
+  function rotuloCiclo(sp) {
+    if (!sp) return "";
+    const m = MESES_NOME[fromIso(sp.inicio).getMonth()];
+    const mes = m[0].toUpperCase() + m.slice(1);
+    return `${mes} · ${sp.virtual ? "em planejamento" : sp.encerrada ? "encerrado" : "em andamento"}`;
+  }
   // "Ciclo de outubro" (curto: "Ciclo out").
   function nomeCiclo(sp, { curto = false } = {}) {
     if (!sp) return "";
@@ -652,9 +671,12 @@
    * Cria (originalId = null) ou atualiza uma iniciativa.
    * Retorna { ok, error?, item? }.
    */
-  function saveInitiative(input, originalId = null, { source = "Painel", silent = false } = {}) {
+  function saveInitiative(input, originalId = null, { source = "Painel", silent = false, motivo = "" } = {}) {
     const current = originalId ? findInitiative(originalId) : null;
     if (originalId && !current) return { ok: false, error: "Projeto não encontrado." };
+    // O autor é quem cadastrou o projeto: é gravado na criação e ninguém altera depois.
+    if (current && current.autor && "autor" in input) { input = { ...input }; delete input.autor; }
+    if (!current && !String(input.autor || "").trim()) input = { ...input, autor: store.settings.user || "" };
     // Valida o registro final (atual + alterações), pois `input` pode ser um patch parcial.
     const error = validateInitiative(current ? { ...current, ...input } : input, originalId);
     if (error) return { ok: false, error };
@@ -685,6 +707,7 @@
     if (after.id !== originalId) {
       store.data.decisions.forEach((d) => { if (d.grupo === originalId) d.grupo = after.id; });
     }
+    if (motivo) changes.push({ field: "motivo", label: "Motivo", from: "", to: motivo });
     const e = entry("iniciativa", after.id, "editou", `${after.id} · ${after.nome}`, changes, source);
     if (!silent) commit([e]);
     return { ok: true, item: after, entry: e };
@@ -821,9 +844,13 @@
     const nova = makeSprint(numero, inicio);
     let levadas = 0, feitas = 0, projetosLevados = 0;
     if (atual) {
-      // Projetos escolhidos para o ciclo que ainda não terminaram continuam no próximo (projeto longo não é re-escolhido todo mês).
+      // O próximo ciclo recebe o que foi planejado para ele; projetos não terminados continuam, salvo se tirados no planejamento.
       store.data.initiatives.forEach((it) => {
-        if (it.ciclo === atual.id && it.status !== "Concluído" && it.status !== "Cancelado") { it.ciclo = nova.id; projetosLevados++; }
+        const vai = noProximoCiclo(it);
+        if (vai && it.ciclo === atual.id) projetosLevados++;
+        it.ciclo = vai ? nova.id : it.ciclo === atual.id ? "" : it.ciclo;
+        if (!vai) it.estrategico = it.ciclo ? it.estrategico : false;
+        it.proximoCiclo = "";
       });
       sprintItems(atual).forEach(({ a }) => {
         if (a.status === "Concluído") feitas++;
@@ -886,23 +913,57 @@
 
   const setOnda = (id, onda) => saveInitiative({ onda }, id, { source: "Ondas" });
   // Colocar ou tirar o projeto do ciclo atual (decisão do Pedro com a diretoria, na Priorização).
-  function setNoCiclo(id, noCiclo) {
+  function setNoCiclo(id, noCiclo, motivo = "") {
     const sp = sprintAtual();
     if (!sp) return { ok: false, error: "Nenhum ciclo aberto." };
     const it = findInitiative(id);
     if (!it) return { ok: false, error: "Projeto não encontrado." };
     if (noCiclo && (!it.valor || !it.esforco)) return { ok: false, error: "Dê valor e esforço ao projeto antes de colocá-lo no ciclo." };
-    return saveInitiative(noCiclo ? { ciclo: sp.id } : { ciclo: "", estrategico: false, estrategicoMotivo: "" }, id, { source: "Priorização" });
+    return saveInitiative(noCiclo ? { ciclo: sp.id } : { ciclo: "", estrategico: false, estrategicoMotivo: "" }, id, { source: "Priorização", motivo });
+  }
+  // Depois da 1ª semana do ciclo, trocar projetos é uma repriorização: pede motivo (fica no histórico).
+  function cicloJaAndando() {
+    const sp = sprintAtual();
+    if (!sp) return false;
+    const hoje = new Date(); hoje.setHours(0, 0, 0, 0);
+    return (hoje - fromIso(sp.inicio)) / 86400000 >= 7;
   }
 
+  /* ---------- Próximo ciclo (planejado na reunião do fim do mês, sem mexer no atual) ---------- */
+  const terminou = (it) => it.status === "Concluído" || it.status === "Cancelado";
+  // Está no próximo ciclo? Escolhido de propósito, ou continua do atual por ainda não ter terminado.
+  function noProximoCiclo(it) {
+    if (terminou(it)) return false;
+    if (it.proximoCiclo === "sim") return true;
+    if (it.proximoCiclo === "nao") return false;
+    const sp = sprintAtual();
+    return !!sp && it.ciclo === sp.id;
+  }
+  const projetosNoProximo = (setor) => store.data.initiatives.filter((i) => noProximoCiclo(i) && (!setor || i.area === setor));
+  function setNoProximo(id, entra, motivo = "") {
+    const it = findInitiative(id);
+    if (!it) return { ok: false, error: "Projeto não encontrado." };
+    if (entra && (!it.valor || !it.esforco)) return { ok: false, error: "Dê valor e esforço ao projeto antes de colocá-lo no ciclo." };
+    return saveInitiative({ proximoCiclo: entra ? "sim" : "nao" }, id, { source: "Planejamento do próximo ciclo", motivo });
+  }
+
+  /* ---------- WSJF: custo do atraso ÷ esforço ---------- */
+  // Destrava (automático): projetos que dependem deste ganham pontos para ele (0, 2, 3 ou 5).
+  function destrava(it) {
+    const n = liberaQuem(it.id).filter((x) => !terminou(x)).length;
+    return n >= 3 ? 5 : n === 2 ? 3 : n === 1 ? 2 : 0;
+  }
+  const custoAtraso = (it) => (it.valor || 0) + (it.urgencia || 0) + destrava(it);
+  const wsjf = (it) => (it.esforco > 0 ? custoAtraso(it) / it.esforco : 0);
   // Escolha estratégica: a diretoria põe o projeto no ciclo mesmo abaixo da linha de corte, com o motivo registrado.
-  function setEstrategico(id, motivo) {
+  function setEstrategico(id, motivo, { proximo = false } = {}) {
     const sp = sprintAtual();
     if (!sp) return { ok: false, error: "Nenhum ciclo aberto." };
     const it = findInitiative(id);
     if (!it) return { ok: false, error: "Projeto não encontrado." };
     if (!String(motivo || "").trim()) return { ok: false, error: "Escreva o motivo da escolha estratégica." };
-    return saveInitiative({ ciclo: sp.id, estrategico: true, estrategicoMotivo: String(motivo).trim() }, id, { source: "Priorização" });
+    const marca = { estrategico: true, estrategicoMotivo: String(motivo).trim() };
+    return saveInitiative(proximo ? { ...marca, proximoCiclo: "sim" } : { ...marca, ciclo: sp.id }, id, { source: proximo ? "Planejamento do próximo ciclo" : "Priorização" });
   }
 
   /* ---------- Ficha do projeto: dependências, ritmo, marcos e fila ---------- */
@@ -1356,9 +1417,10 @@
     state: store, load, persist, subscribe, emit, saveSettings, adotarDaNuvem, SCHEMA_VERSION,
     calc: { ve, cutoff, isAboveCut, wipCount, snapFib, snapEsforco, progress, parseDate, weekKey, sprintLimites, projetosPorOnda },
     eixos, findEixo, saveEixo, deleteEixo, eixoUso, criarFase, fasesDe,
-    sprints, sprintAtual, findSprint, nomeCiclo, sprintItems, activityCol, sprintDates, planSprint, moveActivity, novaSprint, saveSprint, saveChecklist,
+    sprints, sprintAtual, findSprint, nomeCiclo, rotuloCiclo, proximoCicloInfo, noProximoCiclo, projetosNoProximo, setNoProximo,
+    destrava, custoAtraso, wsjf, sprintItems, activityCol, sprintDates, planSprint, moveActivity, novaSprint, saveSprint, saveChecklist,
     findInitiative, nextId, saveInitiative, createProject, quickIdea, saveConfig, deleteInitiative, canDelete, advanceSituacao,
-    moveToColumn, setOnda, setStatus, warnings, confirmarEsforco, setNoCiclo, projetosNoCiclo, setEstrategico,
+    moveToColumn, setOnda, setStatus, warnings, confirmarEsforco, setNoCiclo, projetosNoCiclo, setEstrategico, cicloJaAndando,
     dependenciasPendentes, liberaQuem, ritmo, proximoMarco, tempoNaFila,
     saveActivity, setRaci, deleteActivity, findActivity, projectTeam, raciText, raciPeople, splitNames,
     areas, findArea, saveArea, deleteArea, suggestAreaCode, nextAreaColor,

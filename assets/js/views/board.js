@@ -182,6 +182,8 @@
               <div class="wave-cap-bar"><span style="width:${pct}%"></span></div>
               <div class="wave-col-load">${abertos} de ${limite} projetos</div>
             </div>`}
+            ${abertos ? `<div class="wave-setores">${S.areas().map((a) => { const n = list.filter((i) => i.area === a.key && i.status !== "Concluído").length;
+              return n ? `<span class="wave-setor" style="--ac:${a.cor}" title="${esc(`${a.key}: ${n} projeto(s) em aberto nesta onda`)}">${esc(a.key)} <b>${n}</b></span>` : ""; }).join("")}</div>` : ""}
           </header>
           <div class="wave-col-list">
             ${list.length ? list.map((it) => `

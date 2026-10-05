@@ -315,6 +315,7 @@
               ${noCiclo ? `<span class="badge accent">📋 No ${esc(S.nomeCiclo(sp))}</span>` : `<span class="badge">Fora do ciclo</span>`}
               ${it.estrategico && noCiclo ? `<span class="badge warn" title="${esc(it.estrategicoMotivo)}">⭐ Escolha estratégica</span>` : ""}
               ${it.valor && it.esforco ? `<span class="muted small">V${it.valor} · E${it.esforco} · V÷E ${fmtNum(ve(it))}</span>` : ""}
+              ${it.valor && it.esforco ? `<span class="muted small" title="${esc(`(Valor ${it.valor} + Urgência ${it.urgencia || 0} + Destrava ${S.destrava(it)}) ÷ Esforço ${it.esforco}`)}">· Urgência ${it.urgencia ? `${it.urgencia} (${esc(A.meta.URGENCIA_ESCALA[it.urgencia]?.curto || "")})` : "a definir"} · Custo do atraso ÷ E ${fmtNum(S.wsjf(it))}</span>` : ""}
             </div>
           </div>
           <div class="ficha-acoes no-print">

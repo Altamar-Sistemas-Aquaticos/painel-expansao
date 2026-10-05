@@ -492,6 +492,43 @@
       `Linha de corte atual: Σ Valor ${cut.sumValor} ÷ Σ Esforço ${cut.sumEsforco} = ${fmtNum(cut.value)}`;
   }
 
+  // Um quadro por setor: projetos no ciclo, etapas comprometidas × feitas, atrasos e o pior semáforo.
+  function setoresNoCiclo(S, si, od) {
+    const limite = A.meta.LIMITE_PROJETOS_SETOR;
+    const SEM = { vermelho: 0, amarelo: 1, verde: 2 };
+    const linhas = S.areas().map((a) => {
+      const projs = S.projetosNoCiclo(a.key);
+      const acts = si.items.filter(({ it }) => it.area === a.key);
+      const feitas = acts.filter(({ a: x }) => x.status === "Concluído").length;
+      const atrasos = od.projetos.filter((it) => it.area === a.key).length + od.atividades.filter(({ it }) => it.area === a.key).length;
+      const pior = projs.map((p) => p.semaforo).sort((x, y) => (SEM[x] ?? 3) - (SEM[y] ?? 3))[0];
+      const pct = acts.length ? Math.round((feitas / acts.length) * 100) : 0;
+      const parados = S.state.data.initiatives.filter((it) => it.area === a.key && it.situacao === "Validado" && !it.ciclo && (S.tempoNaFila(it) || 0) >= 3).length;
+      return `
+        <button class="ex-setor" data-ex-setor="${esc(a.key)}" data-action="go-tab" data-tab="kanban" style="--ac:${a.cor}" title="Abrir o Kanban de ${esc(a.key)}">
+          <span class="ex-setor-nome"><strong>${esc(a.key)}</strong><span class="muted small">${esc(a.lider || "líder a definir")}</span></span>
+          <span class="ex-setor-proj ${projs.length > limite ? "bad" : ""}" title="${esc(projs.map((p) => `${p.id} · ${p.nome}`).join("\n") || "Nenhum projeto no ciclo")}"><strong>${projs.length}</strong>/${limite}<small>projetos</small></span>
+          <span class="ex-setor-barra" title="${feitas} de ${acts.length} etapas feitas"><i style="width:${pct}%"></i><small>${acts.length ? `${feitas} de ${acts.length} etapas feitas` : "sem etapas comprometidas"}</small></span>
+          <span class="ex-setor-sinais">
+            ${pior ? `<span title="Pior semáforo entre os projetos do ciclo">${{ verde: "🟢", amarelo: "🟡", vermelho: "🔴" }[pior] || ""}</span>` : ""}
+            ${atrasos ? `<span class="kchip bad">${atrasos} atraso${atrasos === 1 ? "" : "s"}</span>` : ""}
+            ${parados ? `<span class="kchip warnc" title="Validados esperando há 3 ciclos ou mais">⏳ ${parados}</span>` : ""}
+          </span>
+        </button>`;
+    }).join("");
+    return `
+      <section class="panel ex-setores">
+        <div class="panel-head"><h3 class="panel-title">Setores · ${si.sp ? esc(si.rotulo) : "sem ciclo aberto"}</h3>
+          <span class="muted small">Comprometido × feito · clique para abrir o Kanban do setor</span></div>
+        <div class="ex-setores-lista">${linhas}</div>
+      </section>`;
+  }
+  // Ao abrir o Kanban por um setor, já filtra por ele (roda antes do go-tab).
+  document.addEventListener("click", (e) => {
+    const b = e.target.closest("[data-ex-setor]");
+    if (b) A.store.state.ui.area = b.dataset.exSetor;
+  }, true);
+
   function renderDashboard(S) {
     const el = document.getElementById("exec-dashboard");
     if (!el) return;
@@ -524,6 +561,8 @@
       </div>
 
       ${minhasAtividades(S)}
+
+      ${A.visao.atual().tipo === "lider" ? "" : setoresNoCiclo(S, si, od)}
 
       <div class="kgrid">
         ${kpiCard({

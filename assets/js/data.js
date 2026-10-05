@@ -56,6 +56,14 @@
     5: { curto: "Clientes ou receita", texto: "Impacto em clientes, receita ou em vários setores", exemplo: "Formulário padrão de requisitos" },
     8: { curto: "Estratégico", texto: "Estratégico: muda faturamento ou posicionamento", exemplo: "Prospecção por CNAE · oferta de fazenda completa" },
   };
+  // Urgência = quanto perdemos se o projeto esperar (entra no WSJF: custo do atraso ÷ esforço).
+  const URGENCIA_ESCALA = {
+    1: { curto: "Pode esperar", texto: "Sem perda se ficar para o ano que vem" },
+    2: { curto: "Melhor logo", texto: "Pequena perda a cada mês de espera" },
+    3: { curto: "Este semestre", texto: "Perda clara ou oportunidade de temporada" },
+    5: { curto: "Este trimestre", texto: "Cliente, concorrente ou meta do ano dependem disso" },
+    8: { curto: "Agora", texto: "Data de contrato, cliente ou evento: prejuízo se atrasar" },
+  };
   // Esforço = tempo até a entrega final do projeto (escala própria, de 1 a 5).
   const ESFORCO_PONTOS = [1, 2, 3, 4, 5];
   const ESFORCO_ESCALA = {
@@ -152,11 +160,13 @@
   A.meta = {
     ONDAS, STATUS, SEMAFOROS, COLUNAS, FIBONACCI, WIP_MIN, WIP_MAX, PESSOAS, tempoPorEsforco,
     VALOR_ESCALA, ESFORCO_ESCALA, ESFORCO_PONTOS, ESFORCO_ANTIGO_PARA_NOVO, SPRINTS_POR_ONDA, SPRINT_SEMANAS,
-    SPRINT_MIN_PADRAO, SPRINT_MAX_PADRAO, PROJETOS_POR_ONDA_PADRAO, SPRINT_COLUNAS, EIXOS_PADRAO, EIXO_INICIAL,
+    SPRINT_MIN_PADRAO, SPRINT_MAX_PADRAO, PROJETOS_POR_ONDA_PADRAO, SPRINT_COLUNAS, EIXOS_PADRAO, EIXO_INICIAL, URGENCIA_ESCALA,
   };
   // Opções de <select> com a descrição da escala ("5 · Clientes ou receita").
   A.meta.valorOptions = (sel, blank = "— A definir —") => `<option value="">${blank}</option>` +
     FIBONACCI.map((f) => `<option value="${f}" ${String(f) === String(sel) ? "selected" : ""}>${f} · ${VALOR_ESCALA[f].curto}</option>`).join("");
+  A.meta.urgenciaOptions = (sel, blank = "— A definir —") => `<option value="">${blank}</option>` +
+    FIBONACCI.map((f) => `<option value="${f}" ${String(f) === String(sel) ? "selected" : ""}>${f} · ${URGENCIA_ESCALA[f].curto}</option>`).join("");
   A.meta.esforcoOptions = (sel, blank = "— A definir —") => `<option value="">${blank}</option>` +
     ESFORCO_PONTOS.map((f) => `<option value="${f}" ${String(f) === String(sel) ? "selected" : ""}>${f} · ${ESFORCO_ESCALA[f].curto}</option>`).join("");
   A.meta.SETORES_PADRAO = AREAS;

@@ -618,18 +618,19 @@ tr.cut-divider td {
 
 /* ---------- Visão geral ---------- */
 .ov-rings { display: grid; grid-template-columns: repeat(auto-fill, minmax(170px, 1fr)); gap: 0.85rem; margin-bottom: 1.25rem; }
+/* Quadros dos setores: inteiros na cor do setor, com anel e textos brancos */
 .ov-ring {
   display: flex; flex-direction: column; align-items: center; gap: 0.15rem; padding: 0.9rem 0.6rem 0.75rem;
-  background: var(--surface); border: 1px solid var(--border); border-top: 4px solid var(--ac, var(--accent)); border-radius: var(--radius);
-  box-shadow: var(--shadow); cursor: pointer; font: inherit; color: inherit; transition: transform 0.12s, box-shadow 0.12s;
+  background: var(--ac, var(--accent)); border: none; border-radius: var(--radius); color: #fff;
+  box-shadow: 0 6px 16px -8px color-mix(in srgb, var(--ac, var(--accent)) 80%, transparent); cursor: pointer; font: inherit; transition: transform 0.12s, box-shadow 0.12s;
 }
-.ov-ring:hover { transform: translateY(-2px); box-shadow: 0 6px 16px rgba(0, 0, 0, 0.08); }
-.ov-ring-total { cursor: default; background: var(--surface-2); }
-.ov-ring-total:hover { transform: none; box-shadow: var(--shadow); }
-.ov-ring-text { font-size: 17px; font-weight: 800; fill: var(--text); }
-.ov-ring-name { font-weight: 800; margin-top: 0.2rem; }
-.ov-ring-meta { font-size: 0.76rem; color: var(--text-muted); }
-.ov-ring-late { font-size: 0.76rem; font-weight: 700; color: var(--alert); }
+.ov-ring:hover { transform: translateY(-3px); box-shadow: 0 10px 22px -8px color-mix(in srgb, var(--ac, var(--accent)) 90%, transparent); }
+.ov-ring-total { cursor: default; }
+.ov-ring-total:hover { transform: none; }
+.ov-ring-text { font-size: 17px; font-weight: 800; fill: #fff; }
+.ov-ring-name { font-weight: 800; margin-top: 0.2rem; text-align: center; line-height: 1.2; }
+.ov-ring-meta { font-size: 0.76rem; color: rgba(255, 255, 255, 0.85); text-align: center; }
+.ov-ring-late { font-size: 0.72rem; font-weight: 800; color: var(--alert-text); background: #fff; border-radius: 999px; padding: 0.05rem 0.5rem; }
 
 .ov-table { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); box-shadow: var(--shadow); overflow: clip; }
 .ov-row {
@@ -900,7 +901,11 @@ body.presentation .filter-bar { display: none; }
 .tri-q-nome { font-weight: 600; }
 .tri-q-error { grid-column: 1 / -1; margin: 0; }
 .tri-q-error:empty { display: none; }
-.tri-filters { margin-bottom: 0.6rem; }
+.tri-filters { margin-bottom: 0.6rem; display: flex; gap: 0.6rem; flex-wrap: wrap; align-items: center; }
+.tri-setor { display: inline-flex; align-items: center; gap: 0.35rem; }
+.tri-setor select { width: auto; }
+.tri-busca { max-width: 220px; }
+.tri-sub { font-size: 0.74rem; color: var(--text-muted); font-weight: 400; margin-top: 0.1rem; }
 .tri-table td { vertical-align: middle; }
 .tri-id { display: inline-block; min-width: 2.6rem; text-align: center; padding: 0.15rem 0.4rem; border-radius: 6px; background: var(--ac); color: #fff; font-size: 0.82rem; }
 .tri-name { min-width: 240px; font-weight: 600; }
@@ -1263,6 +1268,34 @@ button.wip-pill:hover { filter: brightness(1.05); }
 .login-links { text-align: center; margin-top: 0.8rem; color: var(--text-muted); }
 #modal-login.open { background: color-mix(in srgb, var(--brand-bg) 88%, transparent); }
 
+/* Priorização: ciclo em foco e ordem */
+.pr-controles { display: flex; gap: 0.6rem; flex-wrap: wrap; margin-bottom: 0.7rem; }
+.seg-rotulo { font-size: 0.78rem; color: var(--text-muted); padding: 0.3rem 0.5rem; display: inline-flex; align-items: center; }
+.pr-ciclo-total.planejando { background: repeating-linear-gradient(135deg, var(--brand-bg), var(--brand-bg) 10px, color-mix(in srgb, var(--brand-bg) 85%, #fff) 10px, color-mix(in srgb, var(--brand-bg) 85%, #fff) 20px); }
+
+/* Priorização: contador do ciclo em blocos (um por setor) */
+.pr-ciclo-painel { display: grid; grid-template-columns: 150px minmax(0, 1fr); gap: 0.7rem; margin-bottom: 0.9rem; align-items: stretch; }
+.pr-ciclo-total { background: var(--brand-bg); color: #fff; border-radius: 12px; padding: 0.7rem; display: flex; flex-direction: column; justify-content: center; text-align: center; }
+.pr-ciclo-total span { font-size: 0.78rem; font-weight: 700; opacity: 0.9; }
+.pr-ciclo-total strong { font-size: 2.4rem; line-height: 1.05; }
+.pr-ciclo-total small { font-size: 0.72rem; opacity: 0.85; }
+.pr-blocos { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 0.55rem; }
+.pr-bloco { all: unset; box-sizing: border-box; cursor: pointer; display: flex; flex-direction: column; gap: 0.3rem; padding: 0.55rem 0.6rem; border-radius: 12px;
+  background: color-mix(in srgb, var(--ac) 14%, var(--surface)); border: 2px solid color-mix(in srgb, var(--ac) 30%, transparent); transition: transform 0.12s; }
+.pr-bloco:hover { transform: translateY(-2px); }
+.pr-bloco.ativo { border-color: var(--ac); box-shadow: 0 0 0 2px color-mix(in srgb, var(--ac) 35%, transparent); }
+.pr-bloco.cheio, .pr-bloco.acima { background: var(--ac); color: #fff; }
+.pr-bloco-nome { font-weight: 800; font-size: 0.8rem; line-height: 1.2; color: var(--ac); }
+.pr-bloco.cheio .pr-bloco-nome, .pr-bloco.acima .pr-bloco-nome { color: #fff; }
+.pr-bloco-num { font-size: 1.6rem; line-height: 1; }
+.pr-bloco-num small { font-size: 0.85rem; opacity: 0.7; }
+.pr-bloco.acima .pr-bloco-num::after { content: " acima"; font-size: 0.7rem; }
+.pr-bloco-slots { display: grid; grid-template-columns: repeat(4, 1fr); gap: 4px; }
+.pr-bloco-slots i { font-style: normal; min-height: 22px; border-radius: 6px; border: 1.5px dashed color-mix(in srgb, var(--ac) 45%, transparent); display: grid; place-items: center; font-size: 0.66rem; font-weight: 800; }
+.pr-bloco-slots i.on { background: var(--ac); color: #fff; border: none; }
+.pr-bloco.cheio .pr-bloco-slots i.on, .pr-bloco.acima .pr-bloco-slots i.on { background: #fff; color: var(--ac); }
+@media (max-width: 700px) { .pr-ciclo-painel { grid-template-columns: 1fr; } }
+
 /* Priorização por setor: contadores do ciclo e coluna "Ciclo" */
 .pr-contadores { display: grid; grid-template-columns: auto repeat(auto-fit, minmax(150px, 1fr)); gap: 0.45rem; align-items: stretch; margin-bottom: 0.8rem; }
 .pr-contadores-tit { align-self: center; font-weight: 800; font-size: 0.82rem; color: var(--text-muted); padding-right: 0.3rem; }
@@ -1385,6 +1418,47 @@ button.wip-pill:hover { filter: brightness(1.05); }
 .ficha-etapa .act-ring { grid-area: anel; }
 .ficha-etapa .act-av { grid-area: av; margin: 0; }
 @media (max-width: 900px) { .ficha-grid { grid-template-columns: 1fr; } .ficha-marcos-lista li { grid-template-columns: auto minmax(0, 1fr) auto; } .marco-data { grid-column: 2; } }
+
+/* Ondas: contagem por setor */
+.wave-setores { display: flex; flex-wrap: wrap; gap: 0.25rem; margin-top: 0.4rem; }
+.wave-setor { font-size: 0.7rem; padding: 0.05rem 0.4rem; border-radius: 99px; border: 1px solid var(--ac); color: var(--text); background: color-mix(in srgb, var(--ac) 12%, transparent); }
+
+/* Painel executivo: setores no ciclo */
+.ex-setores { margin-bottom: 1rem; }
+.ex-setores-lista { display: flex; flex-direction: column; gap: 0.35rem; }
+.ex-setor { display: grid; grid-template-columns: minmax(150px, 1.3fr) 90px minmax(160px, 2fr) minmax(110px, 1fr); gap: 0.8rem; align-items: center;
+  text-align: left; font: inherit; color: inherit; background: var(--surface); border: 1px solid var(--border); border-left: 5px solid var(--ac); border-radius: 10px; padding: 0.55rem 0.8rem; cursor: pointer; }
+.ex-setor:hover { border-color: var(--ac); box-shadow: 0 2px 8px rgba(0,0,0,0.06); }
+.ex-setor-nome { display: flex; flex-direction: column; min-width: 0; }
+.ex-setor-proj strong { font-size: 1.3rem; }
+.ex-setor-proj small { display: block; color: var(--text-muted); font-size: 0.72rem; }
+.ex-setor-proj.bad strong { color: var(--bad, #c0392b); }
+.ex-setor-barra { position: relative; display: block; height: 8px; border-radius: 99px; background: var(--border); margin-bottom: 1rem; }
+.ex-setor-barra i { position: absolute; inset: 0 auto 0 0; border-radius: 99px; background: var(--ac); }
+.ex-setor-barra small { position: absolute; top: 11px; left: 0; white-space: nowrap; color: var(--text-muted); font-size: 0.75rem; }
+.ex-setor-sinais { display: flex; gap: 0.35rem; justify-content: flex-end; align-items: center; flex-wrap: wrap; }
+@media (max-width: 700px) { .ex-setor { grid-template-columns: 1fr auto; } .ex-setor-barra { grid-column: 1 / -1; } }
+
+/* Círculos de impacto (nota de valor) */
+.impacto { width: 100%; max-width: 360px; display: block; }
+.impacto-anel circle { fill: color-mix(in srgb, var(--accent) calc(10% + var(--n) * 14%), var(--surface)); stroke: color-mix(in srgb, var(--accent) 60%, transparent); stroke-width: 1.5; transition: fill 0.15s; }
+.impacto-anel text { font-size: 12px; fill: var(--text); pointer-events: none; font-weight: 600; }
+.impacto-anel:nth-child(n+4) text { fill: #fff; }
+.impacto-num { font-weight: 800; font-size: 14px; }
+.impacto.interativo .impacto-anel { cursor: pointer; }
+.impacto.interativo .impacto-anel:hover circle, .impacto-anel.sel circle { fill: var(--warn); stroke: var(--warn-text); }
+.impacto-anel.sel text { fill: #fff; }
+.impacto-wrap { display: grid; grid-template-columns: minmax(0, 360px) minmax(0, 1fr); gap: 1rem; align-items: center; }
+.impacto-legenda { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 0.35rem; }
+.impacto-legenda li { display: flex; gap: 0.6rem; align-items: flex-start; padding: 0.4rem 0.5rem; border-radius: 8px; cursor: pointer; border: 1px solid var(--border); }
+.impacto-legenda li:hover, .impacto-legenda li.sel { border-color: var(--warn); background: var(--warn-soft); }
+.impacto-legenda li > strong { flex: none; width: 28px; height: 28px; border-radius: 50%; display: grid; place-items: center; background: var(--accent); color: var(--on-accent); }
+.tri-impacto { border: 1px solid var(--border); background: var(--surface); border-radius: 6px; cursor: pointer; margin-left: 0.2rem; padding: 0.15rem 0.3rem; font-size: 0.8rem; }
+.tri-impacto:hover { border-color: var(--warn); }
+.tri-valor-grupo { display: flex; align-items: center; min-width: 0; }
+.tri-valor-grupo select { flex: 1; min-width: 0; }
+.tri-urg { max-width: 140px; }
+@media (max-width: 700px) { .impacto-wrap { grid-template-columns: 1fr; } }
 
 /* ---------- Boletim ---------- */
 .boletim-actions { margin-bottom: 0.7rem; flex-wrap: wrap; }
