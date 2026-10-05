@@ -70,6 +70,16 @@
     await carregar();
   }
 
+  // O projeto trocou de código (mudou de setor): o valor acompanha o novo código.
+  async function renomear(antigo, novo) {
+    const sb = cliente();
+    if (!sb || !perfilVe() || !valores.has(antigo)) return;
+    const atual = valores.get(antigo);
+    const { error } = await sb.from("financeiro").upsert({ projeto_id: novo, custo: atual.custo, observacao: `${atual.observacao || ""} (código antigo ${antigo})`.trim() });
+    if (!error) await sb.from("financeiro").delete().eq("projeto_id", antigo);
+    await carregar();
+  }
+
   const custo = (id) => valores.get(id)?.custo ?? null;
 
   // Projetos "em andamento" para a conta: abertos e já começados ou escolhidos para um ciclo.
@@ -154,5 +164,5 @@
     if (e.target.matches?.("[data-fin-geral]")) try { sessionStorage.setItem("altamar_fin_aberto", e.target.open ? "1" : "0"); } catch {}
   }, true);
 
-  A.financeiro = { carregar, limpar, pode, custo, secaoFicha, painelGeral, lerValor };
+  A.financeiro = { carregar, limpar, renomear, pode, custo, secaoFicha, painelGeral, lerValor };
 })();

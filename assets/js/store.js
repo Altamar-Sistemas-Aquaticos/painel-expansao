@@ -693,6 +693,9 @@
     const idx = store.data.initiatives.findIndex((i) => i.id === originalId);
     const before = store.data.initiatives[idx];
     const merged = { ...before, ...input };
+    // Mudou de setor e o código ainda é o do setor antigo (ex.: M9 indo para Vendas): ganha o próximo código do setor novo.
+    if (merged.area !== before.area && String(merged.id || "").trim().toUpperCase() === before.id &&
+        new RegExp(`^${A.area(before.area).code}\\d+$`).test(before.id)) merged.id = nextId(merged.area);
     if ("esforco" in input && !("esforcoRevisar" in input)) merged.esforcoRevisar = false; // mexeu no esforço = revisado
     // Se o status mudou e a coluna não foi informada explicitamente, a coluna acompanha o status.
     if (input.status && input.status !== before.status && !("coluna" in input)) merged.coluna = null;
@@ -705,7 +708,15 @@
     store.data.initiatives[idx] = after;
     registerMissing(store.data);
     if (after.id !== originalId) {
+      // O código mudou: tudo o que apontava para o código antigo passa a apontar para o novo.
       store.data.decisions.forEach((d) => { if (d.grupo === originalId) d.grupo = after.id; });
+      store.data.compromissos.forEach((x) => { if (x.projeto === originalId) x.projeto = after.id; });
+      store.data.initiatives.forEach((i) => {
+        if (i.faseDe === originalId) i.faseDe = after.id;
+        (i.dependencias || []).forEach((d) => { if (d.id === originalId) d.id = after.id; });
+      });
+      store.data.history.forEach((h) => { if (h.refId === originalId) h.refId = after.id; });
+      A.financeiro?.renomear?.(originalId, after.id);
     }
     if (motivo) changes.push({ field: "motivo", label: "Motivo", from: "", to: motivo });
     const e = entry("iniciativa", after.id, "editou", `${after.id} · ${after.nome}`, changes, source);

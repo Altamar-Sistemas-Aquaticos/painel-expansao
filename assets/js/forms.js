@@ -70,6 +70,22 @@
     $("ini-prazo").value = fmtBR(new Date(baseDias().getTime() + n * DIA));
   }
 
+  // O código segue o padrão de um setor (letras + número) diferente do setor do projeto?
+  function codigoDeOutroSetor(id, area) {
+    const m = String(id || "").match(/^([A-Z]+)\d+$/);
+    return !!m && m[1] !== A.area(area).code && A.store.areas().some((a) => a.code === m[1]);
+  }
+  // Ao trocar o setor na edição, o código acompanha (M9 → próximo código de Vendas). Voltar ao setor original devolve o código.
+  function codigoAoTrocarSetor() {
+    const S = A.store;
+    const it = editingId ? S.findInitiative(editingId) : null;
+    const area = $("ini-area").value;
+    // Só mexe em códigos no padrão letras + número; um código digitado à mão fica como está.
+    if (!/^[A-Z]+\d+$/.test($("ini-id").value.trim().toUpperCase())) return;
+    $("ini-id").value = it && it.area === area && !codigoDeOutroSetor(it.id, area) ? it.id : S.nextId(area);
+    $("ini-error").textContent = it && $("ini-id").value !== it.id ? `Mudou de setor: ao salvar, ${it.id} passa a ser ${$("ini-id").value}.` : "";
+  }
+
   function openInitiativeForm(id = null) {
     const S = A.store;
     const it = id ? S.findInitiative(id) : null;
@@ -106,6 +122,11 @@
     $("ini-obs").value = data.observacoes;
     $("ini-enabler").checked = !!data.enabler;
     $("ini-error").textContent = "";
+    // Projeto que já mudou de setor mas ficou com o código antigo (ex.: M9 em Vendas): sugere o código do setor.
+    if (it && codigoDeOutroSetor(it.id, it.area)) {
+      $("ini-id").value = S.nextId(it.area);
+      $("ini-error").textContent = `O código ${it.id} é de outro setor. Ao salvar, passa a ser ${$("ini-id").value}.`;
+    }
     $("ini-delete").classList.toggle("hidden", !S.canDelete(it));
     $("ini-add-decision").classList.toggle("hidden", !it);
 
@@ -151,6 +172,11 @@
     }
     closeModal("modal-initiative");
     if (r.unchanged) return;
+    if (editingId && r.item.id !== editingId) {
+      toast(`${editingId} agora é ${r.item.id} (${r.item.area}).`, "ok", 5000);
+      if (location.hash === `#projeto/${editingId}`) location.hash = `#projeto/${r.item.id}`;
+      return;
+    }
     toast(editingId ? `${r.item.id} atualizada.` : `${r.item.id} criada.`);
   }
 
@@ -374,10 +400,7 @@
     $("ini-dias").addEventListener("input", atualizarPrazo);
     $("ini-valor").addEventListener("change", updateCalcBox);
     $("ini-esforco").addEventListener("change", updateCalcBox);
-    $("ini-area").addEventListener("change", () => {
-      // Para iniciativas novas, sugere o próximo ID da área escolhida.
-      if (!editingId && /^[A-Z]{1,3}\d+$/.test($("ini-id").value)) $("ini-id").value = A.store.nextId($("ini-area").value);
-    });
+    $("ini-area").addEventListener("change", codigoAoTrocarSetor);
     // A onda é decidida na aba Ondas: o link fecha a janela e leva até lá.
     $("modal-initiative").addEventListener("click", (e) => { if (e.target.closest("[data-close-ini]")) closeModal("modal-initiative"); });
     $("ini-delete").addEventListener("click", () => editingId && deleteInitiative(editingId));
