@@ -1419,6 +1419,31 @@ button.wip-pill:hover { filter: brightness(1.05); }
 .ficha-etapa .act-av { grid-area: av; margin: 0; }
 @media (max-width: 900px) { .ficha-grid { grid-template-columns: 1fr; } .ficha-marcos-lista li { grid-template-columns: auto minmax(0, 1fr) auto; } .marco-data { grid-column: 2; } }
 
+/* Financeiro (confidencial) */
+.fin-sigilo { font-size: 0.72rem; color: var(--warn-text); background: var(--warn-soft); border-radius: 99px; padding: 0.1rem 0.55rem; white-space: nowrap; }
+.fin-ficha { margin-bottom: 1rem; border-left: 4px solid var(--warn); }
+.fin-form { display: flex; gap: 0.6rem; align-items: flex-end; flex-wrap: wrap; }
+.fin-form .fin-valor { width: 160px; font-variant-numeric: tabular-nums; }
+.fin-form .fin-obs { flex: 1; min-width: 200px; }
+.fin-form .fin-obs input { width: 100%; }
+.fin-resumo { margin-top: 0.6rem; }
+.fin-resumo strong { font-size: 1.2rem; }
+.fin-hist { margin-top: 0.5rem; font-size: 0.85rem; }
+.fin-hist ul { margin: 0.4rem 0 0; padding-left: 1.1rem; display: flex; flex-direction: column; gap: 0.25rem; }
+.fin-aviso { margin: 0; padding: 0.5rem 0.7rem; border-radius: 8px; background: var(--warn-soft); color: var(--warn-text); }
+.fin-geral { margin: 0 0 1rem; border-left: 4px solid var(--warn); }
+.fin-geral > summary { display: flex; gap: 0.7rem; align-items: baseline; flex-wrap: wrap; cursor: pointer; list-style: none; }
+.fin-geral > summary::-webkit-details-marker { display: none; }
+.fin-geral > summary::before { content: "▸"; color: var(--text-muted); }
+.fin-geral[open] > summary::before { content: "▾"; }
+.fin-geral > summary strong { font-size: 1.25rem; font-variant-numeric: tabular-nums; }
+.fin-geral > summary .fin-sigilo { margin-left: auto; }
+.fin-tabela { margin-top: 0.7rem; }
+.fin-tabela .num { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.fin-setor-head th { text-align: left; border-left: 4px solid var(--ac); background: color-mix(in srgb, var(--ac) 10%, transparent); }
+.fin-tabela tfoot th { text-align: left; border-top: 2px solid var(--border); }
+.fin-tabela tfoot th.num { text-align: right; }
+
 /* Ondas: contagem por setor */
 .wave-setores { display: flex; flex-wrap: wrap; gap: 0.25rem; margin-top: 0.4rem; }
 .wave-setor { font-size: 0.7rem; padding: 0.05rem 0.4rem; border-radius: 99px; border: 1px solid var(--ac); color: var(--text); background: color-mix(in srgb, var(--ac) 12%, transparent); }

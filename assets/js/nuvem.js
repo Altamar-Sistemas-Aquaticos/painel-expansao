@@ -68,6 +68,7 @@
     await buscar({ primeiraVez: true });
     ligarTempoReal();
     if (membro.perfil === "admin") carregarMembros();
+    A.financeiro?.carregar();
   }
 
   async function buscar({ primeiraVez = false } = {}) {
@@ -245,6 +246,7 @@
     if (!sb) return;
     await sb.auth.signOut();
     membro = null; versao = null;
+    A.financeiro?.limpar();
     delete document.body.dataset.perfil;
     abrirLogin("entrar");
   }
@@ -368,6 +370,7 @@
     configurado, init, iniciar, agendar, sair, conectado, renderMembros, atualizarMinhaAtividade,
     status: () => status,
     perfil: () => membro?.perfil || null,
+    cliente: () => (membro ? sb : null),
     perfilLabel: () => (membro ? PERFIL_LABEL[membro.perfil] : ""),
   };
 })();

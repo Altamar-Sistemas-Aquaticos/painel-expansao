@@ -93,10 +93,9 @@
       </label>
       <input type="search" class="input input-sm tri-busca" data-tri-busca placeholder="🔍 Buscar projeto" value="${esc(S.state.ui.search || "")}">`;
 
-    const sitOrder = Object.fromEntries(S.SITUACOES.map((s, i) => [s, i]));
+    // Ordem fixa (setor e número): dar nota não muda a linha de lugar; o projeto só sai de "A triar" ao ser validado.
     const list = all.filter((it) => filtros[f](it) && S.matchesFilters(it)).sort((a, b) =>
-      semNota(b) - semNota(a) || ativo(b) - ativo(a) || sitOrder[a.situacao] - sitOrder[b.situacao] ||
-      S.calc.ve(b) - S.calc.ve(a) || a.id.localeCompare(b.id, "pt-BR", { numeric: true }));
+      ativo(b) - ativo(a) || a.id.localeCompare(b.id, "pt-BR", { numeric: true }));
 
     const cut = S.calc.cutoff();
     $("triagem-cut").innerHTML = `Linha de corte: <strong>${fmtNum(cut.value)}</strong> <span class="muted">(Σ Valor ${cut.sumValor} ÷ Σ Esforço ${cut.sumEsforco})</span>`;

@@ -223,6 +223,7 @@
         </div>
         ${rings}
       </div>
+      ${A.financeiro?.painelGeral(S) || ""}
       <div class="ov-table">
         <div class="ov-row ov-header">
           <span></span><span>ID</span><span>Projeto</span><span>Status</span><span class="ov-col-onda">Onda</span>

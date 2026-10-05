@@ -153,7 +153,7 @@
     return `
       <div class="guia">
         ${indice([["guia-programa", "Programa e projeto"], ["guia-setores", "Setores e líderes"], ["guia-termos", "Onda, ciclo, etapa"], ["guia-codigos", "Os códigos"],
-          ["guia-escalas", "Valor e esforço"], ["guia-corte", "V÷E e custo do atraso"], ["guia-abaixo", "Abaixo da linha"], ["guia-regras", "Regras"], ["guia-raci", "RACI"], ["guia-abas", "Mapa das abas"], ["guia-roteiro", "Reuniões"]])}
+          ["guia-escalas", "Valor e esforço"], ["guia-corte", "V÷E e custo do atraso"], ["guia-deps", "Dependências"], ["guia-abaixo", "Abaixo da linha"], ["guia-regras", "Regras"], ["guia-raci", "RACI"], ["guia-abas", "Mapa das abas"], ["guia-roteiro", "Reuniões"]])}
         <div class="guia-body">
 
           <section class="panel guia-sec" id="guia-programa">
@@ -211,16 +211,35 @@
             valor 8 em 1 ano dá <strong>1,6</strong>. A <strong>linha de corte</strong> é a média ponderada (Σ Valor ÷ Σ Esforço), hoje
             <strong>${fmtNum(cut.value)}</strong>. Na Priorização, cada setor tem a sua própria linha, comparando projetos parecidos entre si.</p>
             <h4>Segunda opinião: custo do atraso (WSJF)</h4>
-            <p>O V÷E mostra os ganhos rápidos, mas não diz <strong>o que perde mais se esperar</strong>. Para isso, a Priorização tem a opção
-            <em>Ordenar por: Custo do atraso</em>, uma ferramenta do método ágil (WSJF):</p>
-            <p class="guia-formula"><strong>(Valor + Urgência + Destrava) ÷ Esforço</strong></p>
+            <p><strong>WSJF</strong> vem do inglês <em>Weighted Shortest Job First</em>: “primeiro o trabalho mais curto, pesado pelo que se perde esperando”.
+            É uma ferramenta do método ágil (SAFe) para responder a uma pergunta que o V÷E não responde: <strong>o que custa mais caro deixar para depois?</strong>
+            No painel ela aparece com o nome <strong>custo do atraso</strong>, na Priorização, em <em>Ordenar por: Custo do atraso</em>.</p>
+            <p class="guia-formula"><strong>Custo do atraso = Valor + Urgência + Destrava</strong><br>
+            <strong>Ordem = Custo do atraso ÷ Esforço</strong></p>
             <ul class="guia-rules">
-              <li><strong>Urgência</strong> (nota na Triagem): ${A.meta.URGENCIA_ESCALA ? Object.entries(A.meta.URGENCIA_ESCALA).map(([k, v]) => `${k} = ${esc(v.curto || v)}`).join(" · ") : "1 a 8"}.</li>
-              <li><strong>Destrava</strong> (automático): quantos projetos em andamento dependem deste. Nenhum = 0, um = 2, dois = 3, três ou mais = 5.</li>
+              <li><strong>Valor</strong>: a mesma nota da Triagem (quanto o projeto ajuda a Altamar).</li>
+              <li><strong>Urgência</strong>: quanto se perde a cada mês de espera. Nota dada na Triagem:
+                ${Object.entries(A.meta.URGENCIA_ESCALA).map(([k, v]) => `<strong>${k}</strong> ${esc(v.curto)}`).join(" · ")}.</li>
+              <li><strong>Destrava</strong>: calculado sozinho pelo painel. Conta quantos projetos <strong>ainda não terminados</strong> estão esperando por este
+                (os que têm este projeto na seção 🔗 Dependências da ficha). Quanto mais gente parada esperando, mais caro é atrasar este projeto:
+                <strong>nenhum</strong> = 0 · <strong>um</strong> = 2 · <strong>dois</strong> = 3 · <strong>três ou mais</strong> = 5.</li>
             </ul>
-            <p>Use as duas ordens na reunião: se um projeto sobe muito no custo do atraso, é sinal de que esperar vai sair caro, mesmo que o V÷E seja baixo.</p>
+            <p><strong>Exemplo:</strong> P3 tem valor 3, urgência 5 (este trimestre) e dois projetos esperando por ele (destrava 3). Custo do atraso = 3 + 5 + 3 = <strong>11</strong>.
+            Com esforço 2, a ordem fica 11 ÷ 2 = <strong>5,5</strong>. No V÷E ele daria só 3 ÷ 2 = 1,5: parece pouco importante, mas atrasá-lo trava outros projetos.</p>
+            <p>Use as duas ordens na reunião: se um projeto sobe muito no custo do atraso, é sinal de que esperar vai sair caro, mesmo com o V÷E baixo.</p>
           </section>
 
+          <section class="panel guia-sec" id="guia-deps">
+            <h3>Dependências entre projetos</h3>
+            <p>Na ficha de cada projeto, a seção <strong>🔗 Dependências</strong> diz de quem ele depende para começar. Há dois tipos:</p>
+            <ul class="guia-rules">
+              <li><strong>“…depois que X terminar”</strong> (em gerenciamento de projetos: <em>término → início</em>, sigla <strong>TI</strong> ou, em inglês, <strong>FS</strong>, <em>finish-to-start</em>).
+                O caso mais comum: só dá para começar quando o outro estiver pronto. Ex.: a campanha de Marketing só começa depois que o catálogo novo <strong>terminar</strong>.</li>
+              <li><strong>“…depois que X começar”</strong> (<em>início → início</em>, sigla <strong>II</strong> ou <strong>SS</strong>, <em>start-to-start</em>).
+                Os dois podem andar juntos, mas este não pode sair na frente. Ex.: o treinamento da equipe de Vendas pode começar assim que o novo processo de vendas <strong>começar</strong>.</li>
+            </ul>
+            <p class="muted small">Se a dependência ainda não aconteceu, o projeto mostra ⚠ na Priorização e ⏳ na ficha. Cada dependência também aumenta o <strong>Destrava</strong> do projeto de quem se depende.</p>
+          </section>
           <section class="panel guia-sec" id="guia-abaixo">
             <h3>E os projetos abaixo da linha?</h3>
             <p>A matriz é um <strong>guia para a conversa</strong>, não uma regra automática. Se só os projetos acima da linha entrassem, os de baixo

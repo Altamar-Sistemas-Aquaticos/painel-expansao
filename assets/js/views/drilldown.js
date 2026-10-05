@@ -351,6 +351,8 @@
         ${warns.length ? `<details class="ficha-avisos"><summary>⚠ ${warns.length} ponto(s) de atenção</summary><ul>${warns.map((x) => `<li>${esc(x)}</li>`).join("")}</ul></details>` : ""}
       </div>
 
+      ${A.financeiro?.secaoFicha(it) || ""}
+
       <div class="ficha-grid">
         <section class="panel ficha-marcos">
           <div class="panel-head"><h3 class="panel-title">✔ Checklist do projeto</h3><span class="muted small">${marcos.filter((m) => m.feito).length} de ${marcos.length} entregues</span></div>
@@ -393,8 +395,8 @@
               ${opcoesDep.map((x) => `<option value="${esc(x.id)}" ${x.id === rascunho.depProj ? "selected" : ""}>${esc(x.id)} · ${esc(x.nome.length > 40 ? x.nome.slice(0, 40) + "…" : x.nome)}</option>`).join("")}
             </select>
             <select class="input input-sm" id="dep-tipo" aria-label="Tipo">
-              <option value="FS" ${rascunho.depTipo !== "SS" ? "selected" : ""}>terminar</option>
-              <option value="SS" ${rascunho.depTipo === "SS" ? "selected" : ""}>começar</option>
+              <option value="FS" ${rascunho.depTipo !== "SS" ? "selected" : ""}>terminar (término → início)</option>
+              <option value="SS" ${rascunho.depTipo === "SS" ? "selected" : ""}>começar (início → início)</option>
             </select>
             <button class="btn btn-sm btn-outline" type="submit">+ Dependência</button>
           </form>
