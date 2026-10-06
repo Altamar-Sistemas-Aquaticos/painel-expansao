@@ -7,7 +7,7 @@
   <meta name="theme-color" content="#026488">
   <title>Painel de Expansão · Altamar</title>
   <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%23026488'/%3E%3Ctext x='32' y='44' font-family='Segoe UI,Arial' font-size='36' font-weight='800' fill='white' text-anchor='middle'%3EA%3C/text%3E%3C/svg%3E">
-  <link rel="stylesheet" href="assets/css/app.css?v=20261005i">
+  <link rel="stylesheet" href="assets/css/app.css?v=20261006c">
   <script>
     // Aplica o tema antes da pintura para evitar "piscar" claro → escuro.
     (function () {
@@ -26,7 +26,7 @@
   <header class="app-header">
     <div class="header-bar">
       <a class="brand" href="#executivo" data-action="go-tab" data-tab="executivo" title="Ir para o Painel executivo">
-        <span class="brand-logo-wrap"><img class="brand-img" src="assets/img/logo-altamar-branco.png?v=20261005i" alt="Altamar Sistemas Aquáticos" width="217" height="54"></span>
+        <span class="brand-logo-wrap"><img class="brand-img" src="assets/img/logo-altamar-branco.png?v=20261006c" alt="Altamar Sistemas Aquáticos" width="217" height="54"></span>
         <span class="brand-divider" aria-hidden="true"></span>
         <span class="brand-sub">Painel de Gestão<br>Projeto de Expansão</span>
       </a>
@@ -360,7 +360,7 @@
           <div class="ini-grid3">
             <div class="field"><label for="ini-responsavel">Líder do projeto <span class="ajuda" title="Quem responde pelo projeto como um todo. Cada atividade tem o seu responsável no plano do projeto.">?</span></label><select id="ini-responsavel" class="input"></select></div>
             <div class="field"><label for="ini-status">Status</label><select id="ini-status" class="input"></select></div>
-            <div class="field"><label for="ini-semaforo">Semáforo <span class="ajuda" title="🟢 no prazo · 🟡 atenção · 🔴 travado, precisa de decisão.">?</span></label><select id="ini-semaforo" class="input"></select></div>
+            <div class="field"><label>Semáforo <span class="ajuda" title="Automático: 🔴 prazo vencido, atividade ou passo atrasado, ou algo travado · 🟡 prazo nos próximos dias ou abaixo do ritmo · 🟢 no prazo. Vale para projetos validados.">?</span></label><div class="ini-semaforo" id="ini-semaforo"></div></div>
             <div class="field"><label for="ini-inicio">Início</label><input id="ini-inicio" class="input" placeholder="dd/mm/aaaa" autocomplete="off"></div>
             <div class="field"><label for="ini-prazo">Prazo final</label><input id="ini-prazo" class="input" placeholder="dd/mm/aaaa" autocomplete="off"></div>
             <div class="field"><label for="ini-dias">Ou: dias corridos <span class="ajuda" title="Preencha os dias e o prazo é calculado; mude o prazo e os dias acompanham.">?</span></label>
@@ -587,33 +587,33 @@
   <datalist id="people-list"></datalist>
   <div class="toasts" id="toasts" aria-live="polite"></div>
 
-  <script src="assets/js/config.js?v=20261005i"></script>
-  <script src="assets/js/utils.js?v=20261005i"></script>
-  <script src="assets/js/data.js?v=20261005i"></script>
-  <script src="assets/js/activities-seed.js?v=20261005i"></script>
-  <script src="assets/js/store.js?v=20261005i"></script>
-  <script src="assets/js/excel.js?v=20261005i"></script>
-  <script src="assets/js/views/executive.js?v=20261005i"></script>
-  <script src="assets/js/views/matrix.js?v=20261005i"></script>
-  <script src="assets/js/views/tables.js?v=20261005i"></script>
-  <script src="assets/js/views/board.js?v=20261005i"></script>
-  <script src="assets/js/plano.js?v=20261005i"></script>
-  <script src="assets/js/views/drilldown.js?v=20261005i"></script>
-  <script src="assets/js/views/triagem.js?v=20261005i"></script>
-  <script src="assets/js/views/guia.js?v=20261005i"></script>
-  <script src="assets/js/impacto.js?v=20261005i"></script>
-  <script src="assets/js/visao.js?v=20261005i"></script>
-  <script src="assets/js/views/programa.js?v=20261005i"></script>
-  <script src="assets/js/boletim.js?v=20261005i"></script>
-  <script src="assets/js/views/sprint.js?v=20261005i"></script>
-  <script src="assets/js/views/overview.js?v=20261005i"></script>
-  <script src="assets/js/views/cadastros.js?v=20261005i"></script>
-  <script src="assets/js/google.js?v=20261005i"></script>
-  <script src="assets/js/compromissos.js?v=20261005i"></script>
-  <script src="assets/js/forms.js?v=20261005i"></script>
-  <script src="assets/js/ficha.js?v=20261005i"></script>
-  <script src="assets/js/nuvem.js?v=20261005i"></script>
-  <script src="assets/js/financeiro.js?v=20261005i"></script>
-  <script src="assets/js/app.js?v=20261005i"></script>
+  <script src="assets/js/config.js?v=20261006c"></script>
+  <script src="assets/js/utils.js?v=20261006c"></script>
+  <script src="assets/js/data.js?v=20261006c"></script>
+  <script src="assets/js/activities-seed.js?v=20261006c"></script>
+  <script src="assets/js/store.js?v=20261006c"></script>
+  <script src="assets/js/excel.js?v=20261006c"></script>
+  <script src="assets/js/views/executive.js?v=20261006c"></script>
+  <script src="assets/js/views/matrix.js?v=20261006c"></script>
+  <script src="assets/js/views/tables.js?v=20261006c"></script>
+  <script src="assets/js/views/board.js?v=20261006c"></script>
+  <script src="assets/js/plano.js?v=20261006c"></script>
+  <script src="assets/js/views/drilldown.js?v=20261006c"></script>
+  <script src="assets/js/views/triagem.js?v=20261006c"></script>
+  <script src="assets/js/views/guia.js?v=20261006c"></script>
+  <script src="assets/js/impacto.js?v=20261006c"></script>
+  <script src="assets/js/visao.js?v=20261006c"></script>
+  <script src="assets/js/views/programa.js?v=20261006c"></script>
+  <script src="assets/js/boletim.js?v=20261006c"></script>
+  <script src="assets/js/views/sprint.js?v=20261006c"></script>
+  <script src="assets/js/views/overview.js?v=20261006c"></script>
+  <script src="assets/js/views/cadastros.js?v=20261006c"></script>
+  <script src="assets/js/google.js?v=20261006c"></script>
+  <script src="assets/js/compromissos.js?v=20261006c"></script>
+  <script src="assets/js/forms.js?v=20261006c"></script>
+  <script src="assets/js/ficha.js?v=20261006c"></script>
+  <script src="assets/js/nuvem.js?v=20261006c"></script>
+  <script src="assets/js/financeiro.js?v=20261006c"></script>
+  <script src="assets/js/app.js?v=20261006c"></script>
 </body>
 </html>

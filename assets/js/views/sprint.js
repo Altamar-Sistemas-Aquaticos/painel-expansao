@@ -120,6 +120,11 @@
     if (!it || !a) { closeModal("modal-activity"); atual = null; return; }
     const sp = S.sprintAtual();
     const naSprint = sp && S.noKanban(it, a, sp);
+    // Posição da atividade no plano (ordem por prazo), para situar quem abre o card.
+    const ativas = it.atividades.filter((x) => x.status !== "Cancelado")
+      .sort((x, y) => (S.calc.parseDate(x.prazo)?.getTime() ?? Infinity) - (S.calc.parseDate(y.prazo)?.getTime() ?? Infinity));
+    const ordem = ativas.findIndex((x) => x.id === a.id) + 1;
+    const totalAtivas = ativas.length;
     const col = S.activityCol(a);
     const r = S.raciPeople(a.raci, "R")[0] || "";
     const feitos = a.checklist.filter((x) => x.feito).length;
@@ -130,11 +135,18 @@
 
     $("act-body").innerHTML = `
       <div class="modal-head">
-        <div class="act-modal-proj" style="--ac:${A.area(it.area).cor}">
-          <span class="act-card-id">${esc(it.id)}</span>
-          <a href="${A.drill.projectHref(it.id)}" data-nav data-close-act>${esc(it.nome)} · ver projeto completo →</a>
+        <div class="act-niveis" title="Projeto (o todo) › Atividade (este card do Kanban) › Passos (o checklist desta atividade)">
+          <span>Projeto</span><span class="sep">›</span><strong>Atividade</strong><span class="sep">›</span><span>Passos</span>
         </div>
         <button class="btn btn-xs btn-ghost" data-action="close-modal" data-target="modal-activity" aria-label="Fechar">✕</button>
+      </div>
+      <div class="act-ctx" style="--ac:${A.area(it.area).cor}">
+        <div class="act-ctx-proj">
+          <span class="act-card-id">${esc(it.id)}</span>
+          <strong>${esc(it.nome)}</strong>
+          <span class="muted small">· ${esc(it.area)} · atividade ${Math.max(1, ordem)} de ${totalAtivas} · projeto ${S.calc.progress(it) ?? 0}% · ${{ verde: "🟢", amarelo: "🟡", vermelho: "🔴" }[it.semaforo] || ""}</span>
+        </div>
+        <a class="btn btn-xs btn-outline" href="${A.drill.projectHref(it.id)}" data-nav data-close-act title="Plano completo, marcos, dependências e detalhes do projeto">Abrir projeto completo →</a>
       </div>
       ${soVe ? `<div class="perfil-aviso">${somenteLeitura ? "Somente leitura: só o responsável (R) atualiza esta atividade." : "Você é o responsável: atualize a situação, o checklist e as observações."}</div>` : ""}
       <h3 class="act-modal-title">${esc(a.nome)}</h3>
@@ -160,7 +172,7 @@
 
       <section class="act-check">
         <div class="act-check-head">
-          <strong>Checklist</strong>
+          <strong>Passos desta atividade</strong>
           <span class="muted small">${a.checklist.length ? `${feitos} de ${a.checklist.length} · ${a.pct}%` : "Quebre a atividade em passos para acompanhar o andamento"}</span>
         </div>
         ${a.checklist.length ? `<div class="act-check-bar"><span style="width:${a.pct}%"></span></div>` : ""}

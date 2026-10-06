@@ -320,7 +320,7 @@
               ${it.urgencia ? `<span class="urg-tag u${it.urgencia}" title="Urgência: quanto se perde a cada mês de espera">⏱ ${esc(A.meta.URGENCIA_ESCALA[it.urgencia]?.curto || "")}</span>` : ""}
             </div>
           </div>
-          <div class="ficha-acoes no-print">
+          <div class="ficha-acoes no-print so-gestor">
             ${it.situacao === "Rascunho" ? `<button class="btn btn-sm btn-primary" data-action="advance-situacao" data-id="${esc(it.id)}">Validar ✓</button>` : ""}
             ${canFinish ? `<button class="btn btn-sm btn-primary" data-action="finish-project" data-id="${esc(it.id)}">✓ Concluir projeto</button>` : ""}
             <button class="btn btn-sm btn-ghost" data-cmp-new="${esc(it.id)}">+ Reunião</button>
@@ -334,8 +334,8 @@
             <select class="input input-sm" data-ficha-campo="responsavel">${ui.peopleOptions(it.responsavel, { blank: "A definir" })}</select></label>
           <label class="ficha-campo"><span>Status</span>
             <select class="input input-sm" data-ficha-campo="status">${A.meta.STATUS.map((s) => `<option ${s === it.status ? "selected" : ""}>${esc(s)}</option>`).join("")}</select></label>
-          <label class="ficha-campo"><span>Semáforo</span>
-            <select class="input input-sm" data-ficha-campo="semaforo">${A.meta.SEMAFOROS.map((s) => `<option value="${s.key}" ${s.key === it.semaforo ? "selected" : ""}>${{ verde: "🟢", amarelo: "🟡", vermelho: "🔴" }[s.key]} ${esc(s.label)}</option>`).join("")}</select></label>
+          <div class="ficha-campo" title="${esc(`Semáforo automático:\n${S.semaforoMotivos(it).join("\n")}`)}"><span>Semáforo <span class="ajuda" title="Automático: 🔴 prazo vencido, atividade ou passo atrasado, ou algo travado · 🟡 prazo nos próximos dias ou abaixo do ritmo · 🟢 no prazo.">?</span></span>
+            <strong class="sem-auto ${it.semaforo}">${{ verde: "🟢", amarelo: "🟡", vermelho: "🔴" }[it.semaforo]} ${esc(S.semaforoMotivos(it)[0])}</strong></div>
           <label class="ficha-campo"><span>Início</span><input type="date" class="input input-sm" data-ficha-campo="inicio" value="${isoDeBr(it.inicio)}"></label>
           <label class="ficha-campo"><span>Prazo</span><input type="date" class="input input-sm" data-ficha-campo="prazo" value="${isoDeBr(it.prazo)}"></label>
           <label class="ficha-campo ficha-duracao" title="Dias corridos ${it.inicio ? "a partir do início" : "a partir de hoje (ainda sem início)"}. Preencha para calcular o prazo; mude o prazo e a duração acompanha.">
@@ -370,10 +370,10 @@
                 <button class="link-btn" data-action="open-project" data-id="${esc(d.id)}">${esc(d.proj.nome)}</button>
                 <span class="ficha-dep-tipo">${d.tipo === "SS" ? "começar" : "terminar"}</span>
                 <span title="${pend.has(d.id) ? "Ainda não aconteceu" : "Já aconteceu"}">${pend.has(d.id) ? "⏳" : "✓"}</span>
-                <button class="raci-x no-print" data-dep-del="${esc(d.id)}" title="Remover dependência">✕</button>
+                <button class="raci-x no-print so-gestor" data-dep-del="${esc(d.id)}" title="Remover dependência">✕</button>
               </li>`).join("") || `<li class="muted small">Não depende de nenhum projeto.</li>`}
           </ul>
-          <form class="ficha-add no-print" id="dep-form" data-ini="${esc(it.id)}">
+          <form class="ficha-add no-print so-gestor" id="dep-form" data-ini="${esc(it.id)}">
             <select class="input input-sm" id="dep-proj" aria-label="Projeto">
               <option value="">Escolha o projeto…</option>
               ${opcoesDep.map((x) => `<option value="${esc(x.id)}" ${x.id === rascunho.depProj ? "selected" : ""}>${esc(x.id)} · ${esc(x.nome.length > 40 ? x.nome.slice(0, 40) + "…" : x.nome)}</option>`).join("")}
@@ -397,7 +397,7 @@
           <div><dt>Indicador de sucesso</dt><dd>${esc(it.indicador || "—")}</dd></div>
           ${it.observacoes ? `<div><dt>Observações</dt><dd>${esc(it.observacoes)}</dd></div>` : ""}
         </dl>
-        <button class="btn btn-xs btn-outline no-print" data-action="edit-initiative" data-id="${esc(it.id)}">Editar estes textos</button>
+        <button class="btn btn-xs btn-outline no-print so-gestor" data-action="edit-initiative" data-id="${esc(it.id)}">Editar estes textos</button>
       </details>`;
 
     // O editor detalhado só é redesenhado quando muda a estrutura, o % ou o status das etapas;
@@ -414,7 +414,7 @@
       el.dataset.fullSig = fullSig;
       el.innerHTML = `
         <div id="project-header">${header}</div>
-        <details class="panel ficha-detalhe" id="act-detalhe" ${detalheAberto ? "open" : ""}>
+        <details class="panel ficha-detalhe so-gestor" id="act-detalhe" ${detalheAberto ? "open" : ""}>
           <summary>✏️ Detalhes das atividades: entregável, início, dependência entre atividades, % e RACI completa</summary>
           <div class="stack" id="act-list">
             ${acts.length ? acts.map((a, i) => activityRow(it, a, i + 1)).join("") : ui.empty("Nenhuma etapa cadastrada.")}
@@ -423,6 +423,10 @@
         </details>`;
     }
 
+    // Líder de setor: vê o projeto e monta o plano; dados do projeto, dependências e detalhes ficam com o gestor e a diretoria.
+    const lider = A.visao.atual().tipo === "lider";
+    el.classList.toggle("visao-lider", lider);
+    el.querySelectorAll(".ficha-campos input, .ficha-campos select").forEach((x) => { x.disabled = lider; });
     if (focusKey) el.querySelector(`[data-key="${CSS.escape(focusKey)}"]`)?.focus();
     if (rascunho.focoId) document.getElementById(rascunho.focoId)?.focus();
   };

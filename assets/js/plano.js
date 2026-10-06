@@ -6,6 +6,7 @@
   const { esc, toast } = A.util;
   const $ = (id) => document.getElementById(id);
 
+  const passosAbertos = new Set(); // atividades com os passos (nível 3) abertos no plano
   const CHAVE_VISTA = "altamar_plano_vista";
   let vista = "lista";
   try { vista = sessionStorage.getItem(CHAVE_VISTA) === "tempo" ? "tempo" : "lista"; } catch {}
@@ -64,6 +65,7 @@
         <select class="pl-r ${resp(a) ? "" : "vazio"}" ${k("r")} aria-label="Responsável">${A.ui.peopleOptions(resp(a), { blank: "Responsável?" })}</select>
         <input type="date" class="pl-prazo ${d ? "" : "vazio"}" ${k("prazo")} value="${isoDeBr(a.prazo)}" aria-label="Prazo">
         <span class="pl-sit">
+          ${(a.checklist || []).length ? `<button class="pl-passos-btn ${passosAbertos.has(a.id) ? "aberto" : ""}" data-pl-passos="${esc(a.id)}" title="Ver os passos (checklist) desta atividade">☑ ${a.checklist.filter((x) => x.feito).length}/${a.checklist.length} passos</button>` : ""}
           <span class="minha-col ${cls}">${rot}</span>
           ${kanban ? `<span class="pl-kanban" title="Está no Kanban do ciclo">Kanban</span>` : ""}
           ${mudou ? `<span class="pl-desvio ${desvio > 0 ? "atras" : "frente"}" title="Previsto no plano aprovado: ${esc(previsto)}">${desvio > 0 ? `+${desvio}` : desvio} d</span>` : ""}
@@ -73,7 +75,18 @@
           ${lider ? "" : `<button class="pl-mais" data-action="open-activity" data-id="${esc(it.id)}|${esc(a.id)}" title="Abrir: passos, observações, Kanban">⋯</button>`}
           <button class="pl-del" data-pl-del="${esc(a.id)}" title="Tirar do plano" aria-label="Tirar do plano">✕</button>
         </span>
-      </li>`;
+      </li>
+      ${passosAbertos.has(a.id) && (a.checklist || []).length ? `
+      <li class="pl-sub">
+        <ul>${a.checklist.map((x) => {
+          const dx = S.calc.parseDate(x.data);
+          const venc = dx && !x.feito && dx < hoje();
+          return `<li class="${x.feito ? "feito" : ""} ${venc ? "vencido" : ""}">
+            <input type="checkbox" ${x.feito ? "checked" : ""} ${lider ? "disabled" : `data-pl-ck="${esc(a.id)}|${esc(x.id)}"`} aria-label="Passo feito">
+            <span>${esc(x.texto)}</span>${x.data ? `<span class="muted small">· ${esc(x.data)}${venc ? " · atrasado" : ""}</span>` : ""}</li>`;
+        }).join("")}</ul>
+        ${lider ? "" : `<button class="link-btn small" data-action="open-activity" data-id="${esc(it.id)}|${esc(a.id)}">Editar passos, anexos e observações →</button>`}
+      </li>` : ""}`;
   }
 
   function listaPorMes(S, it, lista, lider) {
@@ -208,6 +221,11 @@
             <button class="seg-btn ${vista === "tempo" ? "active" : ""}" data-pl-vista="tempo">Linha do tempo</button>
           </div>
         </div>
+        <div class="pl-niveis" title="Como o projeto se organiza">
+          <span><b>1</b> Projeto <small>o todo</small></span><span class="sep">→</span>
+          <span><b>2</b> Atividades <small>cada uma vira um card no Kanban</small></span><span class="sep">→</span>
+          <span><b>3</b> Passos <small>o checklist dentro de cada atividade</small></span>
+        </div>
         ${lider && p?.status === "ajuste" && !rascunho ? `<div class="pl-aviso ajuste">✏️ ${esc(p.ajustePor || "O gestor")} pediu ajuste: <em>“${esc(p.comentario)}”</em>. Faça as mudanças e envie de novo.</div>` : ""}
         ${lider ? `<div class="pl-aviso info">Você está montando o plano: as mudanças valem depois que o Pedro ou a diretoria aprovarem.</div>` : painelProposta(S, it)}
 
@@ -289,6 +307,15 @@
       adicionar(linhas);
     });
 
+    // Marcar um passo direto no plano (quem aprova); pela mesma via do Kanban.
+    document.addEventListener("change", (e) => {
+      const ck = e.target.closest?.("[data-pl-ck]");
+      if (!ck) return;
+      const [actId, ckId] = ck.dataset.plCk.split("|");
+      const it = projeto(), a = S().findActivity(it.id, actId);
+      if (!a) return;
+      A.board.salvarAtividade(it.id, actId, { checklist: a.checklist.map((x) => (x.id === ckId ? { ...x, feito: ck.checked } : x)) }, "Plano do projeto");
+    });
     document.addEventListener("change", (e) => {
       const el = e.target;
       const id = el.dataset?.plId;
@@ -323,6 +350,12 @@
       if (vistaBtn) {
         vista = vistaBtn.dataset.plVista;
         try { sessionStorage.setItem(CHAVE_VISTA, vista); } catch {}
+        return S().emit();
+      }
+      const pb = t.closest("[data-pl-passos]");
+      if (pb) {
+        const id = pb.dataset.plPassos;
+        passosAbertos.has(id) ? passosAbertos.delete(id) : passosAbertos.add(id);
         return S().emit();
       }
       const feito = t.closest("[data-pl-feito]");

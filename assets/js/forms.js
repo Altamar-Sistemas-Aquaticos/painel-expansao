@@ -28,7 +28,6 @@
     $("ini-esforco").innerHTML = A.meta.esforcoOptions("");
     $("ini-urgencia").innerHTML = A.meta.urgenciaOptions("");
     $("ini-status").innerHTML = optionList(STATUS);
-    $("ini-semaforo").innerHTML = optionList(SEMAFOROS.map((s) => [s.key, `${s.label} — ${s.desc}`]));
   }
 
   function updateCalcBox() {
@@ -120,7 +119,10 @@
     $("ini-esforco").value = data.esforco || "";
     $("ini-urgencia").value = data.urgencia || "";
     $("ini-status").value = data.status;
-    $("ini-semaforo").value = data.semaforo;
+    // Semáforo é calculado (prazos × hoje e ritmo): aqui só mostra, com o motivo.
+    const sem = it ? { cor: it.semaforo, motivos: S.semaforoMotivos(it) } : { cor: "verde", motivos: ["Projeto novo"] };
+    $("ini-semaforo").innerHTML = `<span class="sem-auto ${sem.cor}">${{ verde: "🟢", amarelo: "🟡", vermelho: "🔴" }[sem.cor]} ${esc(sem.motivos[0])}</span>${sem.motivos.length > 1 ? `<span class="muted small"> +${sem.motivos.length - 1}</span>` : ""}`;
+    $("ini-semaforo").title = sem.motivos.join("\n");
     $("ini-inicio").value = data.inicio || "";
     $("ini-prazo").value = data.prazo;
     atualizarDias();
@@ -162,7 +164,6 @@
       esforco: Number($("ini-esforco").value),
       urgencia: Number($("ini-urgencia").value) || 0,
       status: $("ini-status").value,
-      semaforo: $("ini-semaforo").value,
       responsavel: $("ini-responsavel").value,
       inicio: $("ini-inicio").value.trim(),
       prazo: $("ini-prazo").value,

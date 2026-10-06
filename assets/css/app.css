@@ -1781,3 +1781,94 @@ button.wip-pill:hover { filter: brightness(1.05); }
   .panel, .k-col, .wave, .table-wrap { box-shadow: none !important; border-color: #ccc !important; }
   .kanban { grid-template-columns: repeat(5, 1fr); }
 }
+
+/* ===== Ajustes 06/10: card rolável, semáforo automático, Kanban mais leve ===== */
+.ini-modal { overflow-y: auto !important; max-height: 92vh; }
+.ini-cab { position: sticky; top: 0; z-index: 2; }
+.ini-semaforo { padding: 0.45rem 0; font-size: 0.88rem; cursor: help; }
+.sem-auto { font-weight: 700; }
+.sem-auto.vermelho { color: var(--alert); } .sem-auto.amarelo { color: var(--warn-text); } .sem-auto.verde { color: var(--ok); }
+.act-levada { font-size: 0.7rem; font-weight: 700; color: #7048e8; padding: 0.1rem 0.65rem 0; }
+.kb-datas { display: flex; flex-wrap: wrap; align-items: center; gap: 0.6rem; margin-top: 0.7rem; padding: 0.6rem 0.8rem; background: var(--surface-2); border: 1px solid var(--border); border-radius: 8px; width: 100%; }
+.kb-datas label { display: inline-flex; align-items: center; gap: 0.35rem; font-size: 0.85rem; font-weight: 600; }
+.sprint-head { flex-wrap: wrap; }
+
+/* Cabeçalhos das situações: translúcidos; a coluna sob o mouse ganha a cor cheia */
+.kb-col-head { --c: var(--col-todo); background: color-mix(in srgb, var(--c) 12%, transparent); color: color-mix(in srgb, var(--c) 85%, var(--text));
+  border: 1px solid color-mix(in srgb, var(--c) 25%, transparent); border-top: 3px solid var(--c); font-size: 0.82rem; padding: 0.4rem 0.65rem;
+  transition: background 0.15s, color 0.15s; }
+.kb-col-head b { background: color-mix(in srgb, var(--c) 18%, transparent); color: inherit; }
+.kb-col-head.todo { --c: var(--col-todo); background: color-mix(in srgb, var(--col-todo) 12%, transparent); }
+.kb-col-head.doing { --c: var(--col-doing); background: color-mix(in srgb, var(--col-doing) 12%, transparent); }
+.kb-col-head.waiting { --c: var(--col-waiting); background: color-mix(in srgb, var(--col-waiting) 12%, transparent); }
+.kb-col-head.blocked { --c: var(--col-blocked); background: color-mix(in srgb, var(--col-blocked) 12%, transparent); }
+.kb-col-head.done { --c: var(--col-done); background: color-mix(in srgb, var(--col-done) 12%, transparent); }
+.k-col:hover .kb-col-head,
+.kb-lanes:has(.kb-cell.todo:hover) .kb-col-head.todo, .kb-lanes:has(.kb-cell.doing:hover) .kb-col-head.doing,
+.kb-lanes:has(.kb-cell.waiting:hover) .kb-col-head.waiting, .kb-lanes:has(.kb-cell.blocked:hover) .kb-col-head.blocked,
+.kb-lanes:has(.kb-cell.done:hover) .kb-col-head.done { background: var(--c); color: #fff; }
+.k-col:hover .kb-col-head b, .kb-lanes:has(.kb-cell:hover) .kb-col-head b { color: inherit; }
+/* Colunas e células transparentes; a coluna sob o mouse ganha um leve tom */
+.sprint-board .k-col.todo, .sprint-board .k-col.doing, .sprint-board .k-col.waiting, .sprint-board .k-col.blocked, .sprint-board .k-col.done {
+  background: transparent; border: 1px solid var(--border); box-shadow: none; }
+.sprint-board .k-col.todo:hover { background: color-mix(in srgb, var(--col-todo) 5%, transparent); }
+.sprint-board .k-col.doing:hover { background: color-mix(in srgb, var(--col-doing) 5%, transparent); }
+.sprint-board .k-col.waiting:hover { background: color-mix(in srgb, var(--col-waiting) 5%, transparent); }
+.sprint-board .k-col.blocked:hover { background: color-mix(in srgb, var(--col-blocked) 5%, transparent); }
+.sprint-board .k-col.done:hover { background: color-mix(in srgb, var(--col-done) 5%, transparent); }
+.kb-lane:not(.kb-lane-head) { background: color-mix(in srgb, var(--ac) 4%, transparent); border-color: color-mix(in srgb, var(--ac) 18%, var(--border)); border-left-width: 4px; }
+.kb-cell { background: transparent; border: 1px dashed transparent; }
+.kb-lanes:has(.kb-cell.todo:hover) .kb-cell.todo { background: color-mix(in srgb, var(--col-todo) 6%, transparent); }
+.kb-lanes:has(.kb-cell.doing:hover) .kb-cell.doing { background: color-mix(in srgb, var(--col-doing) 6%, transparent); }
+.kb-lanes:has(.kb-cell.waiting:hover) .kb-cell.waiting { background: color-mix(in srgb, var(--col-waiting) 7%, transparent); }
+.kb-lanes:has(.kb-cell.blocked:hover) .kb-cell.blocked { background: color-mix(in srgb, var(--col-blocked) 6%, transparent); }
+.kb-lanes:has(.kb-cell.done:hover) .kb-cell.done { background: color-mix(in srgb, var(--col-done) 6%, transparent); }
+/* Cards menores; as ações aparecem ao passar o mouse */
+.sprint-board .act-card, .kb-cell .act-card { font-size: 0.78rem; border-radius: 7px; box-shadow: 0 1px 2px rgba(0,0,0,0.05); }
+.sprint-board .act-card .act-top, .kb-cell .act-card.compacto .act-top { background: transparent; padding: 0.3rem 0.5rem 0; }
+.sprint-board .act-card-proj, .kb-cell .act-card-proj { font-size: 0.68rem; font-weight: 700; color: color-mix(in srgb, var(--ac) 80%, var(--text)); }
+.sprint-board .act-card .act-card-title, .kb-cell .act-card.compacto .act-card-title { font-size: 0.8rem; padding: 0.15rem 0.5rem 0; line-height: 1.3; }
+.act-card .act-av { width: 20px; height: 20px; font-size: 0.58rem; }
+.act-card .act-meta { font-size: 0.68rem; padding: 0.15rem 0.5rem 0.35rem !important; }
+.act-card .act-passo { font-size: 0.72rem; padding: 0.2rem 0.4rem; margin: 0 0.5rem 0.35rem; width: calc(100% - 1rem); }
+.act-card .act-passo small { font-size: 0.6rem; }
+.act-card .act-quick { max-height: 0; padding: 0 0.5rem !important; overflow: hidden; opacity: 0; transition: max-height 0.15s, opacity 0.15s, padding 0.15s; }
+.act-card:hover .act-quick, .act-card:focus-within .act-quick { max-height: 40px; opacity: 1; padding: 0 0.5rem 0.4rem !important; }
+.act-card .q-btn { height: 22px; font-size: 0.68rem; }
+.act-card.blocked { background: color-mix(in srgb, var(--col-blocked) 5%, var(--surface)); }
+.act-card.waiting { background: color-mix(in srgb, var(--col-waiting) 5%, var(--surface)); }
+.act-card.done { opacity: 0.65; }
+@media (hover: none) { .act-card .act-quick { max-height: 40px; opacity: 1; padding: 0 0.5rem 0.4rem !important; } }
+@media (max-width: 600px) { .sprint-head-main { min-width: 0; } .sprint-head h2 { overflow-wrap: anywhere; font-size: 1.15rem; } }
+
+/* Financeiro com várias linhas */
+.fin-itens { margin-top: 0.4rem; }
+.fin-itens td { padding: 0.25rem 0.4rem; }
+.fin-cel { font: inherit; width: 100%; border: 1px solid transparent; background: transparent; border-radius: 6px; padding: 0.25rem 0.4rem; color: var(--text); }
+.fin-cel:hover { border-color: var(--border); }
+.fin-cel:focus { border-color: var(--accent); background: var(--surface); outline: none; }
+.fin-cel.num { text-align: right; font-variant-numeric: tabular-nums; }
+.fin-itens tfoot th { border-top: 2px solid var(--border); text-align: left; }
+.fin-itens tfoot th.num { text-align: right; font-size: 1.05rem; }
+.fin-add { display: grid; grid-template-columns: minmax(0, 1.4fr) 140px minmax(0, 1fr) auto; gap: 0.5rem; margin-top: 0.6rem; }
+@media (max-width: 760px) { .fin-add { grid-template-columns: 1fr; } }
+
+/* Página do projeto na visão do líder: sem edição dos dados do projeto */
+.visao-lider .so-gestor { display: none !important; }
+/* Três níveis: projeto → atividades → passos */
+.pl-niveis { display: flex; flex-wrap: wrap; align-items: center; gap: 0.4rem; font-size: 0.8rem; margin: -0.2rem 0 0.7rem; color: var(--text-muted); }
+.pl-niveis span b { display: inline-grid; place-items: center; width: 18px; height: 18px; border-radius: 50%; background: var(--brand-bg); color: #fff; font-size: 0.68rem; margin-right: 0.2rem; }
+.pl-niveis small { color: var(--text-muted); }
+.pl-niveis .sep { color: var(--border-strong); }
+.pl-passos-btn { font: inherit; font-size: 0.7rem; font-weight: 700; border: 1px solid var(--border); background: var(--surface); color: var(--text-muted); border-radius: 99px; padding: 0.05rem 0.45rem; cursor: pointer; }
+.pl-passos-btn:hover, .pl-passos-btn.aberto { border-color: var(--accent); color: var(--accent); }
+.pl-sub { list-style: none; padding: 0.3rem 0.4rem 0.6rem 3.4rem; border-bottom: 1px solid var(--border); background: var(--surface-2); }
+.pl-sub ul { list-style: none; margin: 0 0 0.3rem; padding: 0; display: flex; flex-direction: column; gap: 0.2rem; font-size: 0.82rem; }
+.pl-sub li { display: flex; align-items: center; gap: 0.4rem; }
+.pl-sub li.feito span:first-of-type { text-decoration: line-through; color: var(--text-muted); }
+.pl-sub li.vencido .muted { color: var(--alert); font-weight: 700; }
+.act-niveis { display: flex; align-items: center; gap: 0.35rem; font-size: 0.75rem; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.05em; }
+.act-niveis strong { color: var(--accent); }
+.act-niveis .sep { color: var(--border-strong); }
+.act-ctx { display: flex; align-items: center; justify-content: space-between; gap: 0.6rem; flex-wrap: wrap; background: color-mix(in srgb, var(--ac) 8%, var(--surface)); border-left: 4px solid var(--ac); border-radius: 8px; padding: 0.5rem 0.7rem; margin-bottom: 0.7rem; }
+.act-ctx-proj { display: flex; align-items: center; gap: 0.4rem; flex-wrap: wrap; min-width: 0; }

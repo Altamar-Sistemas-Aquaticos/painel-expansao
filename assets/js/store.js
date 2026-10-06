@@ -35,7 +35,7 @@
 
   const INITIATIVE_FIELDS = {
     id: "ID", nome: "Nome", area: "Área", valor: "Valor", esforco: "Esforço", onda: "Onda",
-    status: "Status", semaforo: "Semáforo", responsavel: "Responsável", prazo: "Prazo",
+    status: "Status", responsavel: "Responsável", prazo: "Prazo",
     observacoes: "Observações", enabler: "Habilitadora", coluna: "Coluna do Kanban",
     objetivo: "Objetivo", prontoQuando: "Pronto quando", indicador: "Indicador de sucesso",
     investimento: "Exige investimento", situacao: "Situação do cadastro", autor: "Autor da ideia", esforcoRevisar: "Esforço a revisar", eixo: "Eixo", faseDe: "Fase do projeto",
@@ -220,6 +220,9 @@
       dependeDe: String(raw.dependeDe ?? "").trim(),
       observacoes: String(raw.observacoes ?? "").trim(),
       marco: !!raw.marco, // ◆ entrega importante do projeto (destaque na lista e na linha do tempo)
+      // Passou de um ciclo para o seguinte sem terminar: de qual ciclo veio e quantas vezes isso aconteceu.
+      levadaDe: String(raw.levadaDe ?? ""),
+      vezesLevada: Number(raw.vezesLevada) || 0,
     };
   }
 
@@ -376,17 +379,22 @@
   const inicioDoMes = (d = new Date()) => new Date(d.getFullYear(), d.getMonth(), 1);
   const fimDoMes = (d) => new Date(d.getFullYear(), d.getMonth() + 1, 0);
   const primeiraSegunda = (hoje = new Date()) => inicioDoMes(hoje); // nome antigo, mantido para os chamadores
+  // Um ciclo dura um mês a partir do dia de início (ex.: 06/10 a 05/11). O nome vem do mês do início.
+  function umMesDepois(ini) {
+    const y = ini.getFullYear(), m = ini.getMonth() + 1, d = ini.getDate();
+    const diasNoMes = new Date(y, m + 1, 0).getDate();
+    return addDays(new Date(y, m, Math.min(d, diasNoMes)), -1);
+  }
   function makeSprint(numero, inicio, objetivo = "") {
-    const ini = inicioDoMes(inicio);
-    return { id: `S${numero}`, numero, inicio: isoDay(ini), fim: isoDay(fimDoMes(ini)), objetivo, encerrada: false };
+    const ini = new Date(inicio); ini.setHours(0, 0, 0, 0);
+    return { id: `S${numero}`, numero, inicio: isoDay(ini), fim: isoDay(umMesDepois(ini)), objetivo, encerrada: false };
   }
   const MESES_NOME = ["janeiro", "fevereiro", "março", "abril", "maio", "junho", "julho", "agosto", "setembro", "outubro", "novembro", "dezembro"];
   // Próximo ciclo (ainda não aberto): o mês seguinte ao atual.
   function proximoCicloInfo() {
     const atual = store.data.sprints && [...store.data.sprints].reverse().find((s) => !s.encerrada);
-    const base = atual ? addDays(fromIso(atual.fim), 1) : inicioDoMes();
-    const ini = inicioDoMes(base);
-    return { id: "PROXIMO", inicio: isoDay(ini), fim: isoDay(fimDoMes(ini)), virtual: true };
+    const ini = atual ? addDays(fromIso(atual.fim), 1) : inicioDoMes();
+    return { id: "PROXIMO", inicio: isoDay(ini), fim: isoDay(umMesDepois(ini)), virtual: true };
   }
   // "Outubro · em andamento", "Novembro · em planejamento", "Setembro · encerrado".
   function rotuloCiclo(sp) {
@@ -627,7 +635,13 @@
     return origem;
   }
 
+  // Carrega os dados e já calcula os semáforos (a primeira tela é desenhada antes de qualquer alteração).
   function load() {
+    const origem = carregar();
+    aplicarSemaforos();
+    return origem;
+  }
+  function carregar() {
     const settings = readJSON(SETTINGS_KEY);
     if (settings) Object.assign(store.settings, settings);
 
@@ -676,7 +690,46 @@
 
   /* ---------- Eventos ---------- */
   const subscribe = (fn) => { listeners.add(fn); return () => listeners.delete(fn); };
-  const emit = () => listeners.forEach((fn) => fn(store));
+  const emit = () => { aplicarSemaforos(); listeners.forEach((fn) => fn(store)); };
+
+  /* ---------- Semáforo automático ---------- */
+  // Calculado pelos prazos (do projeto, das atividades e dos passos) comparados com hoje, e pelo ritmo.
+  // 🔴 algo vencido ou travado · 🟡 prazo chegando ou abaixo do ritmo · 🟢 no prazo.
+  const motivosSemaforo = new Map();
+  function semaforoAuto(it) {
+    if (it.status === "Concluído" || it.status === "Cancelado") return { cor: "verde", motivos: [it.status] };
+    if (it.situacao !== "Validado") return { cor: "verde", motivos: ["Ainda no backlog (sem acompanhamento)"] };
+    const hoje = new Date(); hoje.setHours(0, 0, 0, 0);
+    const dias = (d) => Math.round((d - hoje) / 86400000);
+    const abertas = it.atividades.filter((a) => a.status !== "Concluído" && a.status !== "Cancelado");
+    const prazos = [
+      ...abertas.map((a) => ({ nome: a.nome, d: parseDate(a.prazo) })),
+      ...abertas.flatMap((a) => a.checklist.filter((x) => !x.feito).map((x) => ({ nome: x.texto, d: parseDate(x.data) }))),
+    ].filter((x) => x.d);
+    const vermelho = [], amarelo = [];
+    const fim = parseDate(it.prazo);
+    if (fim && fim < hoje) vermelho.push(`Prazo final vencido (${it.prazo})`);
+    const atrasados = prazos.filter((x) => x.d < hoje);
+    if (atrasados.length) vermelho.push(`${atrasados.length} atividade(s)/passo(s) atrasado(s), ex.: “${atrasados[0].nome}”`);
+    const travadas = abertas.filter((a) => a.travado);
+    if (travadas.length) vermelho.push(`${travadas.length} atividade(s) travada(s)`);
+    if (fim && fim >= hoje && dias(fim) <= 7) amarelo.push(`Prazo final em ${dias(fim)} dia(s)`);
+    const chegando = prazos.filter((x) => x.d >= hoje && dias(x.d) <= 3);
+    if (chegando.length) amarelo.push(`${chegando.length} prazo(s) nos próximos 3 dias`);
+    const r = ritmo(it);
+    if (r.situacao === "atencao" || r.situacao === "atrasado") amarelo.push(`Abaixo do ritmo: ${r.feito}% feito, esperado ${r.esperado}%`);
+    if (vermelho.length) return { cor: "vermelho", motivos: vermelho };
+    if (amarelo.length) return { cor: "amarelo", motivos: amarelo };
+    return { cor: "verde", motivos: ["No prazo"] };
+  }
+  function aplicarSemaforos() {
+    (store.data.initiatives || []).forEach((it) => {
+      const s = semaforoAuto(it);
+      it.semaforo = s.cor;
+      motivosSemaforo.set(it.id, s.motivos);
+    });
+  }
+  const semaforoMotivos = (it) => semaforoAuto(it).motivos;
 
   /* ---------- Histórico ---------- */
   function entry(entity, refId, action, label, changes = [], source = "Painel") {
@@ -945,7 +998,7 @@
       });
       sprintItems(atual).forEach(({ a }) => {
         if (a.status === "Concluído") feitas++;
-        else { a.sprint = nova.id; levadas++; }
+        else { a.sprint = nova.id; a.levadaDe = atual.id; a.vezesLevada = (a.vezesLevada || 0) + 1; levadas++; }
       });
       atual.encerrada = true;
     }
@@ -1655,7 +1708,7 @@
     calc: { ve, cutoff, isAboveCut, wipCount, snapFib, snapEsforco, progress, parseDate, weekKey, sprintLimites, projetosPorOnda },
     eixos, findEixo, saveEixo, deleteEixo, eixoUso, criarFase, fasesDe,
     sprints, sprintAtual, findSprint, nomeCiclo, rotuloCiclo, proximoCicloInfo, noProximoCiclo, projetosNoProximo, setNoProximo,
-    destrava, custoAtraso, wsjf, sprintItems, noKanban, setNoKanban, virarMes, activityCol,
+    semaforoMotivos, semaforoAuto, destrava, custoAtraso, wsjf, sprintItems, noKanban, setNoKanban, virarMes, activityCol,
     revisorPlano, adicionarAtividades, removerDoPlano, enviarProposta, diferencasDaProposta, aprovarPlano, pedirAjustePlano, sprintDates, planSprint, moveActivity, novaSprint, saveSprint, saveChecklist,
     findInitiative, nextId, saveInitiative, createProject, quickIdea, saveConfig, deleteInitiative, canDelete, advanceSituacao,
     moveToColumn, setOnda, setStatus, warnings, confirmarEsforco, setNoCiclo, projetosNoCiclo, setEstrategico, cicloJaAndando,

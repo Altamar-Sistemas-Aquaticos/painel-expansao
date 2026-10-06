@@ -449,7 +449,7 @@
                 <div class="minha-acoes">
                   ${col === "todo" ? `<button class="btn btn-xs btn-outline" data-action="act-quick" data-id="${esc(key)}" data-q="next">▶ Começar</button>` : ""}
                   ${col === "doing" ? `<button class="btn btn-xs btn-outline" data-action="act-quick" data-id="${esc(key)}" data-q="block">⚠ Travou</button><button class="btn btn-xs btn-primary" data-action="act-quick" data-id="${esc(key)}" data-q="next">✓ Concluir</button>` : ""}
-                  ${col === "waiting" || col === "blocked" ? `<button class="btn btn-xs btn-outline" data-action="act-quick" data-id="${esc(key)}" data-q="next">▶ Destravar</button>` : ""}
+                  ${col === "waiting" || col === "blocked" ? `<button class="btn btn-xs btn-outline" data-action="act-quick" data-id="${esc(key)}" data-q="next" title="Registrar o que resolveu e voltar para Fazendo">✓ Resolvido</button>` : ""}
                 </div>
               </article>`;
           }).join("")}

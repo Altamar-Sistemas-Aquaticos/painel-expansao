@@ -36,6 +36,7 @@
           <span class="act-av ${r ? "" : "none"}" title="${esc(r ? `Responsável: ${r}` : "Sem responsável (R)")}">${esc(r ? A.util.initials(r) : "?")}</span>
         </div>
         <div class="act-card-title">${a.marco ? "◆ " : ""}${esc(a.nome)}</div>
+        ${a.levadaDe && col !== "done" ? `<div class="act-levada" title="Não terminou no ciclo anterior e passou para este${a.vezesLevada > 1 ? ` (${a.vezesLevada}ª vez)` : ""}">↻ veio de ${esc(S.findSprint(a.levadaDe) ? S.nomeCiclo(S.findSprint(a.levadaDe)).replace("Ciclo de ", "") : "outro ciclo")}${a.vezesLevada > 1 ? ` · ${a.vezesLevada}ª vez` : ""}</div>` : ""}
         <div class="act-meta">
           ${a.prazo ? `<span class="act-prazo ${late ? "late" : ""}" title="Prazo da atividade">📅 ${esc(a.prazo)}${late ? " · atrasada" : ""}</span>` : ""}
           ${total ? `<span class="act-ck" title="${feitos} de ${total} passos feitos">☑ ${feitos}/${total}</span>` : ""}
@@ -45,7 +46,7 @@
           <span class="act-passo-box"></span><span><small>Próximo passo</small>${esc(proximo.texto)}</span></button>` : ""}
         ${pode ? `<div class="act-quick no-print">
           ${col === "todo" || col === "doing" || col === "waiting" ? `<button class="q-btn warn" data-action="act-quick" data-id="${esc(key)}" data-q="block" title="Travou: precisa de decisão ou ajuda (vai para Travado)">⚠ Travou</button>` : ""}
-          ${PROXIMA[col] ? `<button class="q-btn go" data-action="act-quick" data-id="${esc(key)}" data-q="next" title="${PROXIMA_LABEL[col]}">${col === "doing" ? "✓ Concluir" : "▶ Fazendo"}</button>` : ""}
+          ${PROXIMA[col] ? `<button class="q-btn go" data-action="act-quick" data-id="${esc(key)}" data-q="next" title="${PROXIMA_LABEL[col]}">${col === "doing" ? "✓ Concluir" : col === "todo" ? "▶ Começar" : "✓ Resolvido"}</button>` : ""}
         </div>` : ""}
       </div>`;
   }
@@ -77,11 +78,45 @@
           </div>
         </div>
         <div class="sprint-head-actions no-print">
+          ${A.visao.atual().tipo === "lider" ? "" : `
+          <button class="btn btn-outline" data-kb-datas title="O ciclo dura um mês a partir do início, mas as datas podem ser ajustadas (ex.: começar no dia da reunião com a diretoria)">✏️ Datas do ciclo</button>
           <button class="btn btn-primary" data-action="plan-sprint">🗓️ Planejar ciclo</button>
-          <button class="btn btn-outline" data-action="new-sprint" title="Encerra este ciclo e abre o próximo; o que não foi feito passa para ele">Encerrar e abrir o próximo</button>
+          <button class="btn btn-outline" data-action="new-sprint" title="Encerra este ciclo e abre o próximo; o que não foi feito passa para ele. No primeiro acesso depois do fim, isso acontece sozinho.">Encerrar e abrir o próximo</button>`}
         </div>
+        ${editandoDatas ? `
+        <form class="kb-datas no-print" id="kb-datas-form">
+          <label>Início <input type="date" class="input input-sm" id="kb-datas-ini" value="${esc(si.sp.inicio)}" required></label>
+          <label>Fim <input type="date" class="input input-sm" id="kb-datas-fim" value="${esc(si.sp.fim)}" required></label>
+          <span class="muted small" id="kb-datas-nome">O nome segue o mês do início: ${esc(S.nomeCiclo(si.sp))}</span>
+          <button class="btn btn-sm btn-primary" type="submit">Salvar datas</button>
+          <button class="btn btn-sm btn-ghost" type="button" data-kb-datas>Cancelar</button>
+        </form>` : ""}
       </div>`;
   }
+  // Edição das datas do ciclo em andamento (gestor e diretoria).
+  let editandoDatas = false;
+  document.addEventListener("click", (e) => {
+    if (!e.target.closest("[data-kb-datas]")) return;
+    editandoDatas = !editandoDatas;
+    A.store.emit();
+  });
+  document.addEventListener("input", (e) => {
+    if (e.target.id !== "kb-datas-ini" || !e.target.value) return;
+    const S = A.store;
+    const nome = S.nomeCiclo({ inicio: e.target.value });
+    document.getElementById("kb-datas-nome").textContent = `O nome segue o mês do início: ${nome}`;
+  });
+  document.addEventListener("submit", (e) => {
+    if (e.target.id !== "kb-datas-form") return;
+    e.preventDefault();
+    const inicio = document.getElementById("kb-datas-ini").value, fim = document.getElementById("kb-datas-fim").value;
+    if (!inicio || !fim || fim < inicio) return toast("O fim do ciclo precisa ser depois do início.", "warn");
+    const r = A.store.saveSprint({ inicio, fim });
+    if (!r.ok) return toast(r.error, "error");
+    editandoDatas = false;
+    toast(r.unchanged ? "As datas não mudaram." : "Datas do ciclo atualizadas.");
+    A.store.emit();
+  });
 
   // Filtro "Responsável": só aparece quando há duas ou mais pessoas com atividades na tela.
   function toolbar(S, responsaveis) {
@@ -185,14 +220,34 @@
       const patch = { checklist: a.checklist.map((x) => (x.id === prox.id ? { ...x, feito: true } : x)) };
       if (col === "todo") Object.assign(patch, { status: "Em andamento", esperando: false, travado: false });
       Promise.resolve(salvarAtividade(ini, act, patch)).then((r) => { if (r?.ok) toast(`Passo marcado: ${prox.texto}`); });
+    } else if (q === "next" && (col === "blocked" || col === "waiting")) {
+      // Sair de Travado/Esperando é uma decisão: registra o que resolveu (opcional) nas observações e no histórico.
+      return resolver(ini, act, a, col);
     } else if (q === "next" && PROXIMA[col]) {
       moveActivity(ini, act, PROXIMA[col]);
     } else if (q === "block") {
-      moveActivity(ini, act, "blocked");
-      A.sprint.openActivity(key);
-      setTimeout(() => document.getElementById("act-obs")?.focus(), 60);
-      toast("Escreva o que está travando a atividade.", "warn");
+      return travar(ini, act, a);
     }
+  }
+
+  const hojeBR = () => new Date().toLocaleDateString("pt-BR");
+  // Travar exige o motivo: fica nas observações da atividade e o card vai para “Travado”.
+  async function travar(ini, act, a) {
+    const motivo = await A.util.pedirTexto(`“${a.nome}” travou. O que está travando e quem precisa decidir ou ajudar?`,
+      { title: "⚠ Marcar como travada", okLabel: "Marcar como travada", placeholder: "ex.: falta aprovar a verba com a diretoria", obrigatorio: true });
+    if (motivo == null || !motivo.trim()) return;
+    const observacoes = `⚠ Travou em ${hojeBR()}: ${motivo.trim()}${a.observacoes ? `\n${a.observacoes}` : ""}`;
+    const r = await salvarAtividade(ini, act, { status: "Em andamento", travado: true, esperando: false, observacoes });
+    if (r?.ok !== false) toast("Atividade marcada como travada. Aparece em vermelho no Kanban e no Painel.", "warn", 5000);
+  }
+  async function resolver(ini, act, a, col) {
+    const travada = col === "blocked";
+    const txt = await A.util.pedirTexto(travada ? `O que destravou “${a.nome}”? (opcional)` : `O que chegou para “${a.nome}” seguir? (opcional)`,
+      { title: travada ? "✓ Destravou" : "✓ Chegou o que esperava", okLabel: "Voltar para Fazendo", placeholder: "ex.: verba aprovada na reunião de quinta" });
+    if (txt == null) return;
+    const nota = `✓ ${travada ? "Destravou" : "Chegou"} em ${hojeBR()}${txt.trim() ? `: ${txt.trim()}` : ""}`;
+    const r = await salvarAtividade(ini, act, { status: "Em andamento", travado: false, esperando: false, observacoes: `${nota}${a.observacoes ? `\n${a.observacoes}` : ""}` });
+    if (r?.ok !== false) toast("Atividade de volta para Fazendo.");
   }
 
   function initKanbanControls() {
@@ -314,6 +369,11 @@
 
   async function moveActivity(iniId, actId, col) {
     const S = A.store;
+    // Entrar em “Travado” (ou sair dele de volta para Fazendo) passa pelo registro do motivo, também ao arrastar.
+    const a0 = S.findActivity(iniId, actId);
+    const de = a0 && S.activityCol(a0);
+    if (a0 && col === "blocked" && de !== "blocked") return travar(iniId, actId, a0);
+    if (a0 && de === "blocked" && col === "doing") return resolver(iniId, actId, a0, de);
     if (viaBanco()) {
       const patch = { todo: { status: "A fazer", esperando: false, travado: false }, doing: { status: "Em andamento", esperando: false, travado: false },
         waiting: { status: "Em andamento", esperando: true, travado: false }, blocked: { status: "Em andamento", esperando: false, travado: true },

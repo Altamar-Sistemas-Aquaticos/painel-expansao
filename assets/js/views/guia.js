@@ -176,9 +176,10 @@
             O <strong>Pedro</strong> é o gestor do programa e, com a <strong>diretoria</strong> (Maíra e Shei), decide quais projetos andam em cada ciclo.
             Cada <strong>projeto</strong> pertence a um setor, e quem cuida do dia a dia dele é o <strong>líder do setor</strong>.</p>
             <div class="guia-flow">
-              <span>💡 Ideia</span><span>→</span><span>📝 Triagem<br><small>valor e esforço</small></span><span>→</span>
-              <span>🎯 Priorização<br><small>por setor</small></span><span>→</span><span>📋 Ciclo<br><small>até ${limite} por setor</small></span><span>→</span>
-              <span>✅ Feito</span>
+              <span>💡 Ideia</span><span>→</span><span>📝 Triagem<br><small>notas e validação</small></span><span>→</span>
+              <span>🎯 Priorização<br><small>até ${limite} por setor no ciclo</small></span><span>→</span>
+              <span>📋 Kanban<br><small>fazendo, esperando, travado: acompanhar e destravar</small></span><span>→</span>
+              <span>✅ Fechamento do ciclo<br><small>o que terminou; o resto passa para o próximo</small></span>
             </div>
             <p class="muted small">Tudo o que muda fica no Histórico, com nome, data e hora de quem mudou.</p>
           </section>
@@ -259,10 +260,12 @@
             <h3>Regras do jogo</h3>
             <ul class="guia-rules">
               <li><strong>Até ${limite} projetos por setor no ciclo.</strong> Escolhidos na Priorização com “Colocar no ciclo”. Projeto que não terminou passa sozinho para o ciclo seguinte.</li>
-              <li><strong>Ciclo = mês do calendário.</strong> No primeiro acesso do mês, o painel encerra o ciclo anterior e abre o novo sozinho, já com o que foi planejado em “em planejamento”.</li>
+              <li><strong>Ciclo = um mês de trabalho.</strong> Começa no dia combinado (ex.: o da reunião com a diretoria) e vai até um mês depois; o nome vem do mês do início. As datas podem ser ajustadas no Kanban (✏️ Datas do ciclo). No primeiro acesso do mês, o painel encerra o ciclo anterior e abre o novo sozinho, já com o que foi planejado em “em planejamento”.</li>
               <li><strong>Plano do projeto.</strong> O líder monta as atividades (com responsável, prazo e ◆ nos marcos) e envia; você ou a diretoria aprovam ou pedem ajuste, na página do projeto. Ao aprovar, os prazos viram a referência e os atrasos aparecem como “+N d”.</li>
               <li><strong>Kanban automático.</strong> Projeto que entra no ciclo leva para o Kanban as atividades com prazo no mês (e as atrasadas). Ajustes finos: “Colocar no Kanban” / “Tirar do Kanban” na atividade.</li>
-              <li><strong>Semáforo.</strong> 🟢 no prazo · 🟡 atenção · 🔴 travado, precisa de decisão.</li>
+              <li><strong>Semáforo automático</strong> (projetos validados), calculado pelos prazos do projeto, das atividades e dos passos:
+                🔴 prazo vencido, algo atrasado ou travado · 🟡 prazo nos próximos dias ou abaixo do ritmo · 🟢 no prazo. Passe o mouse para ver o motivo.</li>
+              <li><strong>Travou / Resolvido.</strong> Marcar uma atividade como travada pede o motivo; ao resolver, registra o que destravou. Tudo fica nas observações e no histórico.</li>
               <li><strong>Situação do cadastro.</strong> <span class="badge warn">Rascunho</span> acabou de entrar ·
                 <span class="badge ok">Validado</span> passou pela triagem e pode entrar no ciclo.</li>
             </ul>
