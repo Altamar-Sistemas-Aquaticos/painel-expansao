@@ -421,5 +421,15 @@
     });
   }
 
-  A.plano = { init, render };
+  // Uma tarefa pessoal que virou atividade: o líder a recebe no rascunho do plano (vale depois de aprovado).
+  function adicionarAoRascunho(iniId, atividade) {
+    const it = A.store.findInitiative(iniId);
+    if (!it) return false;
+    const lista = listaDoLider(it);
+    lista.push({ id: novoId(), status: "A fazer", pct: 0, checklist: [], entregavel: "", inicio: "", dependeDe: "", observacoes: "", sprint: "", marco: false, ...atividade });
+    gravarRascunho(iniId, lista);
+    return true;
+  }
+
+  A.plano = { init, render, adicionarAoRascunho };
 })();

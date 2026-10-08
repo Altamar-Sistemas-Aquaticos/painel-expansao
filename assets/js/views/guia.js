@@ -290,6 +290,7 @@
                 ["triagem", "📝 Triagem", "Toda ideia nova entra aqui. Dar valor, esforço e validar."],
                 ["priorizacao", "🎯 Priorização", "Ranking por setor e a escolha dos projetos de cada ciclo."],
                 ["kanban", "📋 Kanban", "As etapas do ciclo. Cada líder vê só o próprio setor."],
+                ["tarefas", "✅ Minhas tarefas", "Kanban pessoal, fora dos projetos. Cada tarefa é 🔒 privada ou 👁 visível para a gestão."],
                 ["overview", "🗓️ Cronograma", "Linha do tempo de todos os projetos."],
                 ["decisoes", "⚖️ Decisões", "Pauta e decisões da diretoria."],
                 ["historico", "🕘 Histórico", "Quem mudou o quê e quando."],

@@ -7,7 +7,7 @@
 
   const CHAVE = "altamar_ver_como";
   // Abas que o líder de setor enxerga (projeto e setor são telas que abrem a partir do Kanban).
-  const ABAS_LIDER = ["programa", "kanban", "guia", "projeto", "setor"];
+  const ABAS_LIDER = ["programa", "kanban", "tarefas", "guia", "projeto", "setor"];
   const ROTULO = { gestor: "Gestor do programa", diretoria: "Diretoria", lider: "Líder de setor" };
 
   let simulada = null;

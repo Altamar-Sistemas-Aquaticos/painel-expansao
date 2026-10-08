@@ -239,7 +239,9 @@
           short: "Reunião diretoria", title: "Reunião de gestão com a diretoria", detail: "Quinta-feira: status, prazos, impedimentos e decisões" });
       }
     }
-    const order = { reuniao: 0, compromisso: 1, google: 1, entrega: 2, prazo: 3 };
+    // Prazos das minhas tarefas pessoais (só na agenda da tela, nunca enviados ao Google).
+    if (reuniao && A.tarefas) out.push(...A.tarefas.eventosAgenda(from, to));
+    const order = { reuniao: 0, compromisso: 1, google: 1, entrega: 2, prazo: 3, tarefa: 4 };
     return out.sort((a, b) => a.date - b.date || order[a.kind] - order[b.kind] || String(a.short).localeCompare(String(b.short)));
   }
 
@@ -301,6 +303,7 @@
           ["compromisso", "pro", "Reunião"],
           ["entrega", "alert", "Entrega de projeto"],
           ["prazo", "accent", "Prazo de atividade"],
+          ["tarefa", "ok", "Minha tarefa"],
         ].map(([k, cls, txt]) => `<button class="cal-ev cal-filtro ${cls} ${ocultos.includes(k) ? "off" : ""}" data-cal-filtro="${k}" aria-pressed="${!ocultos.includes(k)}" title="Mostrar ou esconder">${ocultos.includes(k) ? "○" : "●"} ${txt}</button>`).join("")}
         ${ocultos.length ? `<button class="link-btn small" data-cal-filtro="todos">Mostrar tudo</button>` : ""}
       </div>
@@ -561,6 +564,7 @@
       </div>
 
       ${minhasAtividades(S)}
+      ${A.tarefas?.resumoPainel(S) || ""}
 
       ${A.visao.atual().tipo === "lider" ? "" : setoresNoCiclo(S, si, od)}
 

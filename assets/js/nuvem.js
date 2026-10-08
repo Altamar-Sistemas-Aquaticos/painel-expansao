@@ -69,6 +69,7 @@
     ligarTempoReal();
     if (membro.perfil === "admin") carregarMembros();
     A.financeiro?.carregar();
+    A.tarefas?.carregar();
     entrarOnline();
   }
 
@@ -351,6 +352,7 @@
     await sb.auth.signOut();
     membro = null; versao = null;
     A.financeiro?.limpar();
+    A.tarefas?.limpar();
     sairOnline();
     delete document.body.dataset.perfil;
     abrirLogin("entrar");
@@ -478,6 +480,7 @@
     status: () => status,
     perfil: () => membro?.perfil || null,
     cliente: () => (membro ? sb : null),
+    email: () => membro?.email || "",
     perfilLabel: () => (membro ? PERFIL_LABEL[membro.perfil] : ""),
   };
 })();

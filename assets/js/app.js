@@ -6,7 +6,7 @@
   const $ = (id) => document.getElementById(id);
 
   // A aba Ondas está guardada: o foco agora é o mês a mês (ciclos). A onda fica só como explicação no Guia.
-  const TABS = ["programa", "executivo", "guia", "triagem", "priorizacao", "kanban", "overview", "decisoes", "historico", "cadastros"];
+  const TABS = ["programa", "executivo", "guia", "triagem", "priorizacao", "kanban", "tarefas", "overview", "decisoes", "historico", "cadastros"];
   // Endereços antigos (favoritos e links salvos) continuam funcionando.
   const ALIASES = { portfolio: "triagem", matriz: "priorizacao", ranking: "priorizacao", cronograma: "overview" };
   const TAB_KEY = "altamar_painel_tab";
@@ -23,6 +23,7 @@
     A.views.overview(S);
     A.views.cadastros(S);
     A.views.kanban(S);
+    A.views.tarefas?.(S);
     A.views.waves(S);
     A.views.decisions(S);
     A.views.history(S);
@@ -97,7 +98,7 @@
     });
     document.querySelectorAll(".view").forEach((v) => v.classList.toggle("active", v.id === `view-${route.view}`));
     // Os filtros de área/status/onda não se aplicam a estas telas.
-    document.querySelector(".filter-bar").classList.toggle("hidden", ["programa", "executivo", "guia", "triagem", "priorizacao", "decisoes", "historico", "cadastros"].includes(route.view));
+    document.querySelector(".filter-bar").classList.toggle("hidden", ["programa", "executivo", "guia", "triagem", "priorizacao", "tarefas", "decisoes", "historico", "cadastros"].includes(route.view));
     if (route.view === "setor") A.views.sector(S, route.param);
     if (route.view === "projeto") A.views.project(S, route.param);
     if (route.view !== prev.view || route.param !== prev.param) window.scrollTo(0, 0);
