@@ -1430,10 +1430,11 @@ body[data-visao="diretoria"] :is(#menu-import-excel, #menu-import-json, #menu-cl
 .prog-orbita { position: relative; width: 100%; max-width: min(860px, calc(100vh - 190px)); min-width: 320px; aspect-ratio: 1 / 1; margin: 0 auto; container-type: inline-size; }
 .prog:fullscreen .prog-orbita { max-width: min(860px, calc(100vh - 80px)); }
 .prog-linhas { position: absolute; inset: 0; width: 100%; height: 100%; overflow: visible; }
-.prog-linhas line { stroke-linecap: round; stroke-dasharray: 1.4 1.6; opacity: 0.55; animation: prog-fluxo 2.4s linear infinite; transition: opacity 0.2s; }
-.prog-linhas line.vazia { opacity: 0.18; animation: none; }
-.prog-linhas line.foco { opacity: 1; }
-@keyframes prog-fluxo { to { stroke-dashoffset: 3; } } /* os traços correm do setor para o centro */
+/* Ondas no azul do logo ligando cada setor à Altamar; os traços correm do setor para o centro */
+.prog-linhas path { fill: none; stroke: #1a9fd8; stroke-linecap: round; stroke-linejoin: round; stroke-dasharray: 2.6 1.5; opacity: 0.7; animation: prog-fluxo 1.4s linear infinite; transition: opacity 0.2s; }
+.prog-linhas path.vazia { opacity: 0.2; animation: none; }
+.prog-linhas path.foco { opacity: 1; }
+@keyframes prog-fluxo { to { stroke-dashoffset: -4.1; } }
 .prog-centro { position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); width: 29%; aspect-ratio: 1 / 1; border-radius: 50%;
   display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 0.25rem; text-align: center; padding: 0.6rem;
   background: radial-gradient(circle, var(--surface) 62%, transparent 63%), conic-gradient(var(--brand-accent) calc(var(--p) * 1%), var(--surface-3) 0);
@@ -1487,7 +1488,7 @@ body[data-visao="diretoria"] :is(#menu-import-excel, #menu-import-json, #menu-cl
 .prog-legenda em { margin-left: auto; font-style: normal; font-size: 0.75rem; color: var(--text-muted); }
 .prog-acoes { display: flex; gap: 0.5rem; justify-content: center; margin-top: 0.6rem; }
 @media (max-width: 900px) { .prog { grid-template-columns: 1fr; } .prog-setor-lider { display: none; } }
-@media (prefers-reduced-motion: reduce) { .prog-linhas line, .prog-setor { animation: none; } }
+@media (prefers-reduced-motion: reduce) { .prog-linhas path, .prog-setor { animation: none; } }
 
 /* ---------- Perfis (definidos no login: body[data-perfil]) ---------- */
 /* Diretoria e Visualização: sem funções de administração */

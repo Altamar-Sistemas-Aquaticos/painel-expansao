@@ -71,6 +71,18 @@
       </ul>`;
   }
 
+  // Caminho ondulado (como as ondas do logo) entre dois pontos do desenho (coordenadas de 0 a 100).
+  function onda(x1, y1, x2, y2, { amp = 1.15, comprimento = 7.5 } = {}) {
+    const dx = x2 - x1, dy = y2 - y1, L = Math.hypot(dx, dy) || 1;
+    const px = -dy / L, py = dx / L, ondas = L / comprimento, passos = 90;
+    let d = "";
+    for (let i = 0; i <= passos; i++) {
+      const t = i / passos, s = Math.sin(t * Math.PI * 2 * ondas) * amp;
+      d += `${i ? "L" : "M"}${(x1 + dx * t + px * s).toFixed(2)} ${(y1 + dy * t + py * s).toFixed(2)}`;
+    }
+    return d;
+  }
+
   A.views.programa = function (S) {
     const el = $("programa-root");
     if (!el) return;
@@ -91,8 +103,9 @@
           <svg class="prog-linhas" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true">
             ${resumos.map((r, i) => {
               const p = pos(i);
-              return `<line x1="50" y1="50" x2="${p.x}" y2="${p.y}" style="stroke:${r.area.cor}" class="${r.total ? "" : "vazia"} ${foco === r.area.key ? "foco" : ""}"
-                stroke-width="${0.35 + Math.min(r.andamento.length, 4) * 0.18}" />`;
+              // Onda no azul do logo, do setor até a Altamar (os traços correm para o centro).
+              return `<path d="${onda(p.x, p.y, 50, 50)}" class="${r.total ? "" : "vazia"} ${foco === r.area.key ? "foco" : ""}"
+                stroke-width="${0.3 + Math.min(r.andamento.length, 4) * 0.12}" />`;
             }).join("")}
           </svg>
           <div class="prog-centro" style="--p:${pctGeral}">
@@ -131,7 +144,7 @@
     const S = A.store;
     const root = $("programa-root");
     root.querySelectorAll(".prog-setor").forEach((b) => b.classList.toggle("foco", b.dataset.progSetor === foco));
-    root.querySelectorAll(".prog-linhas line").forEach((l, i) => l.classList.toggle("foco", S.areas()[i]?.key === foco));
+    root.querySelectorAll(".prog-linhas path").forEach((l, i) => l.classList.toggle("foco", S.areas()[i]?.key === foco));
     const area = S.areas().find((a) => a.key === foco);
     const aside = root.querySelector(".prog-detalhe");
     if (aside) aside.innerHTML = area ? painelSetor(S, resumoSetor(S, area)) : painelGeral(S, S.areas().map((a) => resumoSetor(S, a)));
