@@ -4,10 +4,18 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <meta name="description" content="Painel de gestão do Projeto de Expansão da Altamar Sistemas Aquáticos">
-  <meta name="theme-color" content="#026488">
+  <meta name="theme-color" content="#133f58">
   <title>Painel de Expansão · Altamar</title>
-  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%23026488'/%3E%3Ctext x='32' y='44' font-family='Segoe UI,Arial' font-size='36' font-weight='800' fill='white' text-anchor='middle'%3EA%3C/text%3E%3C/svg%3E">
-  <link rel="stylesheet" href="assets/css/app.css?v=20261006c">
+  <!-- Aplicativo instalável (computador e celular) -->
+  <link rel="manifest" href="manifest.webmanifest">
+  <link rel="icon" type="image/png" sizes="32x32" href="assets/img/favicon-32.png">
+  <link rel="icon" type="image/png" sizes="192x192" href="assets/img/app-192.png">
+  <link rel="apple-touch-icon" href="assets/img/app-apple-180.png">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-title" content="Painel Altamar">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <link rel="stylesheet" href="assets/css/app.css?v=20261008a">
   <script>
     // Aplica o tema antes da pintura para evitar "piscar" claro → escuro.
     (function () {
@@ -26,7 +34,7 @@
   <header class="app-header">
     <div class="header-bar">
       <a class="brand" href="#executivo" data-action="go-tab" data-tab="executivo" title="Ir para o Painel executivo">
-        <span class="brand-logo-wrap"><img class="brand-img" src="assets/img/logo-altamar-branco.png?v=20261006c" alt="Altamar Sistemas Aquáticos" width="217" height="54"></span>
+        <span class="brand-logo-wrap"><img class="brand-img" src="assets/img/logo-altamar-branco.png?v=20261008a" alt="Altamar Sistemas Aquáticos" width="217" height="54"></span>
         <span class="brand-divider" aria-hidden="true"></span>
         <span class="brand-sub">Painel de Gestão<br>Projeto de Expansão</span>
       </a>
@@ -47,6 +55,7 @@
             ⚙️ Dados <span id="backup-dot" class="notify-dot hidden" title="Faça um backup: há alterações recentes sem backup"></span>
           </button>
           <div id="data-menu" class="menu-panel hidden" role="menu">
+            <button id="menu-instalar" role="menuitem">📲 Instalar o aplicativo<span class="menu-sub">Ícone na área de trabalho ou na tela do celular</span></button>
             <button id="btn-presentation" role="menuitem" title="Fontes maiores para projetar na reunião">📺 Modo reunião</button>
             <hr>
             <button id="menu-import-excel" role="menuitem">📥 Importar da planilha Excel…</button>
@@ -587,33 +596,34 @@
   <datalist id="people-list"></datalist>
   <div class="toasts" id="toasts" aria-live="polite"></div>
 
-  <script src="assets/js/config.js?v=20261006c"></script>
-  <script src="assets/js/utils.js?v=20261006c"></script>
-  <script src="assets/js/data.js?v=20261006c"></script>
-  <script src="assets/js/activities-seed.js?v=20261006c"></script>
-  <script src="assets/js/store.js?v=20261006c"></script>
-  <script src="assets/js/excel.js?v=20261006c"></script>
-  <script src="assets/js/views/executive.js?v=20261006c"></script>
-  <script src="assets/js/views/matrix.js?v=20261006c"></script>
-  <script src="assets/js/views/tables.js?v=20261006c"></script>
-  <script src="assets/js/views/board.js?v=20261006c"></script>
-  <script src="assets/js/plano.js?v=20261006c"></script>
-  <script src="assets/js/views/drilldown.js?v=20261006c"></script>
-  <script src="assets/js/views/triagem.js?v=20261006c"></script>
-  <script src="assets/js/views/guia.js?v=20261006c"></script>
-  <script src="assets/js/impacto.js?v=20261006c"></script>
-  <script src="assets/js/visao.js?v=20261006c"></script>
-  <script src="assets/js/views/programa.js?v=20261006c"></script>
-  <script src="assets/js/boletim.js?v=20261006c"></script>
-  <script src="assets/js/views/sprint.js?v=20261006c"></script>
-  <script src="assets/js/views/overview.js?v=20261006c"></script>
-  <script src="assets/js/views/cadastros.js?v=20261006c"></script>
-  <script src="assets/js/google.js?v=20261006c"></script>
-  <script src="assets/js/compromissos.js?v=20261006c"></script>
-  <script src="assets/js/forms.js?v=20261006c"></script>
-  <script src="assets/js/ficha.js?v=20261006c"></script>
-  <script src="assets/js/nuvem.js?v=20261006c"></script>
-  <script src="assets/js/financeiro.js?v=20261006c"></script>
-  <script src="assets/js/app.js?v=20261006c"></script>
+  <script src="assets/js/config.js?v=20261008a"></script>
+  <script src="assets/js/utils.js?v=20261008a"></script>
+  <script src="assets/js/data.js?v=20261008a"></script>
+  <script src="assets/js/activities-seed.js?v=20261008a"></script>
+  <script src="assets/js/store.js?v=20261008a"></script>
+  <script src="assets/js/excel.js?v=20261008a"></script>
+  <script src="assets/js/views/executive.js?v=20261008a"></script>
+  <script src="assets/js/views/matrix.js?v=20261008a"></script>
+  <script src="assets/js/views/tables.js?v=20261008a"></script>
+  <script src="assets/js/views/board.js?v=20261008a"></script>
+  <script src="assets/js/plano.js?v=20261008a"></script>
+  <script src="assets/js/views/drilldown.js?v=20261008a"></script>
+  <script src="assets/js/views/triagem.js?v=20261008a"></script>
+  <script src="assets/js/views/guia.js?v=20261008a"></script>
+  <script src="assets/js/impacto.js?v=20261008a"></script>
+  <script src="assets/js/visao.js?v=20261008a"></script>
+  <script src="assets/js/views/programa.js?v=20261008a"></script>
+  <script src="assets/js/boletim.js?v=20261008a"></script>
+  <script src="assets/js/views/sprint.js?v=20261008a"></script>
+  <script src="assets/js/views/overview.js?v=20261008a"></script>
+  <script src="assets/js/views/cadastros.js?v=20261008a"></script>
+  <script src="assets/js/google.js?v=20261008a"></script>
+  <script src="assets/js/compromissos.js?v=20261008a"></script>
+  <script src="assets/js/forms.js?v=20261008a"></script>
+  <script src="assets/js/ficha.js?v=20261008a"></script>
+  <script src="assets/js/nuvem.js?v=20261008a"></script>
+  <script src="assets/js/financeiro.js?v=20261008a"></script>
+  <script src="assets/js/instalar.js?v=20261008a"></script>
+  <script src="assets/js/app.js?v=20261008a"></script>
 </body>
 </html>

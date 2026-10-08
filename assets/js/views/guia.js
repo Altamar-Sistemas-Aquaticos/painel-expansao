@@ -299,12 +299,12 @@
 
           <section class="panel guia-sec" id="guia-roteiro">
             <h3>Reuniões</h3>
-            ${reuniao("⚡", "Acompanhamento semanal", "Toda quinta: Pedro com a diretoria", "15 min",
+            ${reuniao("⚡", "Acompanhamento semanal", "Toda quinta: Pedro com a diretoria", "45 min",
               "Os líderes atualizam o Kanban durante a semana; na quinta, o Pedro mostra o que andou, o que travou e o que precisa de decisão. Se a reunião não acontecer, a diretoria recebe o boletim (📤 Compartilhar → Boletim).",
               [
-                passo(1, "O que foi feito (5 min)", "Etapas que foram para “Feito” e passos concluídos.", ["kanban", "Kanban"]),
-                passo(2, "O que está travado (5 min)", "Cards em “Travado” e semáforos vermelhos: o que falta e de quem depende.", ["kanban", "Kanban"]),
-                passo(3, "Decisões (5 min)", "O que só a diretoria resolve. Registrar a decisão.", ["decisoes", "Decisões"]),
+                passo(1, "O que foi feito (15 min)", "Etapas que foram para “Feito” e passos concluídos.", ["kanban", "Kanban"]),
+                passo(2, "O que está travado (15 min)", "Cards em “Travado” e semáforos vermelhos: o que falta e de quem depende.", ["kanban", "Kanban"]),
+                passo(3, "Decisões (15 min)", "O que só a diretoria resolve. Registrar a decisão.", ["decisoes", "Decisões"]),
               ])}
             ${reuniao("🗓️", "Reunião do ciclo", "Todo mês, no fim do ciclo", "60 min",
               `Fechar o mês e escolher os projetos do próximo: até ${limite} por setor.`,
