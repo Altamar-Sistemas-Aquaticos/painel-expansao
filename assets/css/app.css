@@ -1889,3 +1889,12 @@ span.tarefa-vis { cursor: default; }
 .tarefas-resumo .late { color: var(--alert); font-weight: 700; }
 .cal-ev.ok { background: var(--ok-soft); color: var(--ok-text); }
 @media (max-width: 900px) { .tarefa-add { grid-template-columns: 1fr 1fr; } .tarefa-add #tarefa-titulo { grid-column: 1 / -1; } }
+
+/* Kanban: projetos do ciclo sem atividade no mês */
+.kb-sem-ativ { display: flex; flex-wrap: wrap; align-items: center; gap: 0.25rem; margin-top: 0.4rem; font-size: 0.72rem; color: var(--warn-text); }
+.kb-sem-ativ > span { width: 100%; font-weight: 700; }
+.kb-sem-chip { font-size: 0.72rem; font-weight: 800; padding: 0.05rem 0.4rem; border-radius: 6px; background: var(--warn-soft); color: var(--warn-text); border: 1px dashed var(--warn); text-decoration: none; }
+.kb-sem-chip:hover { background: var(--warn); color: #fff; }
+.kb-sem-topo { margin: 0.5rem 0 0.8rem; padding: 0.5rem 0.75rem; border-radius: 8px; background: var(--warn-soft); }
+.kb-sem-topo .kb-sem-ativ { margin: 0; font-size: 0.82rem; }
+.kb-sem-topo .kb-sem-ativ > span { width: auto; margin-right: 0.3rem; }

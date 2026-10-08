@@ -156,20 +156,41 @@
       </section>`).join("");
   }
 
+  // Projetos escolhidos para o ciclo que ainda não têm nenhuma atividade no Kanban do mês
+  // (sem plano, ou com atividades sem prazo / com prazo fora do ciclo).
+  function semAtividadeNoMes(S, list, setor) {
+    const comCard = new Set(list.map(({ it }) => it.id));
+    return S.projetosNoCiclo(setor).filter((p) => p.status !== "Concluído" && !comCard.has(p.id) && A.visao.veProjeto(p));
+  }
+  function motivoSemAtividade(S, p) {
+    const abertas = p.atividades.filter((a) => a.status !== "Concluído" && a.status !== "Cancelado");
+    if (!abertas.length) return "Ainda sem plano: nenhuma atividade cadastrada";
+    if (!abertas.some((a) => S.calc.parseDate(a.prazo))) return `${abertas.length} atividade(s) sem prazo`;
+    return "Nenhuma atividade com prazo neste ciclo";
+  }
+  function chipsSemAtividade(projs) {
+    if (!projs.length) return "";
+    const S = A.store;
+    return `<div class="kb-sem-ativ" title="Projetos escolhidos para o ciclo que ainda não têm atividade com prazo no mês">
+      <span>${projs.length} projeto${projs.length === 1 ? "" : "s"} sem atividade no mês:</span>
+      ${projs.map((p) => `<a class="kb-sem-chip" href="${A.drill.projectHref(p.id)}" data-nav title="${esc(`${p.id} · ${p.nome}\n${motivoSemAtividade(S, p)}\nClique para montar o plano`)}">${esc(p.id)}</a>`).join("")}
+    </div>`;
+  }
+
   // Gestor e diretoria: uma página só, com uma faixa por setor e as cinco situações lado a lado.
   function faixasPorSetor(S, list) {
     const COLS = A.meta.SPRINT_COLUNAS;
     const total = agrupar(S, list);
-    const setores = S.areas().map((a) => ({ a, itens: list.filter(({ it }) => it.area === a.key) }));
-    const comAtividade = setores.filter((s) => s.itens.length);
-    const vazios = setores.filter((s) => !s.itens.length).map((s) => s.a.key);
+    const setores = S.areas().map((a) => ({ a, itens: list.filter(({ it }) => it.area === a.key), semAtividade: semAtividadeNoMes(S, list, a.key) }));
+    const comAtividade = setores.filter((s) => s.itens.length || s.semAtividade.length);
+    const vazios = setores.filter((s) => !s.itens.length && !s.semAtividade.length).map((s) => s.a.key);
     return `
       <div class="kb-lanes" style="--ncols:${COLS.length}">
         <div class="kb-lane kb-lane-head"><span></span>${COLS.map((c) => cabecalhoColuna(c, total[c.key].length)).join("")}</div>
-        ${comAtividade.map(({ a, itens }) => {
+        ${comAtividade.map(({ a, itens, semAtividade }) => {
           const cols = agrupar(S, itens);
           const feitas = cols.done.length;
-          const pct = Math.round((feitas / itens.length) * 100);
+          const pct = itens.length ? Math.round((feitas / itens.length) * 100) : 0;
           const problemas = cols.blocked.length;
           return `
             <div class="kb-lane" style="--ac:${a.cor}">
@@ -178,6 +199,7 @@
                 <span>${esc(a.lider || "líder a definir")} · ${itens.length} ativ.</span>
                 <span class="kb-lane-barra" title="${feitas} de ${itens.length} feitas"><i style="width:${pct}%"></i></span>
                 ${problemas ? `<span class="kb-lane-alerta">${problemas} travada${problemas === 1 ? "" : "s"}</span>` : ""}
+                ${chipsSemAtividade(semAtividade)}
               </div>
               ${COLS.map((c) => `<div class="kb-cell ${c.key}" data-drop-act="${c.key}">${cols[c.key].map(({ it, a: at }) => actCard(S, it, at, { compacto: true })).join("")}</div>`).join("")}
             </div>`;
@@ -201,7 +223,12 @@
       feitas: doSetor.filter(({ a }) => a.status === "Concluído").length,
       projetos: new Set(doSetor.map(({ it }) => it.id)).size,
     };
-    document.getElementById("sprint-head").innerHTML = sprintHead(S, siTela) + toolbar(S, responsaveis);
+    // No Kanban clássico (líder ou um setor filtrado), o aviso dos projetos sem atividade vai no topo.
+    const classicoAviso = lider || S.state.ui.area !== "ALL";
+    const semAtiv = classicoAviso ? S.areas().filter((a) => S.state.ui.area === "ALL" || a.key === S.state.ui.area)
+      .flatMap((a) => semAtividadeNoMes(S, si.items, a.key)) : [];
+    document.getElementById("sprint-head").innerHTML = sprintHead(S, siTela) + toolbar(S, responsaveis)
+      + (semAtiv.length ? `<div class="kb-sem-topo">${chipsSemAtividade(semAtiv)}</div>` : "");
     const board = document.getElementById("kanban-board");
     // Com o filtro de um setor só, a visão do gestor também vira o Kanban clássico.
     const classico = lider || S.state.ui.area !== "ALL";
