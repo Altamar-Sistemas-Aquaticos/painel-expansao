@@ -37,6 +37,7 @@
       S.state.ui.area !== "ALL" ? S.state.ui.area : "");
     if (!$("tri-valor").options.length) $("tri-valor").innerHTML = A.meta.valorOptions("", "Valor?");
     if (!$("tri-esforco").options.length) $("tri-esforco").innerHTML = A.meta.esforcoOptions("", "Esforço?");
+    if (!$("tri-urgencia").options.length) $("tri-urgencia").innerHTML = A.meta.urgenciaOptions("", "Urgência?");
   }
 
   function row(S, it) {
@@ -56,6 +57,7 @@
           ${it.faseDe ? `<span class="badge accent" title="Fase do projeto ${esc(it.faseDe)}">fase de ${esc(it.faseDe)}</span>` : ""}
           ${fases ? `<span class="badge" title="Este projeto foi dividido em fases">${fases} fase(s)</span>` : ""}
           <div class="tri-sub">${esc(it.area)}${sub ? ` · ${sub}` : ""}</div>
+          ${it.objetivo ? `<div class="tri-desc" title="${esc(it.objetivo)}">${esc(it.objetivo)}</div>` : ""}
         </td>
         <td class="nowrap"><select class="tri-sel tri-score ${it.valor ? "" : "empty"}" data-tri-field="valor" data-id="${esc(it.id)}" aria-label="Valor de ${esc(it.id)}">${A.meta.valorOptions(it.valor || "", "Valor?")}</select><button class="tri-impacto no-print" data-tri-impacto="${esc(it.id)}" title="Escolher o valor pelos círculos de impacto">🎯</button></td>
         <td class="nowrap"><select class="tri-sel tri-score ${it.esforco ? "" : "empty"} ${it.esforcoRevisar ? "revisar" : ""}" data-tri-field="esforco" data-id="${esc(it.id)}" aria-label="Esforço de ${esc(it.id)}"
@@ -109,9 +111,11 @@
     const r = S.quickIdea({
       nome: $("tri-nome").value.trim(),
       area: $("tri-area").value,
-      prazo: $("tri-prazo").value.trim(),
+      prazo: $("tri-prazo").value ? $("tri-prazo").value.split("-").reverse().join("/") : "",
       valor: Number($("tri-valor").value) || 0,
       esforco: Number($("tri-esforco").value) || 0,
+      urgencia: Number($("tri-urgencia").value) || 0,
+      objetivo: $("tri-objetivo").value.trim(),
     });
     if (!r.ok) {
       $("tri-error").textContent = r.error;
@@ -122,6 +126,8 @@
     $("tri-prazo").value = "";
     $("tri-valor").value = "";
     $("tri-esforco").value = "";
+    $("tri-urgencia").value = "";
+    $("tri-objetivo").value = "";
     toast(`${r.item.id} lançada na Triagem${semNota(r.item) ? " (falta dar nota)" : ""}.`);
     $("tri-nome").focus();
   }

@@ -15,7 +15,7 @@
   <meta name="mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-title" content="Painel Altamar">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-  <link rel="stylesheet" href="assets/css/app.css?v=20261008f">
+  <link rel="stylesheet" href="assets/css/app.css?v=20261008g">
   <script>
     // Aplica o tema antes da pintura para evitar "piscar" claro → escuro.
     (function () {
@@ -34,7 +34,7 @@
   <header class="app-header">
     <div class="header-bar">
       <a class="brand" href="#executivo" data-action="go-tab" data-tab="executivo" title="Ir para o Painel executivo">
-        <span class="brand-logo-wrap"><img class="brand-img" src="assets/img/logo-altamar-branco.png?v=20261008f" alt="Altamar Sistemas Aquáticos" width="217" height="54"></span>
+        <span class="brand-logo-wrap"><img class="brand-img" src="assets/img/logo-altamar-branco.png?v=20261008g" alt="Altamar Sistemas Aquáticos" width="217" height="54"></span>
         <span class="brand-divider" aria-hidden="true"></span>
         <span class="brand-sub">Painel de Gestão<br>Projeto de Expansão</span>
       </a>
@@ -151,10 +151,12 @@
         <div class="tri-quick-title">💡 Nova ideia</div>
         <input id="tri-nome" class="input tri-q-nome" placeholder="Qual é a ideia ou projeto?" aria-label="Ideia">
         <select id="tri-area" class="input" aria-label="Área"></select>
-        <input id="tri-prazo" class="input tri-q-prazo" placeholder="Prazo pensado" aria-label="Prazo pensado">
         <span class="tri-valor-grupo"><select id="tri-valor" class="input" aria-label="Valor prévio"></select><button type="button" class="tri-impacto" data-tri-impacto-novo title="Escolher o valor pelos círculos de impacto">🎯</button></span>
         <select id="tri-esforco" class="input" aria-label="Esforço prévio"></select>
+        <select id="tri-urgencia" class="input" aria-label="Urgência"></select>
         <button type="submit" class="btn btn-primary">+ Adicionar</button>
+        <input id="tri-objetivo" class="input tri-q-objetivo" placeholder="O que o projeto entrega? (opcional) ex.: checklist de partida de cada equipamento, termo de entrega assinado e treinamento do operador" aria-label="O que o projeto entrega">
+        <label class="tri-q-prazo" title="Prazo pensado para o projeto (opcional)"><span>Prazo</span><input id="tri-prazo" type="date" class="input" aria-label="Prazo pensado"></label>
         <div class="field-error tri-q-error" id="tri-error" role="alert"></div>
       </form>
       <div class="row no-print tri-filters" id="triagem-filters"></div>
@@ -385,8 +387,8 @@
         <!-- Descrição (opcional) -->
         <details class="ini-sec" id="ini-descricao">
           <summary><strong>Descrição</strong> <span class="muted small">· opcional</span><span class="ini-resumo" id="ini-descricao-resumo"></span></summary>
-          <div class="field"><label for="ini-objetivo">O que muda quando ficar pronto?</label>
-            <textarea id="ini-objetivo" class="input" rows="2" style="min-height:0" placeholder="Uma frase basta. ex.: clientes encontram nossos produtos no Google e pedem orçamento pelo site"></textarea></div>
+          <div class="field"><label for="ini-objetivo">O que o projeto entrega</label>
+            <textarea id="ini-objetivo" class="input" rows="2" style="min-height:0" placeholder="ex.: checklist de partida de cada equipamento, termo de entrega assinado e treinamento do operador do cliente"></textarea></div>
           <div class="field"><label for="ini-obs">Observações</label>
             <textarea id="ini-obs" class="input" rows="2" style="min-height:0" placeholder="Qualquer coisa importante que não caiba acima"></textarea></div>
         </details>
@@ -601,35 +603,35 @@
   <datalist id="people-list"></datalist>
   <div class="toasts" id="toasts" aria-live="polite"></div>
 
-  <script src="assets/js/config.js?v=20261008f"></script>
-  <script src="assets/js/utils.js?v=20261008f"></script>
-  <script src="assets/js/data.js?v=20261008f"></script>
-  <script src="assets/js/activities-seed.js?v=20261008f"></script>
-  <script src="assets/js/store.js?v=20261008f"></script>
-  <script src="assets/js/excel.js?v=20261008f"></script>
-  <script src="assets/js/views/executive.js?v=20261008f"></script>
-  <script src="assets/js/views/matrix.js?v=20261008f"></script>
-  <script src="assets/js/views/tables.js?v=20261008f"></script>
-  <script src="assets/js/views/board.js?v=20261008f"></script>
-  <script src="assets/js/plano.js?v=20261008f"></script>
-  <script src="assets/js/views/drilldown.js?v=20261008f"></script>
-  <script src="assets/js/views/triagem.js?v=20261008f"></script>
-  <script src="assets/js/views/guia.js?v=20261008f"></script>
-  <script src="assets/js/impacto.js?v=20261008f"></script>
-  <script src="assets/js/visao.js?v=20261008f"></script>
-  <script src="assets/js/views/programa.js?v=20261008f"></script>
-  <script src="assets/js/boletim.js?v=20261008f"></script>
-  <script src="assets/js/views/sprint.js?v=20261008f"></script>
-  <script src="assets/js/views/overview.js?v=20261008f"></script>
-  <script src="assets/js/views/cadastros.js?v=20261008f"></script>
-  <script src="assets/js/google.js?v=20261008f"></script>
-  <script src="assets/js/compromissos.js?v=20261008f"></script>
-  <script src="assets/js/forms.js?v=20261008f"></script>
-  <script src="assets/js/ficha.js?v=20261008f"></script>
-  <script src="assets/js/nuvem.js?v=20261008f"></script>
-  <script src="assets/js/financeiro.js?v=20261008f"></script>
-  <script src="assets/js/tarefas.js?v=20261008f"></script>
-  <script src="assets/js/instalar.js?v=20261008f"></script>
-  <script src="assets/js/app.js?v=20261008f"></script>
+  <script src="assets/js/config.js?v=20261008g"></script>
+  <script src="assets/js/utils.js?v=20261008g"></script>
+  <script src="assets/js/data.js?v=20261008g"></script>
+  <script src="assets/js/activities-seed.js?v=20261008g"></script>
+  <script src="assets/js/store.js?v=20261008g"></script>
+  <script src="assets/js/excel.js?v=20261008g"></script>
+  <script src="assets/js/views/executive.js?v=20261008g"></script>
+  <script src="assets/js/views/matrix.js?v=20261008g"></script>
+  <script src="assets/js/views/tables.js?v=20261008g"></script>
+  <script src="assets/js/views/board.js?v=20261008g"></script>
+  <script src="assets/js/plano.js?v=20261008g"></script>
+  <script src="assets/js/views/drilldown.js?v=20261008g"></script>
+  <script src="assets/js/views/triagem.js?v=20261008g"></script>
+  <script src="assets/js/views/guia.js?v=20261008g"></script>
+  <script src="assets/js/impacto.js?v=20261008g"></script>
+  <script src="assets/js/visao.js?v=20261008g"></script>
+  <script src="assets/js/views/programa.js?v=20261008g"></script>
+  <script src="assets/js/boletim.js?v=20261008g"></script>
+  <script src="assets/js/views/sprint.js?v=20261008g"></script>
+  <script src="assets/js/views/overview.js?v=20261008g"></script>
+  <script src="assets/js/views/cadastros.js?v=20261008g"></script>
+  <script src="assets/js/google.js?v=20261008g"></script>
+  <script src="assets/js/compromissos.js?v=20261008g"></script>
+  <script src="assets/js/forms.js?v=20261008g"></script>
+  <script src="assets/js/ficha.js?v=20261008g"></script>
+  <script src="assets/js/nuvem.js?v=20261008g"></script>
+  <script src="assets/js/financeiro.js?v=20261008g"></script>
+  <script src="assets/js/tarefas.js?v=20261008g"></script>
+  <script src="assets/js/instalar.js?v=20261008g"></script>
+  <script src="assets/js/app.js?v=20261008g"></script>
 </body>
 </html>

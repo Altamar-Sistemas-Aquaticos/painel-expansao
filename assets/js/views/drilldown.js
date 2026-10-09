@@ -329,6 +329,13 @@
           </div>
         </div>
 
+        <div class="ficha-entrega">
+          <label for="ficha-objetivo">O que o projeto entrega</label>
+          ${A.visao.atual().tipo === "lider"
+            ? `<p>${it.objetivo ? esc(it.objetivo) : `<span class="muted">Ainda sem descrição.</span>`}</p>`
+            : `<textarea id="ficha-objetivo" rows="2" data-ficha-campo="objetivo" data-key="ficha-objetivo" placeholder="ex.: checklist de partida de cada equipamento (tambor, UV-C, skimmer, skid), termo de entrega assinado e treinamento do operador do cliente">${esc(it.objetivo || "")}</textarea>`}
+        </div>
+
         <div class="ficha-campos">
           <label class="ficha-campo"><span>Líder do projeto</span>
             <select class="input input-sm" data-ficha-campo="responsavel">${ui.peopleOptions(it.responsavel, { blank: "A definir" })}</select></label>
@@ -389,16 +396,15 @@
         </section>
       </div>
 
-      <details class="panel ficha-sobre" id="ficha-sobre" ${sobreAberto ? "open" : ""}>
-        <summary>📄 Objetivo, pronto quando e indicador</summary>
+      ${it.prontoQuando || it.indicador || it.observacoes ? `<details class="panel ficha-sobre" id="ficha-sobre" ${sobreAberto ? "open" : ""}>
+        <summary>📄 Mais detalhes: pronto quando, indicador e observações</summary>
         <dl class="project-brief">
-          <div><dt>Objetivo</dt><dd>${esc(it.objetivo || "—")}</dd></div>
-          <div><dt>Pronto quando</dt><dd>${esc(it.prontoQuando || "—")}</dd></div>
-          <div><dt>Indicador de sucesso</dt><dd>${esc(it.indicador || "—")}</dd></div>
+          ${it.prontoQuando ? `<div><dt>Pronto quando</dt><dd>${esc(it.prontoQuando)}</dd></div>` : ""}
+          ${it.indicador ? `<div><dt>Indicador de sucesso</dt><dd>${esc(it.indicador)}</dd></div>` : ""}
           ${it.observacoes ? `<div><dt>Observações</dt><dd>${esc(it.observacoes)}</dd></div>` : ""}
         </dl>
         <button class="btn btn-xs btn-outline no-print so-gestor" data-action="edit-initiative" data-id="${esc(it.id)}">Editar estes textos</button>
-      </details>`;
+      </details>` : ""}`;
 
     // O editor detalhado só é redesenhado quando muda a estrutura, o % ou o status das etapas;
     // edições de texto não o redesenham, para não tirar o foco de quem está digitando.

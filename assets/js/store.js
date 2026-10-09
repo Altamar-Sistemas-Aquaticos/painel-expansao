@@ -871,7 +871,7 @@
     const id = nextId(input.area);
     const item = normalizeInitiative({
       id, nome: input.nome, area: input.area, autor: input.autor || store.settings.user || "", eixo: input.eixo || "",
-      prazo: input.prazo || "", valor: input.valor, esforco: input.esforco, objetivo: input.objetivo || "",
+      prazo: input.prazo || "", valor: input.valor, esforco: input.esforco, urgencia: input.urgencia || 0, objetivo: input.objetivo || "",
       onda: "Fila", situacao: "Rascunho", status: "A fazer", semaforo: "verde", atividades: [],
       criadoEm: new Date().toISOString(),
     });
