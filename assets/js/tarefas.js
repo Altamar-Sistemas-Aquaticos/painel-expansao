@@ -67,7 +67,7 @@
     // Mostra já na tela e confirma com o banco.
     lista = lista.map((t) => (t.id === id ? { ...t, ...patch } : t)); A.store.emit();
     const { error } = await cliente().from("tarefas").update(patch).eq("id", id);
-    if (error) toast("Não foi possível salvar a tarefa.", "error");
+    if (error) toast(/etiquetas|checklist/i.test(String(error.message || "")) ? "O banco ainda não guarda etiquetas e checklist das tarefas. Avise o administrador (script 08)." : "Não foi possível salvar a tarefa.", "error", 6000);
     await carregar();
   }
   async function remover(id) {
@@ -78,33 +78,107 @@
   }
 
   /* ---------- Desenho ---------- */
-  function card(S, t, editavel) {
+  const etqs = (t) => (Array.isArray(t.etiquetas) ? t.etiquetas : []).map((id) => A.store.findEtiqueta(id)).filter(Boolean);
+  const passos = (t) => (Array.isArray(t.checklist) ? t.checklist : []);
+  const lblHtml = (e) => { const c = A.meta.corEtiqueta(e.cor); return `<span class="lbl" style="--lb:${c.bg};--lbt:${c.fg}">${esc(e.nome)}</span>`; };
+  function prazoBadge(t) {
     const d = dataDe(t.prazo);
-    const atrasada = d && d < hoje() && t.coluna !== "done";
+    if (!d) return "";
+    const dias = Math.round((d - hoje()) / 86400000);
+    const cls = t.coluna === "done" ? "feito" : dias < 0 ? "late" : dias <= 2 ? "soon" : "";
+    const txt = d.toLocaleDateString("pt-BR", { day: "2-digit", month: "short" }).replace(".", "").replace(" de ", " ");
+    return `<span class="tbadge prazo ${cls}" title="Prazo: ${br(t.prazo)}">🕑 ${esc(txt)}</span>`;
+  }
+
+  function card(S, t, editavel) {
     const proj = t.projeto_id && S.findInitiative(t.projeto_id);
+    const ck = passos(t), feitos = ck.filter((x) => x.feito).length;
     return `
-      <div class="k-card act-card tarefa-card ${t.coluna}" ${editavel ? `draggable="true" data-tarefa-drag="${esc(t.id)}"` : ""} style="--ac:${proj ? A.area(proj.area).cor : "#5f6b7a"}">
-        <div class="act-top">
-          <span class="act-card-proj">${proj ? `<span class="act-card-pname">${esc(proj.id)} · ${esc(proj.nome)}</span>` : `<span class="act-card-pname">Tarefa pessoal</span>`}</span>
-          ${editavel
-            ? `<button class="tarefa-vis ${t.visivel ? "on" : ""}" data-tarefa-vis="${esc(t.id)}" title="${t.visivel ? "Visível para a gestão (Pedro e diretoria). Clique para deixar privada." : "Privada: só você vê. Clique para deixar visível para a gestão."}">${t.visivel ? "👁" : "🔒"}</button>`
-            : `<span class="tarefa-vis on" title="Visível para a gestão">👁</span>`}
+      <div class="k-card act-card tcard tarefa-card ${t.coluna}" ${editavel ? `draggable="true" data-tarefa-drag="${esc(t.id)}" data-tarefa-abrir="${esc(t.id)}" tabindex="0" role="button" title="Clique para abrir"` : ""} style="--ac:${proj ? A.area(proj.area).cor : "#5f6b7a"}">
+        <div class="tcard-lbls">
+          ${proj ? `<span class="lbl lbl-proj" title="${esc(`${proj.id} · ${proj.nome}`)}">${esc(proj.id)}</span>` : ""}
+          ${etqs(t).map(lblHtml).join("")}
+          <span class="tcard-sem" title="${t.visivel ? "Visível para a gestão (Pedro e diretoria)" : "Privada: só você vê"}">${t.visivel ? "👁" : "🔒"}</span>
         </div>
-        <div class="act-card-title">${editavel ? `<button class="tarefa-titulo" data-tarefa-edit="${esc(t.id)}" title="Clique para editar">${esc(t.titulo)}</button>` : esc(t.titulo)}</div>
-        <div class="act-meta">
-          ${editavel ? `<input type="date" class="tarefa-prazo ${atrasada ? "late" : ""}" data-tarefa-prazo="${esc(t.id)}" value="${esc(t.prazo || "")}" title="Prazo (opcional)">`
-            : t.prazo ? `<span class="act-prazo ${atrasada ? "late" : ""}">📅 ${br(t.prazo)}${atrasada ? " · atrasada" : ""}</span>` : ""}
-          ${t.observacao ? `<span title="${esc(t.observacao)}">📝</span>` : ""}
+        <div class="tcard-title">${esc(t.titulo)}</div>
+        <div class="tcard-foot">
+          ${prazoBadge(t)}
+          ${ck.length ? `<span class="tbadge ${feitos === ck.length ? "feito" : ""}">☑ ${feitos}/${ck.length}</span>` : ""}
+          ${t.observacao ? `<span class="tbadge" title="${esc(t.observacao)}">≡</span>` : ""}
+          ${!editavel ? `<span class="muted small" style="margin-left:auto">${esc(t.dono_nome || "")}</span>` : ""}
         </div>
         ${editavel ? `<div class="act-quick no-print">
           ${PROXIMA[t.coluna] ? `<button class="q-btn go" data-tarefa-mover="${esc(t.id)}" data-col="${PROXIMA[t.coluna]}">${t.coluna === "doing" ? "✓ Concluir" : t.coluna === "todo" ? "▶ Começar" : "✓ Resolvido"}</button>` : ""}
           ${t.coluna === "todo" || t.coluna === "doing" ? `<button class="q-btn warn" data-tarefa-mover="${esc(t.id)}" data-col="blocked" title="Travou">⚠</button>` : ""}
-          ${t.projeto_id && t.coluna !== "done" ? `<button class="q-btn" data-tarefa-projeto="${esc(t.id)}" title="Levar para o plano do projeto como atividade">↗ Projeto</button>` : ""}
-          <button class="q-btn" data-tarefa-obs="${esc(t.id)}" title="Observação">📝</button>
-          <button class="q-btn" data-tarefa-del="${esc(t.id)}" title="Apagar">✕</button>
         </div>` : ""}
       </div>`;
   }
+
+  /* ---------- Tarefa aberta (janela no estilo cartão) ---------- */
+  let aberta = null;
+  function desenharTarefa() {
+    const S = A.store;
+    const t = lista.find((x) => x.id === aberta);
+    const body = $("tarefa-body");
+    if (!t || !body) { aberta = null; return A.util.closeModal("modal-tarefa"); }
+    const novo = $("tf-ck-new")?.value || "";
+    const foco = document.activeElement?.id;
+    const ck = passos(t), feitos = ck.filter((x) => x.feito).length;
+    const pct = ck.length ? Math.round((feitos / ck.length) * 100) : 0;
+    const projetos = S.state.data.initiatives.filter((i) => i.status !== "Cancelado" && i.status !== "Concluído" && A.visao.veProjeto(i))
+      .sort((a, b) => a.id.localeCompare(b.id, "pt-BR", { numeric: true }));
+    const todas = S.etiquetas();
+    body.innerHTML = `
+      <div class="tmodal-head">
+        <div class="tmodal-crumb"><span class="muted small">Minhas tarefas · ${t.visivel ? "👁 visível para a gestão" : "🔒 privada"}</span></div>
+        <select id="tf-col" class="input input-sm tmodal-col" aria-label="Coluna">${COLS().map((c) => `<option value="${c.key}" ${c.key === t.coluna ? "selected" : ""}>${esc(c.label)}</option>`).join("")}</select>
+        <button class="btn btn-xs btn-ghost" data-action="close-modal" data-target="modal-tarefa" aria-label="Fechar">✕</button>
+      </div>
+      <div class="tmodal-main">
+        <input id="tf-titulo" class="tmodal-title" value="${esc(t.titulo)}" aria-label="Título da tarefa" autocomplete="off">
+        <div class="tmodal-resumo">
+          <div><small>Entrega</small><input type="date" id="tf-prazo" class="input input-sm" value="${esc(t.prazo || "")}"></div>
+          <div><small>Projeto</small><select id="tf-proj" class="input input-sm"><option value="">Sem projeto</option>
+            ${projetos.map((i) => `<option value="${esc(i.id)}" ${i.id === t.projeto_id ? "selected" : ""}>${esc(i.id)} · ${esc(i.nome.length > 34 ? i.nome.slice(0, 34) + "…" : i.nome)}</option>`).join("")}</select></div>
+          <div><small>Quem vê</small><label class="mb-row"><input type="checkbox" id="tf-vis" ${t.visivel ? "checked" : ""}> 👁 Visível para a gestão</label></div>
+        </div>
+        <div><small class="tf-rot">Etiquetas</small>
+          <div class="tcard-lbls">${todas.length ? todas.map((e) => { const c = A.meta.corEtiqueta(e.cor); const on = (t.etiquetas || []).includes(e.id);
+            return `<button type="button" class="lbl lbl-filtro ${on ? "on" : ""}" data-tf-etq="${esc(e.id)}" style="--lb:${c.bg};--lbt:${c.fg}" aria-pressed="${on}">${esc(e.nome)}</button>`; }).join("")
+            : `<span class="muted small">Nenhuma etiqueta criada ainda (a gestão cria no Kanban).</span>`}</div></div>
+        <section class="tmodal-sec">
+          <h4>≡ Descrição</h4>
+          <textarea id="tf-obs" class="input" rows="3" placeholder="Detalhes, contatos, o que falta…">${esc(t.observacao || "")}</textarea>
+        </section>
+        <section class="tmodal-sec act-check">
+          <div class="act-check-head"><h4>☑ Checklist</h4><span class="muted small">${ck.length ? `${feitos} de ${ck.length}` : ""}</span></div>
+          ${ck.length ? `<div class="act-check-bar ${feitos === ck.length ? "completo" : ""}"><span style="width:${pct}%"></span></div>` : ""}
+          <ul class="act-check-list">${ck.map((x) => `
+            <li class="${x.feito ? "done" : ""}"><label><input type="checkbox" data-tf-ck="${esc(x.id)}" ${x.feito ? "checked" : ""}> <span>${esc(x.texto)}</span></label>
+              <button type="button" class="raci-x" data-tf-ck-del="${esc(x.id)}" aria-label="Remover item">✕</button></li>`).join("")}</ul>
+          <form id="tf-ck-form" class="act-check-add" autocomplete="off">
+            <input id="tf-ck-new" class="input input-sm" placeholder="Adicionar um item">
+            <button class="btn btn-sm btn-outline" type="submit">Adicionar</button>
+          </form>
+        </section>
+      </div>
+      <div class="modal-foot">
+        <div class="row">
+          <button type="button" class="btn btn-sm btn-danger-ghost" data-tarefa-del="${esc(t.id)}">Apagar</button>
+          ${t.projeto_id && t.coluna !== "done" ? `<button type="button" class="btn btn-sm btn-outline" data-tarefa-projeto="${esc(t.id)}" title="Levar para o plano do projeto como atividade">↗ Virar atividade do projeto</button>` : ""}
+        </div>
+        <div class="right"><button type="button" class="btn btn-primary" data-action="close-modal" data-target="modal-tarefa">Pronto</button></div>
+      </div>`;
+    if (novo && $("tf-ck-new")) $("tf-ck-new").value = novo;
+    if (foco && $(foco)) $(foco).focus();
+  }
+  function abrirTarefa(id) {
+    aberta = id;
+    if ($("tf-ck-new")) $("tf-ck-new").value = "";
+    desenharTarefa();
+    A.util.openModal("modal-tarefa");
+  }
+  const tarefaAberta = () => lista.find((x) => x.id === aberta);
 
   function colunas(S, itens, editavel) {
     return COLS().map((c) => {
@@ -215,40 +289,52 @@
     $("tarefa-titulo").value = "";
     criar(campos).then(() => { toast("Tarefa criada."); setTimeout(() => $("tarefa-titulo")?.focus(), 0); });
   });
+  // Campos da tarefa aberta: cada mudança já é salva.
   document.addEventListener("change", (e) => {
-    const p = e.target.closest?.("[data-tarefa-prazo]");
-    if (p) mudar(p.dataset.tarefaPrazo, { prazo: p.value || null });
+    const t = tarefaAberta();
+    if (!t || !e.target.closest?.("#tarefa-body")) return;
+    const el = e.target;
+    if (el.id === "tf-titulo") { if (el.value.trim() && el.value.trim() !== t.titulo) mudar(t.id, { titulo: el.value.trim() }); }
+    else if (el.id === "tf-col") mudar(t.id, { coluna: el.value });
+    else if (el.id === "tf-prazo") mudar(t.id, { prazo: el.value || null });
+    else if (el.id === "tf-proj") mudar(t.id, { projeto_id: el.value });
+    else if (el.id === "tf-vis") mudar(t.id, { visivel: el.checked }).then(() => toast(el.checked ? "Tarefa visível para a gestão." : "Tarefa privada: só você vê."));
+    else if (el.id === "tf-obs") mudar(t.id, { observacao: el.value.trim() });
+    else if (el.dataset.tfCk) mudar(t.id, { checklist: passos(t).map((x) => (x.id === el.dataset.tfCk ? { ...x, feito: el.checked } : x)) });
   });
+  document.addEventListener("submit", (e) => {
+    if (e.target.id !== "tf-ck-form") return;
+    e.preventDefault();
+    const t = tarefaAberta();
+    const texto = $("tf-ck-new").value.trim();
+    if (!t || !texto) return;
+    $("tf-ck-new").value = "";
+    mudar(t.id, { checklist: [...passos(t), { id: `ck_${Date.now().toString(36)}`, texto, feito: false }] }).then(() => setTimeout(() => $("tf-ck-new")?.focus(), 0));
+  });
+  A.store?.subscribe?.(() => { if (aberta && $("modal-tarefa")?.classList.contains("open")) desenharTarefa(); });
   document.addEventListener("click", async (e) => {
     const t = e.target;
     const v = t.closest?.("[data-tarefa-vista]");
     if (v) { vista = v.dataset.tarefaVista; return A.store.emit(); }
     const mv = t.closest?.("[data-tarefa-mover]");
     if (mv) return mudar(mv.dataset.tarefaMover, { coluna: mv.dataset.col });
-    const vis = t.closest?.("[data-tarefa-vis]");
-    if (vis) {
-      const x = lista.find((y) => y.id === vis.dataset.tarefaVis);
-      await mudar(x.id, { visivel: !x.visivel });
-      return toast(x.visivel ? "Tarefa privada: só você vê." : "Tarefa visível para a gestão.");
+    const etq = t.closest?.("[data-tf-etq]");
+    if (etq && tarefaAberta()) {
+      const x = tarefaAberta(), atuais = Array.isArray(x.etiquetas) ? x.etiquetas : [];
+      const id = etq.dataset.tfEtq;
+      return mudar(x.id, { etiquetas: atuais.includes(id) ? atuais.filter((y) => y !== id) : [...atuais, id] });
     }
-    const ed = t.closest?.("[data-tarefa-edit]");
-    if (ed) {
-      const x = lista.find((y) => y.id === ed.dataset.tarefaEdit);
-      const novo = await A.util.pedirTexto("Editar a tarefa", { title: "✏️ Tarefa", okLabel: "Salvar", placeholder: x.titulo, obrigatorio: true });
-      if (novo && novo.trim()) mudar(x.id, { titulo: novo.trim() });
-      return;
-    }
-    const ob = t.closest?.("[data-tarefa-obs]");
-    if (ob) {
-      const x = lista.find((y) => y.id === ob.dataset.tarefaObs);
-      const txt = await A.util.pedirTexto(x.observacao ? `Observação atual: “${x.observacao}”. Escreva a nova (deixe vazio para apagar).` : "Observação da tarefa", { title: "📝 Observação", okLabel: "Salvar", placeholder: "ex.: aguardando retorno até sexta" });
-      if (txt != null) mudar(x.id, { observacao: txt.trim() });
-      return;
-    }
+    const ckDel = t.closest?.("[data-tf-ck-del]");
+    if (ckDel && tarefaAberta()) return mudar(aberta, { checklist: passos(tarefaAberta()).filter((x) => x.id !== ckDel.dataset.tfCkDel) });
+    const abre = t.closest?.("[data-tarefa-abrir]");
+    if (abre && !t.closest("button, input, select, a")) return abrirTarefa(abre.dataset.tarefaAbrir);
     const del = t.closest?.("[data-tarefa-del]");
     if (del) {
       const x = lista.find((y) => y.id === del.dataset.tarefaDel);
-      if (await A.util.confirmDialog(`Apagar a tarefa “${x.titulo}”?`, { title: "Apagar tarefa", okLabel: "Apagar", danger: true })) remover(x.id);
+      if (await A.util.confirmDialog(`Apagar a tarefa “${x.titulo}”?`, { title: "Apagar tarefa", okLabel: "Apagar", danger: true })) {
+        A.util.closeModal("modal-tarefa");
+        remover(x.id);
+      }
       return;
     }
     // ↗ Levar para o projeto: vira atividade (gestão: direto no plano; líder: no rascunho do plano, para enviar).
@@ -268,6 +354,7 @@
         const r = S.adicionarAtividades(it.id, [atividade], { source: "Minhas tarefas" });
         if (!r.ok) return toast(r.error, "error");
       }
+      A.util.closeModal("modal-tarefa");
       await remover(x.id);
       toast(lider ? `Foi para o rascunho do plano de ${it.id}. Envie para aprovação na página do projeto.` : `Virou atividade de ${it.id}.`, "ok", 6000);
     }

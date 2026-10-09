@@ -110,6 +110,19 @@
     { key: "blocked", label: "Travado", hint: "Parado: precisa de decisão ou ajuda" },
     { key: "done", label: "Feito", hint: "Entregue" },
   ];
+  // Paleta das etiquetas do Kanban (fundo forte + texto escuro, legível no tema claro e no escuro).
+  const ETIQUETA_CORES = [
+    { key: "verde", nome: "Verde", bg: "#4bce97", fg: "#09341f" },
+    { key: "lima", nome: "Lima", bg: "#94c748", fg: "#203305" },
+    { key: "amarelo", nome: "Amarelo", bg: "#f5cd47", fg: "#3d2f00" },
+    { key: "laranja", nome: "Laranja", bg: "#fea362", fg: "#4a2000" },
+    { key: "vermelho", nome: "Vermelho", bg: "#f87168", fg: "#4c0b07" },
+    { key: "rosa", nome: "Rosa", bg: "#e774bb", fg: "#430b2d" },
+    { key: "roxo", nome: "Roxo", bg: "#9f8fef", fg: "#1f1650" },
+    { key: "azul", nome: "Azul", bg: "#579dff", fg: "#06224a" },
+    { key: "ciano", nome: "Ciano", bg: "#6cc3e0", fg: "#062e39" },
+    { key: "cinza", nome: "Cinza", bg: "#8590a2", fg: "#161b24" },
+  ];
   const WIP_MIN = 4;
   const WIP_MAX = 5;
   const PESSOAS = ["Pedro", "Maíra", "Shei"];
@@ -162,7 +175,9 @@
     ONDAS, STATUS, SEMAFOROS, COLUNAS, FIBONACCI, WIP_MIN, WIP_MAX, PESSOAS, tempoPorEsforco,
     VALOR_ESCALA, ESFORCO_ESCALA, ESFORCO_PONTOS, ESFORCO_ANTIGO_PARA_NOVO, SPRINTS_POR_ONDA, SPRINT_SEMANAS,
     SPRINT_MIN_PADRAO, SPRINT_MAX_PADRAO, PROJETOS_POR_ONDA_PADRAO, SPRINT_COLUNAS, EIXOS_PADRAO, EIXO_INICIAL, URGENCIA_ESCALA,
+    ETIQUETA_CORES,
   };
+  A.meta.corEtiqueta = (key) => ETIQUETA_CORES.find((c) => c.key === key) || ETIQUETA_CORES[0];
   // Opções de <select> com a descrição da escala ("5 · Clientes ou receita").
   A.meta.valorOptions = (sel, blank = "— A definir —") => `<option value="">${blank}</option>` +
     FIBONACCI.map((f) => `<option value="${f}" ${String(f) === String(sel) ? "selected" : ""}>${f} · ${VALOR_ESCALA[f].curto}</option>`).join("");

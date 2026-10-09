@@ -17,33 +17,53 @@
     return !!d && d < hoje && a.status !== "Concluído" && a.status !== "Cancelado";
   }
 
+  // Etiquetas do cartão: projeto (cor do setor), marco e as etiquetas livres.
+  function etiquetasHtml(S, it, a) {
+    const livres = (a.etiquetas || []).map((id) => S.findEtiqueta(id)).filter(Boolean);
+    return `
+      <span class="lbl lbl-proj" style="--ac:${A.area(it.area).cor}" title="${esc(`${it.id} · ${it.nome}`)}">${esc(it.id)}</span>
+      ${a.marco ? `<span class="lbl lbl-marco" title="Marco: entrega importante do projeto">◆ Marco</span>` : ""}
+      ${livres.map((e) => { const c = A.meta.corEtiqueta(e.cor); return `<span class="lbl" style="--lb:${c.bg};--lbt:${c.fg}">${esc(e.nome)}</span>`; }).join("")}`;
+  }
+  // Prazo curto para o cartão ("14 out") e o estado: atrasado, chegando (até 2 dias) ou feito.
+  function prazoBadge(S, a, col) {
+    const d = S.calc.parseDate(a.prazo);
+    if (!d) return "";
+    const hoje = new Date(); hoje.setHours(0, 0, 0, 0);
+    const dias = Math.round((d - hoje) / 86400000);
+    const cls = col === "done" ? "feito" : dias < 0 ? "late" : dias <= 2 ? "soon" : "";
+    const txt = d.toLocaleDateString("pt-BR", { day: "2-digit", month: "short" }).replace(".", "").replace(" de ", " ");
+    const dica = col === "done" ? "Entregue" : dias < 0 ? `Atrasada há ${-dias} dia(s)` : dias === 0 ? "Vence hoje" : `Vence em ${dias} dia(s)`;
+    return `<span class="tbadge prazo ${cls}" title="Prazo: ${esc(a.prazo)} · ${dica}">🕑 ${esc(txt)}</span>`;
+  }
+
   function actCard(S, it, a, { compacto = false } = {}) {
     const r = S.raciPeople(a.raci, "R")[0];
     const col = S.activityCol(a);
     const total = a.checklist.length, feitos = a.checklist.filter((x) => x.feito).length;
-    const proximo = a.checklist.find((x) => !x.feito);
     const key = `${it.id}|${a.id}`;
     // Quem só visualiza mexe apenas nas atividades em que é o responsável (R).
     const pode = !viaBanco() || r === A.store.state.settings.user;
-    const late = atrasada(S, a);
-    const dica = [`${it.id} · ${it.nome}`, a.prazo ? `Prazo: ${a.prazo}` : "", a.entregavel ? `Entregável: ${a.entregavel}` : "", a.observacoes ? `Obs.: ${a.observacoes}` : "", "Clique para abrir"].filter(Boolean).join("\n");
+    const outros = Object.entries(a.raci).filter(([, role]) => role !== "R").map(([n]) => n).slice(0, 2);
+    const dica = [`${it.id} · ${it.nome}`, a.entregavel ? `Entregável: ${a.entregavel}` : "", "Clique para abrir"].filter(Boolean).join("\n");
     return `
-      <div class="k-card act-card ${col} ${compacto ? "compacto" : ""}" draggable="true" data-drag="activity" data-ini="${esc(it.id)}" data-act="${esc(a.id)}"
+      <div class="k-card act-card tcard ${col} ${compacto ? "compacto" : ""}" draggable="true" data-drag="activity" data-ini="${esc(it.id)}" data-act="${esc(a.id)}"
            data-action="open-activity" data-id="${esc(key)}" tabindex="0" role="button" title="${esc(dica)}"
            aria-label="${esc(a.nome)}, do projeto ${esc(it.nome)}" style="--ac:${A.area(it.area).cor}">
-        <div class="act-top">
-          <span class="act-card-proj">${it.semaforo !== "verde" ? ui.dot(it.semaforo) : ""}<span class="act-card-pname">${esc(it.nome)}</span></span>
-          <span class="act-av ${r ? "" : "none"}" title="${esc(r ? `Responsável: ${r}` : "Sem responsável (R)")}">${esc(r ? A.util.initials(r) : "?")}</span>
-        </div>
-        <div class="act-card-title">${a.marco ? "◆ " : ""}${esc(a.nome)}</div>
+        <div class="tcard-lbls">${etiquetasHtml(S, it, a)}${it.semaforo !== "verde" ? `<span class="tcard-sem" title="Semáforo do projeto">${ui.dot(it.semaforo)}</span>` : ""}</div>
+        <div class="tcard-title">${esc(a.nome)}</div>
         ${a.levadaDe && col !== "done" ? `<div class="act-levada" title="Não terminou no ciclo anterior e passou para este${a.vezesLevada > 1 ? ` (${a.vezesLevada}ª vez)` : ""}">↻ veio de ${esc(S.findSprint(a.levadaDe) ? S.nomeCiclo(S.findSprint(a.levadaDe)).replace("Ciclo de ", "") : "outro ciclo")}${a.vezesLevada > 1 ? ` · ${a.vezesLevada}ª vez` : ""}</div>` : ""}
-        <div class="act-meta">
-          ${a.prazo ? `<span class="act-prazo ${late ? "late" : ""}" title="Prazo da atividade">📅 ${esc(a.prazo)}${late ? " · atrasada" : ""}</span>` : ""}
-          ${total ? `<span class="act-ck" title="${feitos} de ${total} passos feitos">☑ ${feitos}/${total}</span>` : ""}
-          ${a.anexos?.length ? `<span class="act-ck" title="${a.anexos.length} anexo(s)">📎 ${a.anexos.length}</span>` : ""}
+        <div class="tcard-foot">
+          ${prazoBadge(S, a, col)}
+          ${total ? `<span class="tbadge ${feitos === total ? "feito" : ""}" title="${feitos} de ${total} passos feitos">☑ ${feitos}/${total}</span>` : ""}
+          ${a.anexos?.length ? `<span class="tbadge" title="${a.anexos.length} anexo(s)">📎 ${a.anexos.length}</span>` : ""}
+          ${a.comentarios?.length ? `<span class="tbadge" title="${a.comentarios.length} comentário(s)">💬 ${a.comentarios.length}</span>` : ""}
+          ${a.observacoes ? `<span class="tbadge" title="${esc(a.observacoes)}">≡</span>` : ""}
+          <span class="tcard-avs">
+            ${outros.map((n) => `<span class="act-av outro" title="${esc(n)}">${esc(A.util.initials(n))}</span>`).join("")}
+            <span class="act-av ${r ? "" : "none"}" title="${esc(r ? `Responsável: ${r}` : "Sem responsável (R)")}">${esc(r ? A.util.initials(r) : "?")}</span>
+          </span>
         </div>
-        ${pode && proximo && col !== "done" ? `<button class="act-passo no-print" data-action="act-quick" data-id="${esc(key)}" data-q="step" title="Clique para marcar este passo como feito">
-          <span class="act-passo-box"></span><span><small>Próximo passo</small>${esc(proximo.texto)}</span></button>` : ""}
         ${pode ? `<div class="act-quick no-print">
           ${col === "todo" || col === "doing" || col === "waiting" ? `<button class="q-btn warn" data-action="act-quick" data-id="${esc(key)}" data-q="block" title="Travou: precisa de decisão ou ajuda (vai para Travado)">⚠ Travou</button>` : ""}
           ${PROXIMA[col] ? `<button class="q-btn go" data-action="act-quick" data-id="${esc(key)}" data-q="next" title="${PROXIMA_LABEL[col]}">${col === "doing" ? "✓ Concluir" : col === "todo" ? "▶ Começar" : "✓ Resolvido"}</button>` : ""}
@@ -118,18 +138,37 @@
     A.store.emit();
   });
 
-  // Filtro "Responsável": só aparece quando há duas ou mais pessoas com atividades na tela.
+  // Filtros do quadro: etiqueta, responsável e prazo.
+  const PRAZO_FILTROS = [["", "Qualquer prazo"], ["vencido", "Atrasadas"], ["semana", "Vencem em 7 dias"], ["sem", "Sem prazo"]];
+  function passaPrazo(S, a, f) {
+    if (!f) return true;
+    const d = S.calc.parseDate(a.prazo);
+    if (f === "sem") return !d;
+    if (!d || a.status === "Concluído") return false;
+    const hoje = new Date(); hoje.setHours(0, 0, 0, 0);
+    const dias = Math.round((d - hoje) / 86400000);
+    return f === "vencido" ? dias < 0 : dias >= 0 && dias <= 7;
+  }
   function toolbar(S, responsaveis) {
-    const sel = S.state.ui.kanbanResp || "";
-    if (responsaveis.length < 2) return "";
+    const ui0 = S.state.ui;
+    const sel = ui0.kanbanResp || "";
+    const ets = S.etiquetas();
+    const ativo = ui0.kanbanEtiqueta || ui0.kanbanPrazo || sel;
     return `
       <div class="kb-toolbar no-print">
-        <label class="kb-resp"><span class="muted small">Responsável:</span>
-          <select class="input input-sm" data-kb-resp>
-            <option value="">Todos</option>
+        ${ets.length ? `<div class="kb-filtro-lbls" role="group" aria-label="Filtrar por etiqueta">
+          ${ets.map((e) => { const c = A.meta.corEtiqueta(e.cor); return `<button class="lbl lbl-filtro ${ui0.kanbanEtiqueta === e.id ? "on" : ""}" data-kb-etq="${esc(e.id)}" style="--lb:${c.bg};--lbt:${c.fg}" aria-pressed="${ui0.kanbanEtiqueta === e.id}">${esc(e.nome)}</button>`; }).join("")}
+        </div>` : `<span class="muted small">Sem etiquetas ainda. Crie no cartão: Etiquetas → Criar nova.</span>`}
+        <span class="kb-filtros-dir">
+          ${responsaveis.length >= 2 ? `<select class="input input-sm" data-kb-resp aria-label="Responsável">
+            <option value="">Todos os responsáveis</option>
             ${responsaveis.map((n) => `<option ${n === sel ? "selected" : ""}>${esc(n)}</option>`).join("")}
+          </select>` : ""}
+          <select class="input input-sm" data-kb-prazo aria-label="Prazo">
+            ${PRAZO_FILTROS.map(([k, t]) => `<option value="${k}" ${ui0.kanbanPrazo === k || (!ui0.kanbanPrazo && !k) ? "selected" : ""}>${t}</option>`).join("")}
           </select>
-        </label>
+          ${ativo ? `<button class="link-btn small" data-kb-limpar>Limpar filtros</button>` : ""}
+        </span>
       </div>`;
   }
 
@@ -216,7 +255,10 @@
     const responsaveis = [...new Set(doSetor.map(({ a }) => S.raciPeople(a.raci, "R")[0]).filter(Boolean))].sort((a, b) => a.localeCompare(b, "pt-BR"));
     let resp = S.state.ui.kanbanResp || "";
     if (resp && !responsaveis.includes(resp)) resp = S.state.ui.kanbanResp = "";
-    const items = resp ? doSetor.filter(({ a }) => S.raciPeople(a.raci, "R")[0] === resp) : doSetor;
+    let etq = S.state.ui.kanbanEtiqueta || "";
+    if (etq && !S.findEtiqueta(etq)) etq = S.state.ui.kanbanEtiqueta = "";
+    const items = doSetor.filter(({ a }) => (!resp || S.raciPeople(a.raci, "R")[0] === resp)
+      && (!etq || a.etiquetas.includes(etq)) && passaPrazo(S, a, S.state.ui.kanbanPrazo || ""));
     // Para o líder, os números do cabeçalho são só do setor dele.
     const siTela = !lider ? si : {
       ...si, items: doSetor, total: doSetor.length, acima: false, abaixo: false,
@@ -279,8 +321,17 @@
 
   function initKanbanControls() {
     document.addEventListener("change", (e) => {
-      if (!e.target.matches("[data-kb-resp]")) return;
-      A.store.state.ui.kanbanResp = e.target.value;
+      if (e.target.matches("[data-kb-resp]")) A.store.state.ui.kanbanResp = e.target.value;
+      else if (e.target.matches("[data-kb-prazo]")) A.store.state.ui.kanbanPrazo = e.target.value;
+      else return;
+      A.store.emit();
+    });
+    document.addEventListener("click", (e) => {
+      const b = e.target.closest("[data-kb-etq], [data-kb-limpar]");
+      if (!b) return;
+      const ui0 = A.store.state.ui;
+      if (b.dataset.kbLimpar !== undefined) Object.assign(ui0, { kanbanEtiqueta: "", kanbanPrazo: "", kanbanResp: "" });
+      else ui0.kanbanEtiqueta = ui0.kanbanEtiqueta === b.dataset.kbEtq ? "" : b.dataset.kbEtq;
       A.store.emit();
     });
   }
@@ -438,5 +489,5 @@
     else toast(`${id} movido para ${onda}.`);
   }
 
-  A.board = { initDragAndDrop, initKanbanControls, moveCard, moveActivity, quick, salvarAtividade };
+  A.board = { initDragAndDrop, initKanbanControls, moveCard, moveActivity, quick, salvarAtividade, etiquetasHtml };
 })();

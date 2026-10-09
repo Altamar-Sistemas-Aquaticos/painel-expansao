@@ -15,7 +15,7 @@
   <meta name="mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-title" content="Painel Altamar">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-  <link rel="stylesheet" href="assets/css/app.css?v=20261009b">
+  <link rel="stylesheet" href="assets/css/app.css?v=20261009d">
   <script>
     // Aplica o tema antes da pintura para evitar "piscar" claro → escuro.
     (function () {
@@ -34,7 +34,7 @@
   <header class="app-header">
     <div class="header-bar">
       <a class="brand" href="#executivo" data-action="go-tab" data-tab="executivo" title="Ir para o Painel executivo">
-        <span class="brand-logo-wrap"><img class="brand-img" src="assets/img/logo-altamar-branco.png?v=20261009b" alt="Altamar Sistemas Aquáticos" width="217" height="54"></span>
+        <span class="brand-logo-wrap"><img class="brand-img" src="assets/img/logo-altamar-branco.png?v=20261009d" alt="Altamar Sistemas Aquáticos" width="217" height="54"></span>
         <span class="brand-divider" aria-hidden="true"></span>
         <span class="brand-sub">Painel de Gestão<br>Projeto de Expansão</span>
       </a>
@@ -427,6 +427,11 @@
     <div class="modal" id="cmp-body"></div>
   </div>
 
+  <!-- Tarefa pessoal aberta (estilo cartão) -->
+  <div class="modal-backdrop" id="modal-tarefa" role="dialog" aria-modal="true" aria-label="Tarefa">
+    <div class="modal modal-tarefa" id="tarefa-body"></div>
+  </div>
+
   <!-- Dia da agenda, expandido -->
   <div class="modal-backdrop" id="modal-dia" role="dialog" aria-modal="true">
     <div class="modal modal-dia" id="dia-body"></div>
@@ -608,35 +613,35 @@
   <datalist id="people-list"></datalist>
   <div class="toasts" id="toasts" aria-live="polite"></div>
 
-  <script src="assets/js/config.js?v=20261009b"></script>
-  <script src="assets/js/utils.js?v=20261009b"></script>
-  <script src="assets/js/data.js?v=20261009b"></script>
-  <script src="assets/js/activities-seed.js?v=20261009b"></script>
-  <script src="assets/js/store.js?v=20261009b"></script>
-  <script src="assets/js/excel.js?v=20261009b"></script>
-  <script src="assets/js/views/executive.js?v=20261009b"></script>
-  <script src="assets/js/views/matrix.js?v=20261009b"></script>
-  <script src="assets/js/views/tables.js?v=20261009b"></script>
-  <script src="assets/js/views/board.js?v=20261009b"></script>
-  <script src="assets/js/plano.js?v=20261009b"></script>
-  <script src="assets/js/views/drilldown.js?v=20261009b"></script>
-  <script src="assets/js/views/triagem.js?v=20261009b"></script>
-  <script src="assets/js/views/guia.js?v=20261009b"></script>
-  <script src="assets/js/impacto.js?v=20261009b"></script>
-  <script src="assets/js/visao.js?v=20261009b"></script>
-  <script src="assets/js/views/programa.js?v=20261009b"></script>
-  <script src="assets/js/boletim.js?v=20261009b"></script>
-  <script src="assets/js/views/sprint.js?v=20261009b"></script>
-  <script src="assets/js/views/overview.js?v=20261009b"></script>
-  <script src="assets/js/views/cadastros.js?v=20261009b"></script>
-  <script src="assets/js/google.js?v=20261009b"></script>
-  <script src="assets/js/compromissos.js?v=20261009b"></script>
-  <script src="assets/js/forms.js?v=20261009b"></script>
-  <script src="assets/js/ficha.js?v=20261009b"></script>
-  <script src="assets/js/nuvem.js?v=20261009b"></script>
-  <script src="assets/js/financeiro.js?v=20261009b"></script>
-  <script src="assets/js/tarefas.js?v=20261009b"></script>
-  <script src="assets/js/instalar.js?v=20261009b"></script>
-  <script src="assets/js/app.js?v=20261009b"></script>
+  <script src="assets/js/config.js?v=20261009d"></script>
+  <script src="assets/js/utils.js?v=20261009d"></script>
+  <script src="assets/js/data.js?v=20261009d"></script>
+  <script src="assets/js/activities-seed.js?v=20261009d"></script>
+  <script src="assets/js/store.js?v=20261009d"></script>
+  <script src="assets/js/excel.js?v=20261009d"></script>
+  <script src="assets/js/views/executive.js?v=20261009d"></script>
+  <script src="assets/js/views/matrix.js?v=20261009d"></script>
+  <script src="assets/js/views/tables.js?v=20261009d"></script>
+  <script src="assets/js/views/board.js?v=20261009d"></script>
+  <script src="assets/js/plano.js?v=20261009d"></script>
+  <script src="assets/js/views/drilldown.js?v=20261009d"></script>
+  <script src="assets/js/views/triagem.js?v=20261009d"></script>
+  <script src="assets/js/views/guia.js?v=20261009d"></script>
+  <script src="assets/js/impacto.js?v=20261009d"></script>
+  <script src="assets/js/visao.js?v=20261009d"></script>
+  <script src="assets/js/views/programa.js?v=20261009d"></script>
+  <script src="assets/js/boletim.js?v=20261009d"></script>
+  <script src="assets/js/views/sprint.js?v=20261009d"></script>
+  <script src="assets/js/views/overview.js?v=20261009d"></script>
+  <script src="assets/js/views/cadastros.js?v=20261009d"></script>
+  <script src="assets/js/google.js?v=20261009d"></script>
+  <script src="assets/js/compromissos.js?v=20261009d"></script>
+  <script src="assets/js/forms.js?v=20261009d"></script>
+  <script src="assets/js/ficha.js?v=20261009d"></script>
+  <script src="assets/js/nuvem.js?v=20261009d"></script>
+  <script src="assets/js/financeiro.js?v=20261009d"></script>
+  <script src="assets/js/tarefas.js?v=20261009d"></script>
+  <script src="assets/js/instalar.js?v=20261009d"></script>
+  <script src="assets/js/app.js?v=20261009d"></script>
 </body>
 </html>

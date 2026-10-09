@@ -229,6 +229,23 @@
     return { ok: true };
   }
 
+  // Comentário de quem só visualiza (o painel inteiro não é gravado por esse perfil).
+  async function comentarAtividade(iniId, actId, texto) {
+    if (!sb || !membro) return { ok: false };
+    setStatus("Salvando…");
+    const { data, error } = await sb.rpc("comentar_atividade", { p_ini: iniId, p_act: actId, p_texto: texto });
+    if (error) {
+      const msg = String(error.message || "");
+      toast(msg.includes("Could not find") || msg.includes("does not exist") ? "O banco ainda não tem a regra de comentários. Avise o administrador (script 08)."
+        : "Não foi possível salvar o comentário. Tente de novo.", "error", 6000);
+      await buscar();
+      return { ok: false };
+    }
+    versao = data;
+    await buscar();
+    return { ok: true };
+  }
+
   // Líder (perfil Visualização) envia o plano do projeto para aprovação; o banco confere se ele lidera o setor.
   async function enviarPlano(iniId, atividades) {
     if (!sb || !membro) return { ok: false };
@@ -475,7 +492,7 @@
   }
 
   A.nuvem = {
-    configurado, init, iniciar, agendar, sair, conectado, renderMembros, atualizarMinhaAtividade, enviarPlano, enviarAnexo, linkAnexo, apagarAnexo,
+    configurado, init, iniciar, agendar, sair, conectado, renderMembros, atualizarMinhaAtividade, comentarAtividade, enviarPlano, enviarAnexo, linkAnexo, apagarAnexo,
     podeEscrever: () => !configurado || podeEscrever(),
     status: () => status,
     perfil: () => membro?.perfil || null,
