@@ -10,8 +10,11 @@
 
   function resumoSetor(S, area) {
     const doSetor = S.state.data.initiatives.filter((it) => it.area === area.key);
-    const andamento = doSetor.filter((it) => it.status === "Em andamento");
-    const fila = doSetor.filter((it) => aberto(it) && it.status !== "Em andamento");
+    // Em andamento = escolhido para o ciclo atual (Priorização) ou já marcado "Em andamento".
+    const sp = S.sprintAtual();
+    const anda = (it) => aberto(it) && ((sp && it.ciclo === sp.id) || it.status === "Em andamento");
+    const andamento = doSetor.filter(anda);
+    const fila = doSetor.filter((it) => aberto(it) && !anda(it));
     const concluidos = doSetor.filter((it) => it.status === "Concluído").length;
     const pct = andamento.length ? Math.round(andamento.reduce((s, it) => s + (S.calc.progress(it) ?? 0), 0) / andamento.length) : 0;
     return { area, andamento, fila, concluidos, pct, total: doSetor.length };
@@ -30,7 +33,7 @@
             <span class="prog-proj-nome">${esc(it.nome)}</span>
             ${A.ui.dot(it.semaforo)}
           </button>
-          ${it.status === "Em andamento" ? `<div class="prog-proj-bar"><i style="width:${pct ?? 0}%;background:${r.area.cor}"></i><span>${pct ?? 0}%</span></div>` : ""}
+          ${r.andamento.includes(it) ? `<div class="prog-proj-bar"><i style="width:${pct ?? 0}%;background:${r.area.cor}"></i><span>${pct ?? 0}%</span></div>` : ""}
         </li>`;
     };
     return `
