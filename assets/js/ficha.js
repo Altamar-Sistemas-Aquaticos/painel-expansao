@@ -18,7 +18,7 @@
     const user = S.findPessoa(S.state.settings.user || "")?.nome || "";
     return {
       nome: "", area: area || (S.state.ui.area !== "ALL" ? S.state.ui.area : S.areas()[0].key), responsavel: user, autor: user, eixo: "",
-      valor: "", esforco: "", onda: "", prazo: "", objetivo: "", prontoQuando: "", indicador: "", investimento: false, observacoes: "",
+      valor: "", esforco: "", urgencia: "", onda: "", prazo: "", objetivo: "", prontoQuando: "", indicador: "", investimento: false, observacoes: "",
       equipe: user ? [user] : [],
       atividades: [blankActivity(), blankActivity()].map((a) => ({ ...a, raci: user ? { [user]: "R" } : {} })),
     };
@@ -99,6 +99,7 @@
           <div class="field"><label>Prazo final</label><input type="date" ${f("prazo")} value="${esc(draft.prazo)}"></div>
           <div class="field"><label>Valor *</label><select ${f("valor")}>${A.meta.valorOptions(draft.valor, "— Escolha —")}</select></div>
           <div class="field"><label>Esforço *</label><select ${f("esforco")}>${A.meta.esforcoOptions(draft.esforco, "— Escolha —")}</select></div>
+          <div class="field"><label>Urgência <span class="ajuda" title="Quanto se perde a cada mês de espera. Não muda o V÷E: aparece como etiqueta e desempata na Priorização.">?</span></label><select ${f("urgencia")}>${A.meta.urgenciaOptions(draft.urgencia || "", "— A definir —")}</select></div>
         </div>
         <div class="calc-box" id="ficha-calc">${calcBox()}</div>
         <div class="form-grid">
@@ -230,7 +231,7 @@
     const S = A.store;
     const input = {
       nome: draft.nome.trim(), area: draft.area, responsavel: draft.responsavel, autor: A.store.state.settings.user || "", eixo: draft.eixo || "",
-      valor: Number(draft.valor), esforco: Number(draft.esforco), onda: "Fila", prazo: isoToBR(draft.prazo),
+      valor: Number(draft.valor), esforco: Number(draft.esforco), urgencia: Number(draft.urgencia) || 0, onda: "Fila", prazo: isoToBR(draft.prazo),
       objetivo: draft.objetivo.trim(), prontoQuando: draft.prontoQuando.trim(), indicador: draft.indicador.trim(),
       investimento: draft.investimento ? "Sim" : "Não", observacoes: draft.observacoes.trim(),
     };
