@@ -2026,3 +2026,40 @@ details.ex-setores[open] > summary { margin-bottom: 0.7rem; }
 .modal-tarefa .tmodal-main { gap: 0.9rem; }
 .tf-rot { display: block; font-size: 0.7rem; font-weight: 700; color: var(--text-muted); margin-bottom: 0.3rem; }
 .tarefa-card.tcard { cursor: pointer; }
+/* ---------- Kanban estilo Trello: acabamento (colunas claras, cartões compactos) ---------- */
+.sprint-board .k-col, .tarefas-board .k-col { background: color-mix(in srgb, var(--text) 6%, var(--surface)); border: none !important; border-radius: 12px; padding: 0.5rem !important; box-shadow: none; }
+.sprint-board .k-list, .tarefas-board .k-list { gap: 0.5rem; }
+.sprint-board .kb-col-head, .tarefas-board .kb-col-head { background: transparent !important; color: var(--text) !important; font-size: 0.85rem; font-weight: 700; padding: 0.25rem 0.4rem 0.45rem; margin: 0; cursor: default; border: none; }
+.sprint-board .kb-col-head::before, .tarefas-board .kb-col-head::before { content: ""; width: 8px; height: 8px; border-radius: 50%; background: var(--c); margin-right: 0.45rem; flex: none; }
+.sprint-board .kb-col-head span, .tarefas-board .kb-col-head span { flex: 1; }
+.sprint-board .kb-col-head b, .tarefas-board .kb-col-head b { background: transparent !important; color: var(--text-muted) !important; font-weight: 600; padding: 0; }
+.sprint-board .k-empty, .tarefas-board .k-empty { padding: 0.3rem 0.4rem; font-size: 0.75rem; }
+
+.act-card.tcard, .sprint-board .act-card.tcard, .kb-cell .act-card.tcard, .tarefas-board .act-card.tcard {
+  position: relative; gap: 0.3rem; padding: 0.5rem 0.6rem !important; border: none !important; border-radius: 8px;
+  background: var(--surface); box-shadow: 0 1px 1px rgba(9,30,66,0.2), 0 0 1px rgba(9,30,66,0.2); }
+.act-card.tcard:hover, .act-card.tcard:focus-visible { box-shadow: 0 0 0 2px var(--accent); outline: none; }
+.act-card.tcard.blocked { background: color-mix(in srgb, var(--col-blocked) 9%, var(--surface)); }
+.act-card.tcard.waiting { background: color-mix(in srgb, var(--col-waiting) 9%, var(--surface)); }
+.act-card.tcard.done { opacity: 1; }
+.act-card.tcard.done .tcard-title { text-decoration: none; color: var(--text-muted); }
+.tcard-title { font-size: 0.85rem; font-weight: 500; line-height: 1.35; }
+.tcard-lbls .lbl { height: 16px; font-size: 0.62rem; }
+.tcard-foot { gap: 0.25rem; min-height: 18px; }
+.tcard-foot:not(:has(*)) { display: none; }
+.tcard-dir { margin-left: auto; display: inline-flex; align-items: center; gap: 0.35rem; }
+.tcard-vis { font-size: 0.7rem; opacity: 0.6; }
+.tbadge { font-size: 0.68rem; padding: 0 0.3rem; }
+/* Botões rápidos flutuam no canto ao passar o mouse, sem mudar a altura do cartão. */
+.act-card.tcard .act-quick, .act-card.tcard:hover .act-quick, .act-card.tcard:focus-within .act-quick {
+  position: absolute; top: 4px; right: 4px; max-height: none; padding: 0 !important; display: flex; gap: 3px; opacity: 0; pointer-events: none; transition: opacity 0.12s; }
+.act-card.tcard:hover .act-quick, .act-card.tcard:focus-within .act-quick { opacity: 1; pointer-events: auto; }
+.act-card.tcard .q-btn { height: 22px; padding: 0 0.45rem; font-size: 0.68rem; font-weight: 600; background: var(--surface); border: 1px solid var(--border); border-radius: 5px; box-shadow: 0 1px 2px rgba(0,0,0,0.08); }
+@media (hover: none) { .act-card.tcard .act-quick { position: static; opacity: 1; pointer-events: auto; justify-content: flex-end; } }/* Visão da gestão (faixas por setor) no mesmo acabamento */
+.kb-lanes .kb-lane:not(.kb-lane-head) { background: transparent !important; border: none; border-top: 1px solid var(--border); padding-top: 0.5rem; border-radius: 0; }
+.kb-lanes .kb-col-head { background: transparent !important; color: var(--text) !important; font-size: 0.85rem; font-weight: 700; padding: 0.25rem 0.4rem; margin: 0; cursor: default; border: none; }
+.kb-lanes .kb-col-head::before { content: ""; width: 8px; height: 8px; border-radius: 50%; background: var(--c); margin-right: 0.45rem; flex: none; }
+.kb-lanes .kb-col-head span { flex: 1; }
+.kb-lanes .kb-col-head b { background: transparent !important; color: var(--text-muted) !important; font-weight: 600; padding: 0; }
+.kb-lanes .kb-cell { background: color-mix(in srgb, var(--text) 6%, var(--surface)); border-radius: 10px; padding: 0.4rem; gap: 0.4rem; }
+.kb-lane-nome strong { color: color-mix(in srgb, var(--ac) 80%, var(--text)); }

@@ -95,17 +95,19 @@
     const ck = passos(t), feitos = ck.filter((x) => x.feito).length;
     return `
       <div class="k-card act-card tcard tarefa-card ${t.coluna}" ${editavel ? `draggable="true" data-tarefa-drag="${esc(t.id)}" data-tarefa-abrir="${esc(t.id)}" tabindex="0" role="button" title="Clique para abrir"` : ""} style="--ac:${proj ? A.area(proj.area).cor : "#5f6b7a"}">
-        <div class="tcard-lbls">
+        ${proj || etqs(t).length ? `<div class="tcard-lbls">
           ${proj ? `<span class="lbl lbl-proj" title="${esc(`${proj.id} · ${proj.nome}`)}">${esc(proj.id)}</span>` : ""}
           ${etqs(t).map(lblHtml).join("")}
-          <span class="tcard-sem" title="${t.visivel ? "Visível para a gestão (Pedro e diretoria)" : "Privada: só você vê"}">${t.visivel ? "👁" : "🔒"}</span>
-        </div>
+        </div>` : ""}
         <div class="tcard-title">${esc(t.titulo)}</div>
         <div class="tcard-foot">
           ${prazoBadge(t)}
           ${ck.length ? `<span class="tbadge ${feitos === ck.length ? "feito" : ""}">☑ ${feitos}/${ck.length}</span>` : ""}
           ${t.observacao ? `<span class="tbadge" title="${esc(t.observacao)}">≡</span>` : ""}
-          ${!editavel ? `<span class="muted small" style="margin-left:auto">${esc(t.dono_nome || "")}</span>` : ""}
+          <span class="tcard-dir">
+            ${!editavel ? `<span class="muted small">${esc(t.dono_nome || "")}</span>` : ""}
+            <span class="tcard-vis" title="${t.visivel ? "Visível para a gestão (Pedro e diretoria)" : "Privada: só você vê"}">${t.visivel ? "👁" : "🔒"}</span>
+          </span>
         </div>
         ${editavel ? `<div class="act-quick no-print">
           ${PROXIMA[t.coluna] ? `<button class="q-btn go" data-tarefa-mover="${esc(t.id)}" data-col="${PROXIMA[t.coluna]}">${t.coluna === "doing" ? "✓ Concluir" : t.coluna === "todo" ? "▶ Começar" : "✓ Resolvido"}</button>` : ""}
