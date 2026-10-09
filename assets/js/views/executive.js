@@ -279,7 +279,7 @@
       const isToday = d.getTime() === t;
       const firstOfMonth = d.getDate() === 1 || i === 0;
       return `
-        <div class="cal-day ${isToday ? "today" : ""} ${d.getTime() < t ? "past" : ""} ${weekend ? "weekend" : ""}">
+        <div class="cal-day ${isToday ? "today" : ""} ${d.getTime() < t ? "past" : ""} ${weekend ? "weekend" : ""}" data-cal-dia="${d.getTime()}" title="Clique para abrir o dia">
           <span class="cal-num">${isToday ? `<span class="cal-today">${d.getDate()}</span>` : d.getDate()}${firstOfMonth ? ` <span class="cal-month">${d.toLocaleDateString("pt-BR", { month: "short" }).replace(".", "")}</span>` : ""}</span>
           ${list.slice(0, 3).map((e) => `<button class="cal-ev ${e.cls}" data-cal-ev="${esc(e.id)}" title="${esc(e.title)}">${esc(e.short)}</button>`).join("")}
           ${list.length > 3 ? `<button class="cal-more" data-cal-day="${d.getTime()}">+${list.length - 3} mais</button>` : ""}
@@ -338,6 +338,46 @@
     A.util.toast(`${evs.length} prazo(s) exportado(s). Importe o arquivo no Google Agenda.`);
   }
 
+  // Dia expandido: tudo o que cai no dia, com horário primeiro, sem o limite do quadradinho.
+  const TIPO_DIA = { google: "Agenda Google", compromisso: "Reunião", reuniao: "Reunião", entrega: "Entrega de projeto", prazo: "Prazo de atividade", tarefa: "Minha tarefa" };
+  function abrirDia(day) {
+    const body = document.getElementById("dia-body");
+    if (!body) return;
+    const d = new Date(day);
+    const hora = (x) => x.hora || (String(x.short).match(/^(\d{2}:\d{2})\s/) || [])[1] || "";
+    const list = (A.agenda._last || []).filter((x) => x.date.getTime() === day)
+      .sort((a, b) => (hora(a) || "99") .localeCompare(hora(b) || "99"));
+    const comHora = list.filter((x) => hora(x)), semHora = list.filter((x) => !hora(x));
+    const item = (x) => {
+      const h = hora(x);
+      const titulo = h ? String(x.title).replace(/^\d{2}:\d{2}\s/, "") : x.title;
+      const clicavel = x.kind === "compromisso" || x.ini;
+      return `
+        <li class="dia-item ${x.cls}">
+          <span class="dia-hora">${h ? esc(h) : "—"}</span>
+          <span class="dia-txt">
+            ${clicavel ? `<button class="link-btn dia-titulo" data-dia-ev="${esc(x.id)}">${esc(titulo)}</button>` : `<strong class="dia-titulo">${esc(titulo)}</strong>`}
+            <span class="muted small">${esc(TIPO_DIA[x.kind] || "")}${x.detail ? ` · ${esc(x.detail)}` : ""}</span>
+          </span>
+        </li>`;
+    };
+    const dataBr = `${String(d.getDate()).padStart(2, "0")}/${String(d.getMonth() + 1).padStart(2, "0")}/${d.getFullYear()}`;
+    body.innerHTML = `
+      <div class="modal-head">
+        <h3>${esc(d.toLocaleDateString("pt-BR", { weekday: "long", day: "2-digit", month: "long" }))}</h3>
+        <button class="btn btn-xs btn-ghost" data-action="close-modal" data-target="modal-dia" aria-label="Fechar">✕</button>
+      </div>
+      ${list.length ? `
+        ${comHora.length ? `<h4 class="dia-sec">Com horário</h4><ol class="dia-lista">${comHora.map(item).join("")}</ol>` : ""}
+        ${semHora.length ? `<h4 class="dia-sec">No dia</h4><ol class="dia-lista">${semHora.map(item).join("")}</ol>` : ""}`
+        : `<p class="muted">Nada marcado neste dia.</p>`}
+      <div class="modal-foot">
+        <span class="muted small">${list.length} item(ns)</span>
+        <div class="right"><button class="btn btn-sm btn-primary" data-cmp-new="" data-cmp-data="${dataBr}">+ Reunião neste dia</button></div>
+      </div>`;
+    A.util.openModal("modal-dia");
+  }
+
   function showPopover(btn, ev) {
     const pop = document.getElementById("cal-pop");
     if (!pop) return;
@@ -369,25 +409,29 @@
       if (ev) showPopover(b, ev);
       return;
     }
-    if (more) {
-      // "+N mais": mostra os eventos do dia num popover em lista.
-      const day = Number(more.dataset.calDay);
-      const list = (A.agenda._last || []).filter((x) => x.date.getTime() === day);
-      if (pop) {
-        const panel = pop.parentElement.getBoundingClientRect(), r = more.getBoundingClientRect();
-        pop.innerHTML = `<div class="cal-pop-date">${new Date(day).toLocaleDateString("pt-BR", { weekday: "long", day: "2-digit", month: "long" })}</div>` +
-          list.map((x) => `<button class="cal-ev ${x.cls} full" data-cal-ev="${esc(x.id)}">${esc(x.title)}</button>`).join("");
-        pop.style.left = `${Math.min(Math.max(0, r.left - panel.left), panel.width - 280)}px`;
-        pop.style.top = `${r.bottom - panel.top + 6}px`;
-        pop.classList.remove("hidden");
-      }
+    // "+N mais" ou um clique no próprio quadrado do dia: abre o dia expandido.
+    const dia = more || (!e.target.closest?.("button, a") && e.target.closest?.("[data-cal-dia]"));
+    if (dia) {
+      pop?.classList.add("hidden");
+      abrirDia(Number(dia.dataset.calDay || dia.dataset.calDia));
+      return;
+    }
+    const evDia = e.target.closest?.("[data-dia-ev]");
+    if (evDia) {
+      const ev = (A.agenda._last || []).find((x) => x.id === evDia.dataset.diaEv);
+      if (ev?.kind === "compromisso") { A.util.closeModal("modal-dia"); return A.compromissos.open(ev.cmp); }
+      if (ev?.ini) { A.util.closeModal("modal-dia"); location.hash = A.drill.projectHref(ev.ini); }
       return;
     }
     if (e.target.closest?.("[data-ics-export]")) return exportIcs(A.store);
     if (e.target.closest?.("[data-g-sync]")) return A.google.sync({ silent: false });
     if (e.target.closest?.("[data-g-open]")) return A.google.openSettings();
     const novo = e.target.closest?.("[data-cmp-new]");
-    if (novo) { pop?.classList.add("hidden"); return A.compromissos.open(null, { projeto: novo.dataset.cmpNew || "" }); }
+    if (novo) {
+      pop?.classList.add("hidden");
+      A.util.closeModal("modal-dia");
+      return A.compromissos.open(null, { projeto: novo.dataset.cmpNew || "", data: novo.dataset.cmpData || "" });
+    }
     const edit = e.target.closest?.("[data-cmp-edit]");
     if (edit) { pop?.classList.add("hidden"); return A.compromissos.open(edit.dataset.cmpEdit); }
     if (pop && !e.target.closest?.("#cal-pop")) pop.classList.add("hidden");
@@ -509,23 +553,34 @@
       const parados = S.state.data.initiatives.filter((it) => it.area === a.key && it.situacao === "Validado" && !it.ciclo && (S.tempoNaFila(it) || 0) >= 3).length;
       return `
         <button class="ex-setor" data-ex-setor="${esc(a.key)}" data-action="go-tab" data-tab="kanban" style="--ac:${a.cor}" title="Abrir o Kanban de ${esc(a.key)}">
-          <span class="ex-setor-nome"><strong>${esc(a.key)}</strong><span class="muted small">${esc(a.lider || "líder a definir")}</span></span>
-          <span class="ex-setor-proj ${projs.length > limite ? "bad" : ""}" title="${esc(projs.map((p) => `${p.id} · ${p.nome}`).join("\n") || "Nenhum projeto no ciclo")}"><strong>${projs.length}</strong>/${limite}<small>projetos</small></span>
-          <span class="ex-setor-barra" title="${feitas} de ${acts.length} etapas feitas"><i style="width:${pct}%"></i><small>${acts.length ? `${feitas} de ${acts.length} etapas feitas` : "sem etapas comprometidas"}</small></span>
-          <span class="ex-setor-sinais">
+          <span class="ex-setor-top">
+            <strong class="ex-setor-n">${esc(a.key)}</strong>
             ${pior ? `<span title="Pior semáforo entre os projetos do ciclo">${{ verde: "🟢", amarelo: "🟡", vermelho: "🔴" }[pior] || ""}</span>` : ""}
-            ${atrasos ? `<span class="kchip bad">${atrasos} atraso${atrasos === 1 ? "" : "s"}</span>` : ""}
-            ${parados ? `<span class="kchip warnc" title="Validados esperando há 3 ciclos ou mais">⏳ ${parados}</span>` : ""}
           </span>
+          <span class="muted small ex-setor-l">${esc(a.lider || "líder a definir")} · <span class="${projs.length > limite ? "bad" : ""}" title="${esc(projs.map((p) => `${p.id} · ${p.nome}`).join("\n") || "Nenhum projeto no ciclo")}">${projs.length}/${limite} proj.</span></span>
+          <span class="ex-setor-barra" title="${acts.length ? `${feitas} de ${acts.length} etapas feitas` : "Sem etapas comprometidas"}"><i style="width:${pct}%"></i></span>
+          <span class="muted small">${acts.length ? `${feitas}/${acts.length} etapas` : "sem etapas"}${atrasos ? ` · <span class="bad">${atrasos} atraso${atrasos === 1 ? "" : "s"}</span>` : ""}${parados ? ` · ⏳ ${parados}` : ""}</span>
         </button>`;
     }).join("");
+    const nAtrasos = od.projetos.length + od.atividades.length;
+    let aberto = false;
+    try { aberto = localStorage.getItem("altamar_ex_setores") === "1"; } catch {}
     return `
-      <section class="panel ex-setores">
-        <div class="panel-head"><h3 class="panel-title">Setores · ${si.sp ? esc(si.rotulo) : "sem ciclo aberto"}</h3>
-          <span class="muted small">Comprometido × feito · clique para abrir o Kanban do setor</span></div>
+      <details class="panel ex-setores" ${aberto ? "open" : ""} data-ex-setores>
+        <summary class="panel-head">
+          <h3 class="panel-title">Setores · ${si.sp ? esc(si.rotulo) : "sem ciclo aberto"}</h3>
+          <span class="muted small">${si.feitas || 0} de ${si.total || 0} etapas feitas${nAtrasos ? ` · ${nAtrasos} em atraso` : ""} · ${aberto ? "recolher" : "ver setores"}</span>
+        </summary>
         <div class="ex-setores-lista">${linhas}</div>
-      </section>`;
+      </details>`;
   }
+  // Lembra se o quadro de setores fica aberto ou recolhido.
+  document.addEventListener("toggle", (e) => {
+    if (!e.target.matches?.("[data-ex-setores]")) return;
+    try { localStorage.setItem("altamar_ex_setores", e.target.open ? "1" : "0"); } catch {}
+    const s = e.target.querySelector("summary .muted");
+    if (s) s.textContent = s.textContent.replace(/(recolher|ver setores)$/, e.target.open ? "recolher" : "ver setores");
+  }, true);
   // Ao abrir o Kanban por um setor, já filtra por ele (roda antes do go-tab).
   document.addEventListener("click", (e) => {
     const b = e.target.closest("[data-ex-setor]");
@@ -563,6 +618,8 @@
         </div>
       </div>
 
+      __EXEC_BOTTOM__
+
       ${minhasAtividades(S)}
       ${A.tarefas?.resumoPainel(S) || ""}
 
@@ -596,9 +653,8 @@
           spark: sparkline(s.sprintPct, "#378ADD"),
           foot: `atividades feitas · ${si.projetos || 0} projeto(s) no ciclo`, go: "kanban",
         })}
-      </div>
-
-      <div class="exec-bottom">
+      </div>`.replace("__EXEC_BOTTOM__", () => `
+      <div class="exec-bottom exec-topo">
         <section class="panel">
           <div class="panel-head"><h3 class="panel-title">Para resolver</h3><span class="muted small">por urgência</span></div>
           ${items.length ? `<ol class="todo">${items.map((it, i) => `
@@ -621,7 +677,7 @@
           </div>
           ${calendar(S)}
         </section>
-      </div>`;
+      </div>`);
   }
 
   A.views = A.views || {};

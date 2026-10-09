@@ -15,7 +15,7 @@
     editingId = c ? c.id : null;
     const amanha = new Date(Date.now() + 86400000);
     const data = c || {
-      titulo: "", data: `${pad(amanha.getDate())}/${pad(amanha.getMonth() + 1)}/${amanha.getFullYear()}`,
+      titulo: "", data: preset.data || `${pad(amanha.getDate())}/${pad(amanha.getMonth() + 1)}/${amanha.getFullYear()}`,
       horaInicio: "10:00", horaFim: "11:00", projeto: preset.projeto || "", participantes: [], local: "", notas: "", enviarConvite: false,
     };
     const projetos = A.views.rankAll(S).filter((i) => i.status !== "Cancelado");

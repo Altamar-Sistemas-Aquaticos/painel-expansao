@@ -152,18 +152,28 @@ function sincronizar_(eventos, from, to) {
 }
 
 /* ---------- Seus compromissos ---------- */
+// Lê todas as agendas marcadas como visíveis no Google Agenda (não só a principal),
+// para que convites e agendas compartilhadas também apareçam no painel.
 function listar_(from, to) {
   const painelId = obterAgenda_().getId();
-  const principal = CalendarApp.getDefaultCalendar();
-  if (principal.getId() === painelId) return [];
-  return principal.getEvents(data_(from), data_(to)).map(function (ev) {
-    return {
-      id: ev.getId(),
-      title: ev.getTitle(),
-      allDay: ev.isAllDayEvent(),
-      start: ev.getStartTime().toISOString(),
-      end: ev.getEndTime().toISOString(),
-      location: ev.getLocation(),
-    };
+  const vistos = {};
+  const out = [];
+  CalendarApp.getAllCalendars().forEach(function (cal) {
+    if (cal.getId() === painelId || cal.isHidden() || !cal.isSelected()) return;
+    cal.getEvents(data_(from), data_(to)).forEach(function (ev) {
+      const chave = ev.getId() + "|" + ev.getStartTime().getTime();
+      if (vistos[chave]) return;
+      vistos[chave] = true;
+      out.push({
+        id: ev.getId(),
+        title: ev.getTitle(),
+        allDay: ev.isAllDayEvent(),
+        start: ev.getStartTime().toISOString(),
+        end: ev.getEndTime().toISOString(),
+        location: ev.getLocation(),
+        agenda: cal.getName(),
+      });
+    });
   });
+  return out;
 }

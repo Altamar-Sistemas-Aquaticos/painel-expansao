@@ -134,7 +134,7 @@
       out.push({
         date: day, kind: "google", cls: "gcal", id: `g-${e.id}-${s.getTime()}`, ini: null,
         short: `${hora}${e.title}`, title: e.title,
-        detail: `${e.allDay ? "Dia inteiro" : `${hora.trim()} – ${new Date(e.end).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })}`}${e.location ? ` · ${e.location}` : ""} · da sua agenda Google`,
+        detail: `${e.allDay ? "Dia inteiro" : `${hora.trim()} – ${new Date(e.end).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })}`}${e.location ? ` · ${e.location}` : ""} · ${e.agenda ? `agenda “${e.agenda}”` : "da sua agenda Google"}`,
       });
     });
     return out;
