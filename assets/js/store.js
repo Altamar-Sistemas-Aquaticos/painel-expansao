@@ -47,7 +47,6 @@
     nome: "Atividade", entregavel: "Entregável", pct: "% concluído", status: "Status", raci: "RACI",
     inicio: "Início", prazo: "Prazo", dependeDe: "Depende de", observacoes: "Observações",
     sprint: "Ciclo", esperando: "Esperando", travado: "Travada", checklist: "Checklist", marco: "Marco", anexos: "Anexos",
-    etiquetas: "Etiquetas",
   };
   const DECISION_FIELDS = {
     data: "Data", quem: "Quem decide", grupo: "Projeto", pauta: "Pauta", status: "Status", resultado: "Decisão / encaminhamento",
@@ -185,12 +184,6 @@
       .filter((x) => x.texto);
   }
 
-  // Etiqueta do Kanban: nome curto e uma cor da paleta (A.meta.ETIQUETA_CORES).
-  function normalizeEtiqueta(raw) {
-    const cores = A.meta.ETIQUETA_CORES.map((c) => c.key);
-    return { id: raw.id || uid("et"), nome: String(raw.nome ?? "").trim().slice(0, 30), cor: cores.includes(raw.cor) ? raw.cor : cores[0] };
-  }
-
   function normalizeActivity(raw) {
     const status = STATUS.includes(raw.status) ? raw.status : "A fazer";
     const checklist = normalizeChecklist(raw.checklist);
@@ -218,10 +211,6 @@
         id: x.id || uid("ax"), nome: String(x.nome ?? "").trim() || "anexo", tipo: x.tipo === "arquivo" ? "arquivo" : "link",
         url: String(x.url ?? ""), caminho: String(x.caminho ?? ""), por: String(x.por ?? ""), em: x.em || "", tamanho: Number(x.tamanho) || 0 })),
       checklist,
-      // Etiquetas livres (ids da lista em config.etiquetas) e comentários do cartão.
-      etiquetas: [...new Set((Array.isArray(raw.etiquetas) ? raw.etiquetas : []).map(String).filter(Boolean))],
-      comentarios: (Array.isArray(raw.comentarios) ? raw.comentarios : []).filter((c) => c && String(c.texto ?? "").trim()).map((c) => ({
-        id: c.id || uid("cm"), por: String(c.por ?? ""), em: c.em || new Date().toISOString(), texto: String(c.texto).trim().slice(0, 2000) })),
       raci,
       // Derivados da RACI (mantidos para exportação e telas resumidas).
       responsavel: raciPeople(raci, "R")[0] || "",
@@ -459,7 +448,6 @@
         sprintMin: posInt(cfg.sprintMin, A.meta.SPRINT_MIN_PADRAO),
         sprintMax: posInt(cfg.sprintMax, A.meta.SPRINT_MAX_PADRAO),
         eixos: (Array.isArray(cfg.eixos) ? cfg.eixos : clone(A.meta.EIXOS_PADRAO)).map(normalizeEixo).filter((e) => e.key),
-        etiquetas: (Array.isArray(cfg.etiquetas) ? cfg.etiquetas : []).map(normalizeEtiqueta).filter((e) => e.nome),
       },
       sprints: (Array.isArray(raw.sprints) ? raw.sprints : []).map(normalizeSprint),
       initiatives: [],
@@ -748,9 +736,7 @@
     return { id: uid("h"), ts: new Date().toISOString(), user: store.settings.user || "Anônimo", entity, refId, action, label, changes, source };
   }
 
-  const fmtValue = (v) => (Array.isArray(v) && v.every((x) => typeof x === "string")
-    ? v.map((id) => findEtiqueta(id)?.nome || id).join(", ")
-    : Array.isArray(v) ? v.map((x) => (x && x.tipo ? `${x.id}${x.tipo === "SS" ? " (após começar)" : ""}` : `${x.feito ? "☑" : "☐"} ${x.texto}${x.data ? ` (${x.data})` : ""}`)).join("; ")
+  const fmtValue = (v) => (Array.isArray(v) ? v.map((x) => (x && x.tipo ? `${x.id}${x.tipo === "SS" ? " (após começar)" : ""}` : `${x.feito ? "☑" : "☐"} ${x.texto}${x.data ? ` (${x.data})` : ""}`)).join("; ")
     : v && typeof v === "object" ? raciText(v) : typeof v === "boolean" ? (v ? "Sim" : "Não") : String(v ?? ""));
   function diff(before, after, fields) {
     const changes = [];
@@ -1385,64 +1371,10 @@
       it.atividades[idx] = after;
       e = entry("atividade", it.id, "editou", label, changes, source);
     }
-    e.act = after.id; // liga o registro ao cartão (feed "Comentários e atividade")
     it.atualizadoEm = new Date().toISOString();
     registerMissing(store.data);
     if (!silent) commit([e]);
     return { ok: true, item: after, entry: e };
-  }
-
-  /* ---------- Etiquetas e comentários do Kanban ---------- */
-  const etiquetas = () => store.data.config.etiquetas || [];
-  const findEtiqueta = (id) => etiquetas().find((e) => e.id === id);
-  function saveEtiqueta(input, id = null) {
-    const lista = etiquetas();
-    const atual = id ? findEtiqueta(id) : null;
-    if (id && !atual) return { ok: false, error: "Etiqueta não encontrada." };
-    const nova = normalizeEtiqueta({ ...(atual || {}), ...input });
-    if (!nova.nome) return { ok: false, error: "Dê um nome à etiqueta." };
-    if (lista.some((e) => e.id !== nova.id && A.util.norm(e.nome) === A.util.norm(nova.nome))) return { ok: false, error: "Já existe uma etiqueta com esse nome." };
-    if (atual) Object.assign(atual, nova); else lista.push(nova);
-    store.data.config.etiquetas = lista;
-    commit([entry("etiqueta", nova.id, atual ? "editou" : "criou", `Etiqueta “${nova.nome}”`, [], "Kanban")]);
-    return { ok: true, item: nova };
-  }
-  function deleteEtiqueta(id) {
-    const e = findEtiqueta(id);
-    if (!e) return { ok: false, error: "Etiqueta não encontrada." };
-    store.data.config.etiquetas = etiquetas().filter((x) => x.id !== id);
-    store.data.initiatives.forEach((it) => it.atividades.forEach((a) => { a.etiquetas = a.etiquetas.filter((x) => x !== id); }));
-    commit([entry("etiqueta", id, "excluiu", `Etiqueta “${e.nome}”`, [], "Kanban")]);
-    return { ok: true };
-  }
-  function addComentario(iniId, actId, texto) {
-    const it = findInitiative(iniId), a = findActivity(iniId, actId);
-    if (!it || !a) return { ok: false, error: "Atividade não encontrada." };
-    const t = String(texto ?? "").trim();
-    if (!t) return { ok: false, error: "Escreva o comentário." };
-    a.comentarios.push({ id: uid("cm"), por: store.settings.user || "Anônimo", em: new Date().toISOString(), texto: t.slice(0, 2000) });
-    const e = entry("atividade", it.id, "comentou", `${it.id} · ${a.nome}`, [], "Kanban");
-    e.act = a.id;
-    it.atualizadoEm = new Date().toISOString();
-    commit([e]);
-    return { ok: true };
-  }
-  function deleteComentario(iniId, actId, cmId) {
-    const a = findActivity(iniId, actId);
-    if (!a) return { ok: false, error: "Atividade não encontrada." };
-    a.comentarios = a.comentarios.filter((c) => c.id !== cmId);
-    commit([]);
-    return { ok: true };
-  }
-  // Registro do cartão: comentários e mudanças desta atividade, do mais novo para o mais antigo.
-  function feedAtividade(iniId, actId) {
-    const it = findInitiative(iniId), a = findActivity(iniId, actId);
-    if (!it || !a) return [];
-    const label = `${it.id} · ${a.nome}`;
-    const hist = store.data.history.filter((h) => h.entity === "atividade" && h.refId === it.id && h.action !== "comentou"
-      && (h.act ? h.act === a.id : h.label === label)).map((h) => ({ tipo: "mudanca", em: h.ts, por: h.user, h }));
-    const coms = a.comentarios.map((c) => ({ tipo: "comentario", em: c.em, por: c.por, c }));
-    return [...coms, ...hist].sort((x, y) => String(y.em).localeCompare(String(x.em)));
   }
 
   // Define o papel RACI de uma pessoa numa atividade ("" remove). R e A são únicos: quem tinha passa a não ter.
@@ -1782,7 +1714,6 @@
     moveToColumn, setOnda, setStatus, warnings, confirmarEsforco, setNoCiclo, projetosNoCiclo, setEstrategico, cicloJaAndando,
     dependenciasPendentes, liberaQuem, ritmo, proximoMarco, tempoNaFila,
     saveActivity, setRaci, deleteActivity, findActivity, projectTeam, raciText, raciPeople, splitNames,
-    etiquetas, findEtiqueta, saveEtiqueta, deleteEtiqueta, addComentario, deleteComentario, feedAtividade,
     areas, findArea, saveArea, deleteArea, suggestAreaCode, nextAreaColor,
     pessoas, findPessoa, savePessoa, deletePessoa, pessoaUso,
     findDecision, saveDecision, deleteDecision,

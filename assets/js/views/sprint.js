@@ -1,5 +1,4 @@
-/* Sprint: planejamento (escolher as atividades do mês) e janela da atividade no estilo Trello
-   (etiquetas, datas, checklist, membros, anexos, comentários e atividade). */
+/* Sprint: planejamento (escolher as atividades do mês) e janela da atividade com checklist. */
 (function () {
   const A = window.Altamar;
   const { esc, toast, openModal, closeModal, confirmDialog } = A.util;
@@ -94,119 +93,23 @@
     openPlan();
   }
 
-  /* ---------- Janela da atividade (estilo Trello) ---------- */
+  /* ---------- Janela da atividade ---------- */
   const isoDeBr = (br) => { const d = A.store.calc.parseDate(br); return d ? `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}` : ""; };
   const brDeIso = (iso) => { const m = String(iso || "").match(/^(\d{4})-(\d{2})-(\d{2})$/); return m ? `${m[3]}/${m[2]}/${m[1]}` : ""; };
   let atual = null; // { ini, act }
   let ultimoSalvo = ""; // hora da última gravação feita nesta janela
-  let pop = null; // popover aberto: "etiquetas" | "datas" | "membros" | "anexo"
-  let etEdit = null; // etiqueta em criação/edição: { id|null, nome, cor }
-  let etBusca = "";
-
-  const viaBanco = () => A.nuvem?.perfil?.() === "visualizacao";
-  const gestao = () => !viaBanco();
 
   // Campos que a pessoa pode estar digitando: o redesenho da janela não pode apagar o que ainda não foi salvo.
-  const RASCUNHOS = ["ck-new", "ck-new-data", "cm-new", "et-nome", "et-busca"];
-  const SO_SE_FOCADO = ["act-obs", "act-nome"];
+  const CAMPOS_DIGITANDO = ["ck-new", "ck-new-data", "act-obs", "act-prazo"];
   function renderActivity() {
-    const valores = Object.fromEntries([...RASCUNHOS, ...SO_SE_FOCADO].map((id) => [id, $(id)?.value]));
+    const rascunho = Object.fromEntries(CAMPOS_DIGITANDO.map((id) => [id, $(id)?.value]));
     const foco = document.activeElement?.id;
-    const scroll = $("act-body")?.querySelector(".tmodal-side")?.scrollTop || 0;
     desenharAtividade();
-    RASCUNHOS.forEach((id) => { if (valores[id] && $(id)) $(id).value = valores[id]; });
-    SO_SE_FOCADO.forEach((id) => { if (foco === id && valores[id] != null && $(id)) $(id).value = valores[id]; });
-    if (foco && $(foco)) {
-      const el = $(foco);
-      el.focus();
-      if (typeof el.value === "string" && el.setSelectionRange && el.type !== "date") try { el.setSelectionRange(el.value.length, el.value.length); } catch {}
-    }
-    const side = $("act-body")?.querySelector(".tmodal-side");
-    if (side) side.scrollTop = scroll;
-  }
-
-  const quando = (iso) => {
-    const d = new Date(iso);
-    return isNaN(d) ? "" : `${d.toLocaleDateString("pt-BR", { day: "2-digit", month: "short" }).replace(".", "").replace(" de ", " ")}, ${d.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })}`;
-  };
-  const corte = (s, n = 70) => (String(s).length > n ? `${String(s).slice(0, n - 1)}…` : String(s));
-  // Frase curta para cada mudança registrada no histórico do cartão.
-  function descreverMudanca(h) {
-    if (h.action === "criou") return "criou a atividade";
-    if (h.action === "excluiu") return "excluiu a atividade";
-    const partes = (h.changes || []).map((c) => {
-      if (c.field === "travado") return c.to === "Sim" ? "marcou como travada" : "destravou";
-      if (c.field === "esperando") return c.to === "Sim" ? "moveu para Esperando" : "";
-      if (c.field === "status") return `mudou a situação para ${c.to}`;
-      if (c.field === "checklist") return "atualizou o checklist";
-      if (c.field === "observacoes") return "editou a descrição";
-      if (c.field === "anexos") return "mexeu nos anexos";
-      if (c.field === "etiquetas") return `mudou as etiquetas${c.to && c.to !== "alteradas" ? ` (${corte(c.to, 40)})` : ""}`;
-      if (c.field === "pct") return "";
-      return `alterou ${c.label}: ${corte(c.from || "—", 30)} → ${corte(c.to || "—", 30)}`;
-    }).filter(Boolean);
-    return partes.length ? partes.join(" · ") : "editou a atividade";
-  }
-
-  function popoverHtml(S, a, r) {
-    if (!pop) return "";
-    const head = (t) => `<div class="tpop-head"><strong>${t}</strong><button type="button" class="raci-x" data-tpop-fechar aria-label="Fechar">✕</button></div>`;
-    if (pop === "etiquetas") {
-      const termo = A.util.norm(etBusca);
-      const lista = S.etiquetas().filter((e) => !termo || A.util.norm(e.nome).includes(termo));
-      if (etEdit) {
-        return `${head(etEdit.id ? "Editar etiqueta" : "Criar etiqueta")}
-          <div class="lbl lbl-preview" style="--lb:${A.meta.corEtiqueta(etEdit.cor).bg};--lbt:${A.meta.corEtiqueta(etEdit.cor).fg}">${esc(etEdit.nome || "Nome da etiqueta")}</div>
-          <form id="et-form" autocomplete="off">
-            <input id="et-nome" class="input input-sm" maxlength="30" placeholder="ex.: Hidráulica, Cliente Patense" value="${esc(etEdit.nome)}">
-            <div class="et-cores">${A.meta.ETIQUETA_CORES.map((c) => `<button type="button" class="et-cor ${c.key === etEdit.cor ? "on" : ""}" data-et-cor="${c.key}" style="background:${c.bg}" title="${c.nome}" aria-label="${c.nome}"></button>`).join("")}</div>
-            <div class="row">
-              <button type="submit" class="btn btn-sm btn-primary">${etEdit.id ? "Salvar" : "Criar"}</button>
-              <button type="button" class="btn btn-sm btn-ghost" data-et-voltar>Voltar</button>
-              ${etEdit.id ? `<button type="button" class="btn btn-sm btn-danger-ghost" data-et-del style="margin-left:auto">Excluir</button>` : ""}
-            </div>
-          </form>`;
-      }
-      return `${head("Etiquetas")}
-        <input id="et-busca" class="input input-sm" placeholder="Buscar etiquetas…" value="${esc(etBusca)}" autocomplete="off">
-        <div class="et-lista">
-          ${lista.map((e) => { const c = A.meta.corEtiqueta(e.cor); return `
-            <div class="et-row">
-              <label><input type="checkbox" data-et-toggle="${esc(e.id)}" ${a.etiquetas.includes(e.id) ? "checked" : ""}>
-                <span class="lbl lbl-grande" style="--lb:${c.bg};--lbt:${c.fg}">${esc(e.nome)}</span></label>
-              ${gestao() ? `<button type="button" class="raci-x" data-et-edit="${esc(e.id)}" title="Editar etiqueta" aria-label="Editar ${esc(e.nome)}">✏️</button>` : ""}
-            </div>`; }).join("") || `<p class="muted small">${S.etiquetas().length ? "Nenhuma etiqueta com esse nome." : "Nenhuma etiqueta criada ainda."}</p>`}
-        </div>
-        ${gestao() ? `<button type="button" class="btn btn-sm btn-outline et-nova" data-et-nova>Criar uma nova etiqueta</button>`
-          : `<p class="muted small">Só a gestão cria e edita etiquetas.</p>`}`;
-    }
-    if (pop === "datas") {
-      const trava = viaBanco() ? "disabled" : "";
-      return `${head("Datas")}
-        <label class="tpop-campo">Início <input type="date" id="dt-ini" class="input input-sm" value="${isoDeBr(a.inicio)}" ${trava}></label>
-        <label class="tpop-campo">Entrega <input type="date" id="dt-prazo" class="input input-sm" value="${isoDeBr(a.prazo)}" ${trava}></label>
-        ${viaBanco() ? `<p class="muted small">Prazos são combinados no plano do projeto e aprovados pela gestão.</p>`
-          : `<button type="button" class="btn btn-sm btn-ghost" data-dt-limpar>Remover as datas</button>
-             <p class="muted small">O prazo vai sozinho para o Google Agenda de quem tem a agenda conectada.</p>`}`;
-    }
-    if (pop === "membros") {
-      const pessoas = S.pessoas({ ativas: true }).map((p) => p.nome);
-      const trava = viaBanco() ? "disabled" : "";
-      return `${head("Membros")}
-        <label class="tpop-campo">Responsável (R)<select id="act-r" class="input input-sm" ${trava}>${A.ui.peopleOptions(r, { blank: "— Sem responsável —" })}</select></label>
-        <div class="muted small" style="margin:0.4rem 0 0.2rem">Também participam</div>
-        <div class="et-lista">
-          ${pessoas.filter((n) => n !== r).map((n) => `
-            <label class="mb-row"><input type="checkbox" data-mb="${esc(n)}" ${a.raci[n] ? "checked" : ""} ${trava}>
-              <span class="act-av">${esc(A.util.initials(n))}</span> ${esc(n)}${a.raci[n] && a.raci[n] !== "C" ? ` <span class="muted small">(${a.raci[n]})</span>` : ""}</label>`).join("")}
-        </div>`;
-    }
-    if (pop === "anexo") {
-      return `${head("Anexar")}
-        <button type="button" class="btn btn-sm btn-outline tpop-bloco" id="ax-arquivo" title="Até 20 MB por arquivo">📄 Arquivo do computador</button>
-        <button type="button" class="btn btn-sm btn-outline tpop-bloco" id="ax-link">🔗 Link (Drive, OneDrive, site…)</button>`;
-    }
-    return "";
+    if (rascunho["ck-new"]) $("ck-new").value = rascunho["ck-new"];
+    if (rascunho["ck-new-data"]) $("ck-new-data").value = rascunho["ck-new-data"];
+    // Observação e prazo: mantém o texto digitado só se ainda estiver sendo editado.
+    ["act-obs", "act-prazo"].forEach((id) => { if (foco === id && rascunho[id] != null && $(id)) $(id).value = rascunho[id]; });
+    if (foco && $(foco)) $(foco).focus();
   }
 
   function desenharAtividade() {
@@ -221,154 +124,111 @@
     const ativas = it.atividades.filter((x) => x.status !== "Cancelado")
       .sort((x, y) => (S.calc.parseDate(x.prazo)?.getTime() ?? Infinity) - (S.calc.parseDate(y.prazo)?.getTime() ?? Infinity));
     const ordem = ativas.findIndex((x) => x.id === a.id) + 1;
+    const totalAtivas = ativas.length;
     const col = S.activityCol(a);
     const r = S.raciPeople(a.raci, "R")[0] || "";
     const feitos = a.checklist.filter((x) => x.feito).length;
-    const membros = [r, ...Object.keys(a.raci).filter((n) => n !== r)].filter(Boolean);
-    // Perfil Visualização: só o responsável (R) atualiza o andamento; ninguém nesse perfil muda nome, R ou prazos.
-    const soVe = viaBanco();
+    const outros = Object.entries(a.raci).filter(([, role]) => role !== "R").map(([n, role]) => `${role}: ${n}`).join(" · ");
+    // Perfil Visualização: só o responsável (R) atualiza o andamento; ninguém nesse perfil muda R, prazo ou sprint.
+    const soVe = A.nuvem?.perfil() === "visualizacao";
     const somenteLeitura = soVe && r !== S.state.settings.user;
-    const d = S.calc.parseDate(a.prazo);
-    const hoje = new Date(); hoje.setHours(0, 0, 0, 0);
-    const dias = d ? Math.round((d - hoje) / 86400000) : null;
-    const prazoCls = !d ? "" : col === "done" ? "feito" : dias < 0 ? "late" : dias <= 2 ? "soon" : "";
-    const feed = S.feedAtividade(it.id, a.id).slice(0, 40);
-    const eu = S.state.settings.user || "";
 
     $("act-body").innerHTML = `
-      <div class="tmodal-head" style="--ac:${A.area(it.area).cor}">
-        <div class="tmodal-crumb">
-          <span class="lbl lbl-proj">${esc(it.id)}</span>
-          <a href="${A.drill.projectHref(it.id)}" data-nav data-close-act title="Abrir o plano completo do projeto">${esc(it.nome)}</a>
-          <span class="muted small">· atividade ${Math.max(1, ordem)} de ${ativas.length} · projeto ${S.calc.progress(it) ?? 0}% ${{ verde: "🟢", amarelo: "🟡", vermelho: "🔴" }[it.semaforo] || ""}</span>
+      <div class="modal-head">
+        <div class="act-niveis" title="Projeto (o todo) › Atividade (este card do Kanban) › Passos (o checklist desta atividade)">
+          <span>Projeto</span><span class="sep">›</span><strong>Atividade</strong><span class="sep">›</span><span>Passos</span>
         </div>
-        <select id="act-col" class="input input-sm tmodal-col" aria-label="Coluna do Kanban">
-          ${A.meta.SPRINT_COLUNAS.map((c) => `<option value="${c.key}" ${c.key === col ? "selected" : ""}>${esc(c.label)}</option>`).join("")}
-        </select>
         <button class="btn btn-xs btn-ghost" data-action="close-modal" data-target="modal-activity" aria-label="Fechar">✕</button>
       </div>
-      ${soVe ? `<div class="perfil-aviso">${somenteLeitura ? "Somente leitura: só o responsável (R) atualiza esta atividade. Você pode comentar." : "Você é o responsável: atualize a situação, as etiquetas, o checklist e a descrição."}</div>` : ""}
-      <div class="tmodal-grid">
-        <div class="tmodal-main">
-          <input id="act-nome" class="tmodal-title" value="${esc(a.nome)}" aria-label="Nome da atividade" ${soVe ? "disabled" : ""} autocomplete="off">
-          ${a.entregavel ? `<p class="act-modal-deliv"><strong>Entregável:</strong> ${esc(a.entregavel)}</p>` : ""}
-          <div class="tmodal-acoes no-print">
-            <button type="button" class="btn btn-sm btn-outline" data-tpop="etiquetas">🏷 Etiquetas</button>
-            <button type="button" class="btn btn-sm btn-outline" data-tpop="datas">🕑 Datas</button>
-            <button type="button" class="btn btn-sm btn-outline" data-tfoco="ck-new">☑ Checklist</button>
-            <button type="button" class="btn btn-sm btn-outline" data-tpop="membros">👤 Membros</button>
-            <button type="button" class="btn btn-sm btn-outline" data-tpop="anexo">📎 Anexo</button>
-          </div>
-          <div class="tmodal-resumo">
-            <div><small>Etiquetas</small>
-              <div class="tcard-lbls">${A.board.etiquetasHtml(S, it, a)}<button type="button" class="lbl lbl-add" data-tpop="etiquetas" aria-label="Escolher etiquetas">+</button></div></div>
-            <div><small>Entrega</small>
-              <button type="button" class="tbadge prazo grande ${prazoCls}" data-tpop="datas">${d ? `🕑 ${esc(a.prazo)}${prazoCls === "late" ? " · atrasada" : prazoCls === "soon" ? (dias === 0 ? " · hoje" : ` · em ${dias} dia(s)`) : prazoCls === "feito" ? " · entregue" : ""}` : "Definir prazo"}</button></div>
-            <div><small>Membros</small>
-              <div class="tmodal-avs">${membros.map((n) => `<span class="act-av ${n === r ? "" : "outro"}" title="${esc(n === r ? `${n} · responsável (R)` : `${n} · ${a.raci[n]}`)}">${esc(A.util.initials(n))}</span>`).join("")}<button type="button" class="act-av mais" data-tpop="membros" aria-label="Escolher membros">+</button></div></div>
-          </div>
+      <div class="act-ctx" style="--ac:${A.area(it.area).cor}">
+        <div class="act-ctx-proj">
+          <span class="act-card-id">${esc(it.id)}</span>
+          <strong>${esc(it.nome)}</strong>
+          <span class="muted small">· ${esc(it.area)} · atividade ${Math.max(1, ordem)} de ${totalAtivas} · projeto ${S.calc.progress(it) ?? 0}% · ${{ verde: "🟢", amarelo: "🟡", vermelho: "🔴" }[it.semaforo] || ""}</span>
+        </div>
+        <a class="btn btn-xs btn-outline" href="${A.drill.projectHref(it.id)}" data-nav data-close-act title="Plano completo, marcos, dependências e detalhes do projeto">Abrir projeto completo →</a>
+      </div>
+      ${soVe ? `<div class="perfil-aviso">${somenteLeitura ? "Somente leitura: só o responsável (R) atualiza esta atividade." : "Você é o responsável: atualize a situação, o checklist e as observações."}</div>` : ""}
+      <h3 class="act-modal-title">${esc(a.nome)}</h3>
+      ${a.entregavel ? `<p class="act-modal-deliv"><strong>Entregável:</strong> ${esc(a.entregavel)}</p>` : ""}
 
-          <section class="tmodal-sec">
-            <h4>≡ Descrição</h4>
-            <textarea id="act-obs" class="input" rows="3" placeholder="Detalhes, contexto, o que está travando…">${esc(a.observacoes)}</textarea>
-          </section>
+      <div class="form-grid cols-3">
+        <div class="field">
+          <label for="act-col">Situação</label>
+          <select id="act-col" class="input">
+            ${A.meta.SPRINT_COLUNAS.map((c) => `<option value="${c.key}" ${c.key === col ? "selected" : ""}>${esc(c.label)}</option>`).join("")}
+          </select>
+        </div>
+        <div class="field">
+          <label for="act-r">Responsável (R)</label>
+          <select id="act-r" class="input">${A.ui.peopleOptions(r, { blank: "— Sem R —" })}</select>
+        </div>
+        <div class="field">
+          <label for="act-prazo">Prazo</label>
+          <input id="act-prazo" class="input" value="${esc(a.prazo)}" placeholder="dd/mm/aaaa" autocomplete="off">
+        </div>
+      </div>
+      ${outros ? `<div class="muted small" style="margin:-0.3rem 0 0.6rem">${esc(outros)}</div>` : ""}
 
-          <section class="tmodal-sec act-check">
-            <div class="act-check-head">
-              <h4>☑ Checklist</h4>
-              <span class="muted small">${a.checklist.length ? `${feitos} de ${a.checklist.length} · ${a.pct}%` : "Quebre a atividade em passos"}</span>
-            </div>
-            ${a.checklist.length ? `<div class="act-check-bar ${feitos === a.checklist.length ? "completo" : ""}"><span style="width:${a.pct}%"></span></div>` : ""}
-            <ul class="act-check-list">
-              ${a.checklist.map((x) => {
-                const dx = S.calc.parseDate(x.data);
-                const vencido = dx && !x.feito && dx < hoje;
-                return `
-                <li class="${x.feito ? "done" : ""} ${vencido ? "vencido" : ""}">
-                  <label><input type="checkbox" data-ck-toggle="${esc(x.id)}" ${x.feito ? "checked" : ""}> <span>${esc(x.texto)}</span></label>
-                  <input type="date" class="ck-data" data-ck-data="${esc(x.id)}" value="${isoDeBr(x.data)}" title="Prazo do passo (opcional)" aria-label="Prazo do passo">
-                  <button type="button" class="raci-x" data-ck-del="${esc(x.id)}" aria-label="Remover passo">✕</button>
-                </li>`;
-              }).join("")}
-            </ul>
-            <form id="ck-form" class="act-check-add" autocomplete="off">
-              <input id="ck-new" class="input input-sm" placeholder="Adicionar um item (ex.: enviar minuta para a Maíra)">
-              <input id="ck-new-data" type="date" class="input input-sm" title="Prazo do passo (opcional)" aria-label="Prazo do passo">
-              <button class="btn btn-sm btn-outline" type="submit">Adicionar</button>
-            </form>
-          </section>
+      <section class="act-check">
+        <div class="act-check-head">
+          <strong>Passos desta atividade</strong>
+          <span class="muted small">${a.checklist.length ? `${feitos} de ${a.checklist.length} · ${a.pct}%` : "Quebre a atividade em passos para acompanhar o andamento"}</span>
+        </div>
+        ${a.checklist.length ? `<div class="act-check-bar"><span style="width:${a.pct}%"></span></div>` : ""}
+        <ul class="act-check-list">
+          ${a.checklist.map((x) => {
+            const d = S.calc.parseDate(x.data);
+            const vencido = d && !x.feito && d < new Date(new Date().setHours(0, 0, 0, 0));
+            return `
+            <li class="${x.feito ? "done" : ""} ${vencido ? "vencido" : ""}">
+              <label><input type="checkbox" data-ck-toggle="${esc(x.id)}" ${x.feito ? "checked" : ""}> <span>${esc(x.texto)}</span></label>
+              <input type="date" class="ck-data" data-ck-data="${esc(x.id)}" value="${isoDeBr(x.data)}" title="Prazo do passo (opcional)" aria-label="Prazo do passo">
+              <button type="button" class="raci-x" data-ck-del="${esc(x.id)}" aria-label="Remover passo">✕</button>
+            </li>`;
+          }).join("")}
+        </ul>
+        <form id="ck-form" class="act-check-add" autocomplete="off">
+          <input id="ck-new" class="input input-sm" placeholder="Novo passo (ex.: enviar minuta para a Maíra)">
+          <input id="ck-new-data" type="date" class="input input-sm" title="Prazo do passo (opcional)" aria-label="Prazo do passo">
+          <button class="btn btn-sm btn-outline" type="submit">+ Adicionar passo</button>
+        </form>
+        <div class="muted small act-check-dica">Passos são as pequenas tarefas da atividade. O prazo de cada passo é opcional. Ao adicionar, o passo já fica salvo.</div>
+      </section>
 
-          ${a.anexos?.length ? `
-          <section class="tmodal-sec act-anexos">
-            <h4>📎 Anexos</h4>
-            <ul class="act-anexos-lista">
-              ${a.anexos.map((x) => `
-                <li>
-                  <button type="button" class="link-btn" data-ax-abrir="${esc(x.id)}" title="Abrir">${x.tipo === "arquivo" ? "📄" : "🔗"} ${esc(x.nome)}</button>
-                  <span class="muted small">${esc(x.por || "")}${x.em ? ` · ${new Date(x.em).toLocaleDateString("pt-BR")}` : ""}${x.tamanho ? ` · ${Math.max(1, Math.round(x.tamanho / 1024))} KB` : ""}</span>
-                  <button type="button" class="raci-x" data-ax-del="${esc(x.id)}" aria-label="Remover anexo" title="Remover">✕</button>
-                </li>`).join("")}
-            </ul>
-          </section>` : ""}
+      <section class="act-anexos">
+        <div class="act-check-head"><strong>📎 Anexos</strong><span class="muted small">arquivos ou links (Drive, OneDrive…)</span></div>
+        <ul class="act-anexos-lista">
+          ${(a.anexos || []).map((x) => `
+            <li>
+              <button type="button" class="link-btn" data-ax-abrir="${esc(x.id)}" title="Abrir">${x.tipo === "arquivo" ? "📄" : "🔗"} ${esc(x.nome)}</button>
+              <span class="muted small">${esc(x.por || "")}${x.em ? ` · ${new Date(x.em).toLocaleDateString("pt-BR")}` : ""}${x.tamanho ? ` · ${Math.max(1, Math.round(x.tamanho / 1024))} KB` : ""}</span>
+              <button type="button" class="raci-x" data-ax-del="${esc(x.id)}" aria-label="Remover anexo" title="Remover">✕</button>
+            </li>`).join("") || `<li class="muted small">Nenhum anexo ainda.</li>`}
+        </ul>
+        <div class="act-anexos-acoes">
+          <button type="button" class="btn btn-sm btn-outline" id="ax-arquivo" title="Até 20 MB por arquivo">📎 Anexar arquivo</button>
+          <button type="button" class="btn btn-sm btn-outline" id="ax-link">🔗 Adicionar link</button>
           <input type="file" id="ax-input" hidden>
         </div>
+      </section>
 
-        <aside class="tmodal-side">
-          <h4>💬 Comentários e atividade</h4>
-          <form id="cm-form" class="cm-form" autocomplete="off">
-            <textarea id="cm-new" class="input" rows="2" placeholder="Escrever um comentário…"></textarea>
-            <button type="submit" class="btn btn-sm btn-primary">Comentar</button>
-          </form>
-          <ol class="tfeed">
-            ${feed.map((f) => f.tipo === "comentario" ? `
-              <li class="tfeed-item com">
-                <span class="act-av">${esc(A.util.initials(f.por || "?"))}</span>
-                <div><b>${esc(f.por || "Alguém")}</b> <span class="muted small">${esc(quando(f.em))}</span>
-                  <div class="tfeed-txt">${esc(f.c.texto)}</div>
-                  ${!soVe && (f.por === eu || gestao()) ? `<button type="button" class="link-btn small" data-cm-del="${esc(f.c.id)}">Excluir</button>` : ""}
-                </div>
-              </li>` : `
-              <li class="tfeed-item">
-                <span class="act-av outro">${esc(A.util.initials(f.por || "?"))}</span>
-                <div><b>${esc(f.por || "Alguém")}</b> ${esc(descreverMudanca(f.h))}<div class="muted small">${esc(quando(f.em))}</div></div>
-              </li>`).join("") || `<li class="muted small">Nenhum comentário ainda.</li>`}
-          </ol>
-        </aside>
+      <div class="field">
+        <label for="act-obs">Observações / o que está travando</label>
+        <textarea id="act-obs" class="input" rows="2" style="min-height:0">${esc(a.observacoes)}</textarea>
       </div>
-      <div id="tpop" class="tpop ${pop ? "" : "hidden"}" role="dialog">${popoverHtml(S, a, r)}</div>
 
       <div class="modal-foot">
         <div class="row">
-          ${sp && !soVe ? `<button type="button" class="btn btn-sm ${naSprint ? "btn-danger-ghost" : "btn-outline"}" id="act-sprint-toggle">${naSprint ? "Tirar do Kanban" : "Colocar no Kanban"}</button>` : ""}
+          ${sp ? `<button type="button" class="btn btn-sm ${naSprint ? "btn-danger-ghost" : "btn-outline"}" id="act-sprint-toggle">${naSprint ? "Tirar do Kanban" : "Colocar no Kanban"}</button>` : ""}
         </div>
         <div class="right">
           <span class="act-salvo muted small" id="act-salvo">${ultimoSalvo ? `✓ Salvo às ${ultimoSalvo}` : ""}</span>
-          <button type="button" class="btn btn-primary" id="act-salvar">Salvar e fechar</button>
+          <button type="button" class="btn btn-primary" id="act-salvar">Salvar</button>
         </div>
       </div>`;
-    $("act-body").classList.add("act-trello");
     $("act-body").classList.toggle("somente-leitura", somenteLeitura);
-    posicionarPop();
-  }
-
-  // Coloca o popover logo abaixo do botão que o abriu (o primeiro da barra de ações).
-  function posicionarPop() {
-    const el = $("tpop");
-    if (!el || !pop) return;
-    const body = $("act-body");
-    const btn = body.querySelector(`.tmodal-acoes [data-tpop="${pop}"]`) || body.querySelector(`[data-tpop="${pop}"]`);
-    if (!btn) return;
-    const b = body.getBoundingClientRect(), r = btn.getBoundingClientRect();
-    el.style.left = `${Math.max(8, Math.min(r.left - b.left, b.width - 300))}px`;
-    el.style.top = `${r.bottom - b.top + body.scrollTop + 6}px`;
-  }
-
-  function abrirPop(nome) {
-    pop = pop === nome ? null : nome;
-    etEdit = null;
-    etBusca = "";
-    desenharAtividade();
-    if (pop === "etiquetas") $("et-busca")?.focus();
+    if (soVe) { $("act-r").disabled = true; $("act-prazo").disabled = true; }
   }
 
   function openActivity(key) {
@@ -376,9 +236,7 @@
     if (!A.store.findActivity(ini, act)) return toast("Atividade não encontrada.", "error");
     atual = { ini, act };
     ultimoSalvo = "";
-    pop = null; etEdit = null; etBusca = "";
     if ($("ck-new")) $("ck-new").value = "";
-    if ($("cm-new")) $("cm-new").value = "";
     desenharAtividade();
     openModal("modal-activity");
   }
@@ -395,7 +253,7 @@
     if (el) { el.textContent = `✓ Salvo às ${ultimoSalvo}`; el.classList.remove("pisca"); void el.offsetWidth; el.classList.add("pisca"); }
   }
 
-  // Salvar geral: grava o que ainda está nos campos (passo digitado, descrição, nome) e fecha.
+  // Salvar geral: grava o que ainda está nos campos (passo digitado, observação, prazo) e fecha.
   async function salvarTudo({ fechar = true } = {}) {
     if (!atual || !cur()) return;
     const a = cur();
@@ -404,14 +262,13 @@
     if (passo) patch.checklist = [...a.checklist, { texto: passo, feito: false, data: brDeIso($("ck-new-data")?.value) }];
     const obs = $("act-obs")?.value;
     if (obs != null && obs !== a.observacoes) patch.observacoes = obs;
-    const nome = $("act-nome")?.value.trim();
-    if (nome && !$("act-nome").disabled && nome !== a.nome) patch.nome = nome;
+    const prazo = $("act-prazo")?.value.trim();
+    if (prazo != null && !$("act-prazo").disabled && prazo !== a.prazo) patch.prazo = prazo;
     if (Object.keys(patch).length) {
       const r = await saveAct(patch);
       if (r?.ok === false) return;
       if ($("ck-new")) $("ck-new").value = "";
     }
-    pop = null;
     if (fechar) {
       closeModal("modal-activity");
       toast(Object.keys(patch).length ? "Atividade salva." : "Tudo já estava salvo.");
@@ -426,17 +283,6 @@
     if (!r.ok) return;
     await saveAct({ anexos: [...(cur().anexos || []), { tipo: "arquivo", caminho: r.caminho, nome: file.name, tamanho: file.size, por: A.store.state.settings.user || "", em: new Date().toISOString() }] });
     toast("Arquivo anexado.");
-  }
-
-  async function comentar() {
-    const texto = $("cm-new")?.value.trim();
-    if (!texto) return toast("Escreva o comentário antes de enviar.", "warn");
-    $("cm-new").value = "";
-    const r = viaBanco() ? await A.nuvem.comentarAtividade(atual.ini, atual.act, texto) : A.store.addComentario(atual.ini, atual.act, texto);
-    if (r?.ok === false) {
-      if ($("cm-new")) $("cm-new").value = texto;
-      if (r.error) toast(r.error, "error");
-    }
   }
 
   function init() {
@@ -456,101 +302,61 @@
     body.addEventListener("change", (e) => {
       const el = e.target;
       if (!atual) return;
-      const S = A.store;
       if (el.id === "act-col") A.board.moveActivity(atual.ini, atual.act, el.value);
-      else if (el.id === "act-nome") { if (el.value.trim() && el.value.trim() !== cur().nome) saveAct({ nome: el.value.trim() }); }
       else if (el.id === "act-r") {
-        const r = S.setRaci(atual.ini, atual.act, el.value || (S.raciPeople(cur().raci, "R")[0] || ""), el.value ? "R" : "");
+        const r = A.store.setRaci(atual.ini, atual.act, el.value || (A.store.raciPeople(cur().raci, "R")[0] || ""), el.value ? "R" : "");
         if (!r.ok) toast(r.error, "error");
-      } else if (el.dataset.mb) {
-        const r = S.setRaci(atual.ini, atual.act, el.dataset.mb, el.checked ? "C" : "");
-        if (!r.ok) toast(r.error, "error");
-      } else if (el.id === "dt-ini") saveAct({ inicio: brDeIso(el.value) });
-      else if (el.id === "dt-prazo") saveAct({ prazo: brDeIso(el.value) });
+      } else if (el.id === "act-prazo") saveAct({ prazo: el.value.trim() });
       else if (el.id === "act-obs") saveAct({ observacoes: el.value });
-      else if (el.dataset.etToggle) {
-        const id = el.dataset.etToggle;
-        const atuais = cur().etiquetas;
-        saveAct({ etiquetas: el.checked ? [...atuais, id] : atuais.filter((x) => x !== id) });
-      } else if (el.dataset.ckData) {
+      else if (el.dataset.ckData) {
         saveAct({ checklist: cur().checklist.map((x) => (x.id === el.dataset.ckData ? { ...x, data: brDeIso(el.value) } : x)) });
       } else if (el.id === "ax-input" && el.files?.[0]) anexarArquivo(el.files[0]).finally(() => { el.value = ""; });
       else if (el.dataset.ckToggle) {
         saveAct({ checklist: cur().checklist.map((x) => (x.id === el.dataset.ckToggle ? { ...x, feito: el.checked } : x)) });
       }
     });
-    body.addEventListener("input", (e) => {
-      if (e.target.id === "et-busca") { etBusca = e.target.value; renderActivity(); }
-      else if (e.target.id === "et-nome" && etEdit) {
-        etEdit.nome = e.target.value;
-        const prev = body.querySelector(".lbl-preview");
-        if (prev) prev.textContent = etEdit.nome || "Nome da etiqueta";
-      }
-    });
-    body.addEventListener("keydown", (e) => {
-      // Ctrl+Enter envia o comentário.
-      if (e.target.id === "cm-new" && e.key === "Enter" && (e.ctrlKey || e.metaKey)) { e.preventDefault(); comentar(); }
-      if (e.key === "Escape" && pop) { e.stopPropagation(); pop = null; etEdit = null; desenharAtividade(); }
-    });
-    body.addEventListener("click", async (e) => {
+    body.addEventListener("click", (e) => {
       if (!atual) return;
-      const S = A.store;
-      const t = e.target;
-      const abre = t.closest("[data-tpop]");
-      if (abre) return abrirPop(abre.dataset.tpop);
-      if (t.closest("[data-tpop-fechar]")) { pop = null; etEdit = null; return desenharAtividade(); }
-      const foco = t.closest("[data-tfoco]");
-      if (foco) { pop = null; desenharAtividade(); $(foco.dataset.tfoco)?.focus(); return $(foco.dataset.tfoco)?.scrollIntoView({ block: "center", behavior: "smooth" }); }
-      // Fora do popover: fecha.
-      if (pop && !t.closest("#tpop")) { pop = null; etEdit = null; desenharAtividade(); }
-      if (t.closest("[data-et-nova]")) { etEdit = { id: null, nome: etBusca, cor: "azul" }; desenharAtividade(); return $("et-nome")?.focus(); }
-      const ed = t.closest("[data-et-edit]");
-      if (ed) { const x = S.findEtiqueta(ed.dataset.etEdit); etEdit = { id: x.id, nome: x.nome, cor: x.cor }; desenharAtividade(); return $("et-nome")?.focus(); }
-      const cor = t.closest("[data-et-cor]");
-      if (cor && etEdit) { etEdit.nome = $("et-nome")?.value ?? etEdit.nome; etEdit.cor = cor.dataset.etCor; return desenharAtividade(); }
-      if (t.closest("[data-et-voltar]")) { etEdit = null; return desenharAtividade(); }
-      if (t.closest("[data-et-del]") && etEdit?.id) {
-        const x = S.findEtiqueta(etEdit.id);
-        if (!(await confirmDialog(`Excluir a etiqueta “${x.nome}”? Ela sai de todos os cartões.`, { title: "Excluir etiqueta", okLabel: "Excluir", danger: true }))) return;
-        S.deleteEtiqueta(etEdit.id);
-        etEdit = null;
-        return desenharAtividade();
-      }
-      if (t.closest("[data-dt-limpar]")) return saveAct({ inicio: "", prazo: "" });
-      const cmDel = t.closest("[data-cm-del]");
-      if (cmDel) {
-        if (!(await confirmDialog("Excluir este comentário?", { title: "Excluir comentário", okLabel: "Excluir", danger: true }))) return;
-        return S.deleteComentario(atual.ini, atual.act, cmDel.dataset.cmDel);
-      }
-      const del = t.closest("[data-ck-del]");
-      if (del) return saveAct({ checklist: cur().checklist.filter((x) => x.id !== del.dataset.ckDel) });
-      if (t.id === "act-sprint-toggle") {
-        const sp = S.sprintAtual();
-        const dentro = S.noKanban(S.findInitiative(atual.ini), cur(), sp);
-        return Promise.resolve(saveAct({ sprint: dentro ? `-${sp.id}` : sp.id }))
+      const del = e.target.closest("[data-ck-del]");
+      if (del) saveAct({ checklist: cur().checklist.filter((x) => x.id !== del.dataset.ckDel) });
+      if (e.target.id === "act-sprint-toggle") {
+        const sp = A.store.sprintAtual();
+        const dentro = A.store.noKanban(A.store.findInitiative(atual.ini), cur(), sp);
+        Promise.resolve(saveAct({ sprint: dentro ? `-${sp.id}` : sp.id }))
           .then((r) => { if (r?.ok !== false) toast(dentro ? "Atividade tirada do Kanban." : "Atividade colocada no Kanban."); });
       }
-      if (t.closest("[data-close-act]")) return closeModal("modal-activity");
-      if (t.id === "act-salvar") return salvarTudo();
-      // Anexos: arquivo (guardado no banco) ou link.
-      if (t.id === "ax-arquivo") {
-        pop = null;
-        if (!A.nuvem?.conectado?.()) { desenharAtividade(); return toast("Anexar arquivo precisa do banco compartilhado (entre com seu login). Use “Link”.", "warn", 6000); }
+      if (e.target.closest("[data-close-act]")) closeModal("modal-activity");
+    });
+    body.addEventListener("submit", (e) => {
+      if (e.target.id !== "ck-form") return;
+      e.preventDefault();
+      const texto = $("ck-new").value.trim();
+      if (!texto) return toast("Escreva o passo antes de adicionar.", "warn");
+      $("ck-new").value = ""; // limpa já, para o redesenho não trazer o texto de volta
+      const data = brDeIso($("ck-new-data").value);
+      $("ck-new-data").value = "";
+      saveAct({ checklist: [...cur().checklist, { texto, feito: false, data }] })
+        .then((r) => { if (r?.ok === false) $("ck-new").value = texto; setTimeout(() => $("ck-new")?.focus(), 0); });
+    });
+    body.addEventListener("click", (e) => { if (e.target.id === "act-salvar") salvarTudo(); });
+    // Anexos: arquivo (guardado no banco) ou link.
+    body.addEventListener("click", async (e) => {
+      if (!atual) return;
+      if (e.target.id === "ax-arquivo") {
+        if (!A.nuvem?.conectado?.()) return toast("Anexar arquivo precisa do banco compartilhado (entre com seu login). Use “Adicionar link”.", "warn", 6000);
         return $("ax-input").click();
       }
-      if (t.id === "ax-link") {
-        pop = null;
-        desenharAtividade();
+      if (e.target.id === "ax-link") {
         const url = await A.util.pedirTexto("Cole o link do arquivo (Google Drive, OneDrive, site…). Confira se quem precisa tem acesso a ele.",
           { title: "🔗 Adicionar link", okLabel: "Continuar", placeholder: "https://…", obrigatorio: true });
         if (!url) return;
         if (!/^https?:\/\//i.test(url.trim())) return toast("O link precisa começar com http:// ou https://", "warn");
         const nome = await A.util.pedirTexto("Que nome mostrar para este link?", { title: "🔗 Nome do link", okLabel: "Adicionar", placeholder: "ex.: Orçamento do fornecedor" });
         if (nome == null) return;
-        return saveAct({ anexos: [...(cur().anexos || []), { tipo: "link", url: url.trim(), nome: nome.trim() || url.trim(), por: S.state.settings.user || "", em: new Date().toISOString() }] })
+        return saveAct({ anexos: [...(cur().anexos || []), { tipo: "link", url: url.trim(), nome: nome.trim() || url.trim(), por: A.store.state.settings.user || "", em: new Date().toISOString() }] })
           .then((r) => { if (r?.ok !== false) toast("Link adicionado."); });
       }
-      const abrir = t.closest("[data-ax-abrir]");
+      const abrir = e.target.closest("[data-ax-abrir]");
       if (abrir) {
         const x = (cur().anexos || []).find((y) => y.id === abrir.dataset.axAbrir);
         if (!x) return;
@@ -558,35 +364,12 @@
         if (url) window.open(url, "_blank", "noopener");
         return;
       }
-      const axDel = t.closest("[data-ax-del]");
-      if (axDel) {
-        const x = (cur().anexos || []).find((y) => y.id === axDel.dataset.axDel);
-        if (!x || !(await confirmDialog(`Remover o anexo “${x.nome}”?`, { title: "Remover anexo", okLabel: "Remover", danger: true }))) return;
+      const del = e.target.closest("[data-ax-del]");
+      if (del) {
+        const x = (cur().anexos || []).find((y) => y.id === del.dataset.axDel);
+        if (!x || !(await A.util.confirmDialog(`Remover o anexo “${x.nome}”?`, { title: "Remover anexo", okLabel: "Remover", danger: true }))) return;
         const r = await saveAct({ anexos: cur().anexos.filter((y) => y.id !== x.id) });
         if (r?.ok !== false && x.tipo === "arquivo") A.nuvem?.apagarAnexo?.(x.caminho);
-      }
-    });
-    body.addEventListener("submit", (e) => {
-      e.preventDefault();
-      const S = A.store;
-      if (e.target.id === "ck-form") {
-        const texto = $("ck-new").value.trim();
-        if (!texto) return toast("Escreva o item antes de adicionar.", "warn");
-        $("ck-new").value = ""; // limpa já, para o redesenho não trazer o texto de volta
-        const data = brDeIso($("ck-new-data").value);
-        $("ck-new-data").value = "";
-        saveAct({ checklist: [...cur().checklist, { texto, feito: false, data }] })
-          .then((r) => { if (r?.ok === false) $("ck-new").value = texto; setTimeout(() => $("ck-new")?.focus(), 0); });
-      } else if (e.target.id === "cm-form") {
-        comentar();
-      } else if (e.target.id === "et-form" && etEdit) {
-        const nome = $("et-nome").value.trim();
-        const r = S.saveEtiqueta({ nome, cor: etEdit.cor }, etEdit.id);
-        if (!r.ok) return toast(r.error, "warn");
-        // Etiqueta nova já entra no cartão aberto.
-        if (!etEdit.id && !cur().etiquetas.includes(r.item.id)) saveAct({ etiquetas: [...cur().etiquetas, r.item.id] });
-        etEdit = null; etBusca = "";
-        desenharAtividade();
       }
     });
     // Fechar no ✕ ou fora da janela também guarda o que ficou digitado (nada se perde).

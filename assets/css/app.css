@@ -1943,7 +1943,7 @@ details.ex-setores[open] > summary { margin-bottom: 0.7rem; }
 .dia-hora { font-weight: 700; font-variant-numeric: tabular-nums; }
 .dia-txt { display: flex; flex-direction: column; gap: 0.15rem; min-width: 0; }
 .dia-titulo { font-weight: 650; text-align: left; padding: 0; }
-/* ---------- Kanban estilo Trello: cartão, etiquetas, filtros e janela da atividade ---------- */
+/* ---------- Minhas tarefas: cartão e janela no estilo Trello ---------- */
 .lbl { display: inline-flex; align-items: center; max-width: 100%; height: 18px; padding: 0 0.45rem; border-radius: 4px; font-size: 0.66rem; font-weight: 700; line-height: 1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; background: var(--lb, var(--surface-3)); color: var(--lbt, var(--text)); border: none; }
 .lbl-proj { background: var(--ac); color: #fff; letter-spacing: 0.02em; }
 .lbl-marco { background: var(--surface-3); color: var(--text); }
@@ -1975,17 +1975,12 @@ details.ex-setores[open] > summary { margin-bottom: 0.7rem; }
 .act-card.tcard .act-quick { padding: 0 !important; }
 .act-card.tcard:hover .act-quick, .act-card.tcard:focus-within .act-quick { padding: 0.15rem 0 0 !important; }
 
-.kb-toolbar { display: flex; flex-wrap: wrap; align-items: center; gap: 0.6rem; justify-content: space-between; margin: 0.5rem 0; }
-.kb-filtro-lbls { display: flex; flex-wrap: wrap; gap: 0.35rem; }
-.kb-filtros-dir { display: inline-flex; flex-wrap: wrap; gap: 0.4rem; align-items: center; margin-left: auto; }
 
-#act-body.act-trello { width: min(1040px, 96vw); max-width: 1040px; position: relative; }
 .tmodal-head { display: flex; align-items: center; gap: 0.6rem; margin-bottom: 0.6rem; }
 .tmodal-crumb { display: flex; align-items: center; gap: 0.45rem; flex-wrap: wrap; min-width: 0; flex: 1; font-size: 0.85rem; }
 .tmodal-crumb a { font-weight: 700; color: var(--text); text-decoration: none; }
 .tmodal-crumb a:hover { text-decoration: underline; }
 .tmodal-col { width: auto; font-weight: 700; }
-.tmodal-grid { display: grid; grid-template-columns: minmax(0, 1.6fr) minmax(260px, 1fr); gap: 1.2rem; align-items: start; }
 .tmodal-main { display: flex; flex-direction: column; gap: 0.8rem; min-width: 0; }
 .tmodal-title { font-size: 1.35rem; font-weight: 800; border: 1px solid transparent; background: transparent; color: var(--text); padding: 0.2rem 0.35rem; margin-left: -0.35rem; border-radius: 6px; width: 100%; font-family: inherit; }
 .tmodal-title:hover:not(:disabled) { background: var(--surface-2); }
@@ -1994,46 +1989,27 @@ details.ex-setores[open] > summary { margin-bottom: 0.7rem; }
 .tmodal-resumo { display: flex; flex-wrap: wrap; gap: 1.2rem; }
 .tmodal-resumo small { display: block; font-size: 0.7rem; font-weight: 700; color: var(--text-muted); margin-bottom: 0.3rem; }
 .tmodal-resumo .lbl { height: 26px; font-size: 0.76rem; padding: 0 0.55rem; }
-.tmodal-avs { display: flex; gap: 0.25rem; }
-.tmodal-avs .act-av { width: 28px; height: 28px; font-size: 0.68rem; }
-.act-av.mais { cursor: pointer; border: none; background: var(--surface-3); color: var(--text-muted); font-size: 0.9rem; }
 .tmodal-sec h4 { margin: 0 0 0.45rem; font-size: 0.92rem; }
 .tmodal-sec textarea { min-height: 70px; }
 .act-check-bar.completo span { background: var(--ok); }
-.tmodal-side { background: var(--surface-2); border-radius: 10px; padding: 0.8rem; max-height: 68vh; overflow-y: auto; }
-.tmodal-side h4 { margin: 0 0 0.6rem; font-size: 0.92rem; }
-.cm-form { display: flex; flex-direction: column; gap: 0.4rem; align-items: flex-end; margin-bottom: 0.8rem; }
-.cm-form textarea { width: 100%; min-height: 0; background: var(--surface); }
-.tfeed { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 0.75rem; font-size: 0.8rem; }
-.tfeed-item { display: grid; grid-template-columns: 28px 1fr; gap: 0.5rem; align-items: start; }
-.tfeed-item .act-av { width: 28px; height: 28px; font-size: 0.66rem; margin: 0; }
-.tfeed-txt { margin-top: 0.25rem; background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 0.45rem 0.6rem; white-space: pre-wrap; overflow-wrap: anywhere; }
-.tpop { position: absolute; z-index: 30; width: 290px; background: var(--surface); border: 1px solid var(--border); border-radius: 10px; box-shadow: 0 8px 24px rgba(0,0,0,0.18); padding: 0.7rem; display: flex; flex-direction: column; gap: 0.45rem; }
-.tpop-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 0.2rem; }
 .tpop-campo { display: flex; flex-direction: column; gap: 0.2rem; font-size: 0.78rem; font-weight: 700; color: var(--text-muted); }
-.tpop-bloco { width: 100%; justify-content: flex-start; }
-.et-lista { display: flex; flex-direction: column; gap: 0.3rem; max-height: 260px; overflow-y: auto; }
-.et-row { display: flex; align-items: center; gap: 0.35rem; }
-.et-row label { display: flex; align-items: center; gap: 0.45rem; flex: 1; min-width: 0; cursor: pointer; }
-.et-nova { width: 100%; }
 .et-cores { display: grid; grid-template-columns: repeat(5, 1fr); gap: 0.35rem; margin: 0.5rem 0; }
 .et-cor { height: 28px; border-radius: 5px; border: 2px solid transparent; cursor: pointer; }
 .et-cor.on { border-color: var(--text); }
 .mb-row { display: flex; align-items: center; gap: 0.45rem; font-size: 0.85rem; cursor: pointer; }
 .mb-row .act-av { margin: 0; }
-#act-body.somente-leitura .cm-form :is(textarea, button) { pointer-events: auto; opacity: 1; }
-@media (max-width: 820px) { .tmodal-grid { grid-template-columns: 1fr; } .tmodal-side { max-height: none; } }.modal-tarefa { width: min(680px, 96vw); max-width: 680px; }
+.modal-tarefa { width: min(680px, 96vw); max-width: 680px; }
 .modal-tarefa .tmodal-main { gap: 0.9rem; }
 .tf-rot { display: block; font-size: 0.7rem; font-weight: 700; color: var(--text-muted); margin-bottom: 0.3rem; }
 .tarefa-card.tcard { cursor: pointer; }
-/* ---------- Kanban estilo Trello: acabamento (colunas claras, cartões compactos) ---------- */
-.sprint-board .k-col, .tarefas-board .k-col { background: color-mix(in srgb, var(--text) 6%, var(--surface)); border: none !important; border-radius: 12px; padding: 0.5rem !important; box-shadow: none; }
-.sprint-board .k-list, .tarefas-board .k-list { gap: 0.5rem; }
-.sprint-board .kb-col-head, .tarefas-board .kb-col-head { background: transparent !important; color: var(--text) !important; font-size: 0.85rem; font-weight: 700; padding: 0.25rem 0.4rem 0.45rem; margin: 0; cursor: default; border: none; }
-.sprint-board .kb-col-head::before, .tarefas-board .kb-col-head::before { content: ""; width: 8px; height: 8px; border-radius: 50%; background: var(--c); margin-right: 0.45rem; flex: none; }
-.sprint-board .kb-col-head span, .tarefas-board .kb-col-head span { flex: 1; }
-.sprint-board .kb-col-head b, .tarefas-board .kb-col-head b { background: transparent !important; color: var(--text-muted) !important; font-weight: 600; padding: 0; }
-.sprint-board .k-empty, .tarefas-board .k-empty { padding: 0.3rem 0.4rem; font-size: 0.75rem; }
+/* ---------- Minhas tarefas: acabamento (colunas claras, cartões compactos) ---------- */
+.tarefas-board .k-col { background: color-mix(in srgb, var(--text) 6%, var(--surface)); border: none !important; border-radius: 12px; padding: 0.5rem !important; box-shadow: none; }
+.tarefas-board .k-list { gap: 0.5rem; }
+.tarefas-board .kb-col-head { background: transparent !important; color: var(--text) !important; font-size: 0.85rem; font-weight: 700; padding: 0.25rem 0.4rem 0.45rem; margin: 0; cursor: default; border: none; }
+.tarefas-board .kb-col-head::before { content: ""; width: 8px; height: 8px; border-radius: 50%; background: var(--c); margin-right: 0.45rem; flex: none; }
+.tarefas-board .kb-col-head span { flex: 1; }
+.tarefas-board .kb-col-head b { background: transparent !important; color: var(--text-muted) !important; font-weight: 600; padding: 0; }
+.tarefas-board .k-empty { padding: 0.3rem 0.4rem; font-size: 0.75rem; }
 
 .act-card.tcard, .sprint-board .act-card.tcard, .kb-cell .act-card.tcard, .tarefas-board .act-card.tcard {
   position: relative; gap: 0.3rem; padding: 0.5rem 0.6rem !important; border: none !important; border-radius: 8px;
@@ -2055,11 +2031,12 @@ details.ex-setores[open] > summary { margin-bottom: 0.7rem; }
   position: absolute; top: 4px; right: 4px; max-height: none; padding: 0 !important; display: flex; gap: 3px; opacity: 0; pointer-events: none; transition: opacity 0.12s; }
 .act-card.tcard:hover .act-quick, .act-card.tcard:focus-within .act-quick { opacity: 1; pointer-events: auto; }
 .act-card.tcard .q-btn { height: 22px; padding: 0 0.45rem; font-size: 0.68rem; font-weight: 600; background: var(--surface); border: 1px solid var(--border); border-radius: 5px; box-shadow: 0 1px 2px rgba(0,0,0,0.08); }
-@media (hover: none) { .act-card.tcard .act-quick { position: static; opacity: 1; pointer-events: auto; justify-content: flex-end; } }/* Visão da gestão (faixas por setor) no mesmo acabamento */
-.kb-lanes .kb-lane:not(.kb-lane-head) { background: transparent !important; border: none; border-top: 1px solid var(--border); padding-top: 0.5rem; border-radius: 0; }
-.kb-lanes .kb-col-head { background: transparent !important; color: var(--text) !important; font-size: 0.85rem; font-weight: 700; padding: 0.25rem 0.4rem; margin: 0; cursor: default; border: none; }
-.kb-lanes .kb-col-head::before { content: ""; width: 8px; height: 8px; border-radius: 50%; background: var(--c); margin-right: 0.45rem; flex: none; }
-.kb-lanes .kb-col-head span { flex: 1; }
-.kb-lanes .kb-col-head b { background: transparent !important; color: var(--text-muted) !important; font-weight: 600; padding: 0; }
-.kb-lanes .kb-cell { background: color-mix(in srgb, var(--text) 6%, var(--surface)); border-radius: 10px; padding: 0.4rem; gap: 0.4rem; }
-.kb-lane-nome strong { color: color-mix(in srgb, var(--ac) 80%, var(--text)); }
+@media (hover: none) { .act-card.tcard .act-quick { position: static; opacity: 1; pointer-events: auto; justify-content: flex-end; } }
+/* Minhas tarefas · Da equipe (faixas por pessoa) no mesmo acabamento */
+#tarefas-root .kb-lanes .kb-lane:not(.kb-lane-head) { background: transparent !important; border: none; border-top: 1px solid var(--border); padding-top: 0.5rem; border-radius: 0; }
+#tarefas-root .kb-lanes .kb-col-head { background: transparent !important; color: var(--text) !important; font-size: 0.85rem; font-weight: 700; padding: 0.25rem 0.4rem; margin: 0; cursor: default; border: none; }
+#tarefas-root .kb-lanes .kb-col-head::before { content: ""; width: 8px; height: 8px; border-radius: 50%; background: var(--c); margin-right: 0.45rem; flex: none; }
+#tarefas-root .kb-lanes .kb-col-head span { flex: 1; }
+#tarefas-root .kb-lanes .kb-col-head b { background: transparent !important; color: var(--text-muted) !important; font-weight: 600; padding: 0; }
+#tarefas-root .kb-lanes .kb-cell { background: color-mix(in srgb, var(--text) 6%, var(--surface)); border-radius: 10px; padding: 0.4rem; gap: 0.4rem; }
+#tarefas-root .kb-lane-nome strong { color: color-mix(in srgb, var(--ac) 80%, var(--text)); }

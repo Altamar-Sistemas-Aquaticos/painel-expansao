@@ -78,7 +78,14 @@
   }
 
   /* ---------- Desenho ---------- */
-  const etqs = (t) => (Array.isArray(t.etiquetas) ? t.etiquetas : []).map((id) => A.store.findEtiqueta(id)).filter(Boolean);
+  // Etiquetas pessoais: guardadas na própria tarefa ({ nome, cor }); a lista para escolher sai das minhas tarefas.
+  const etqs = (t) => (Array.isArray(t.etiquetas) ? t.etiquetas : []).filter((e) => e && typeof e === "object" && e.nome);
+  function minhasEtiquetas() {
+    const vistas = new Map();
+    minhas().forEach((t) => etqs(t).forEach((e) => { if (!vistas.has(e.nome.toLowerCase())) vistas.set(e.nome.toLowerCase(), e); }));
+    return [...vistas.values()].sort((a, b) => a.nome.localeCompare(b.nome, "pt-BR"));
+  }
+  let novaEtq = null; // { nome, cor } enquanto cria uma etiqueta na tarefa aberta
   const passos = (t) => (Array.isArray(t.checklist) ? t.checklist : []);
   const lblHtml = (e) => { const c = A.meta.corEtiqueta(e.cor); return `<span class="lbl" style="--lb:${c.bg};--lbt:${c.fg}">${esc(e.nome)}</span>`; };
   function prazoBadge(t) {
@@ -129,7 +136,8 @@
     const pct = ck.length ? Math.round((feitos / ck.length) * 100) : 0;
     const projetos = S.state.data.initiatives.filter((i) => i.status !== "Cancelado" && i.status !== "Concluído" && A.visao.veProjeto(i))
       .sort((a, b) => a.id.localeCompare(b.id, "pt-BR", { numeric: true }));
-    const todas = S.etiquetas();
+    const todas = minhasEtiquetas();
+    const tem = (e) => etqs(t).some((x) => x.nome.toLowerCase() === e.nome.toLowerCase());
     body.innerHTML = `
       <div class="tmodal-head">
         <div class="tmodal-crumb"><span class="muted small">Minhas tarefas · ${t.visivel ? "👁 visível para a gestão" : "🔒 privada"}</span></div>
@@ -145,9 +153,15 @@
           <div><small>Quem vê</small><label class="mb-row"><input type="checkbox" id="tf-vis" ${t.visivel ? "checked" : ""}> 👁 Visível para a gestão</label></div>
         </div>
         <div><small class="tf-rot">Etiquetas</small>
-          <div class="tcard-lbls">${todas.length ? todas.map((e) => { const c = A.meta.corEtiqueta(e.cor); const on = (t.etiquetas || []).includes(e.id);
-            return `<button type="button" class="lbl lbl-filtro ${on ? "on" : ""}" data-tf-etq="${esc(e.id)}" style="--lb:${c.bg};--lbt:${c.fg}" aria-pressed="${on}">${esc(e.nome)}</button>`; }).join("")
-            : `<span class="muted small">Nenhuma etiqueta criada ainda (a gestão cria no Kanban).</span>`}</div></div>
+          <div class="tcard-lbls">${todas.map((e) => { const c = A.meta.corEtiqueta(e.cor); const on = tem(e);
+            return `<button type="button" class="lbl lbl-filtro ${on ? "on" : ""}" data-tf-etq="${esc(e.nome)}" style="--lb:${c.bg};--lbt:${c.fg}" aria-pressed="${on}" title="${on ? "Tirar da tarefa" : "Colocar na tarefa"}">${esc(e.nome)}</button>`; }).join("")}
+            ${novaEtq ? "" : `<button type="button" class="lbl lbl-add tf-etq-nova" data-tf-etq-nova>+ Nova etiqueta</button>`}</div>
+          ${novaEtq ? `
+          <form id="tf-etq-form" class="tf-etq-form" autocomplete="off">
+            <input id="tf-etq-nome" class="input input-sm" maxlength="30" placeholder="Nome (ex.: Neogenetics, MBA, Urgente)" value="${esc(novaEtq.nome)}">
+            <div class="et-cores">${A.meta.ETIQUETA_CORES.map((c) => `<button type="button" class="et-cor ${c.key === novaEtq.cor ? "on" : ""}" data-tf-etq-cor="${c.key}" style="background:${c.bg}" title="${c.nome}" aria-label="${c.nome}"></button>`).join("")}</div>
+            <div class="row"><button type="submit" class="btn btn-sm btn-primary">Criar e colocar</button><button type="button" class="btn btn-sm btn-ghost" data-tf-etq-cancelar>Cancelar</button></div>
+          </form>` : ""}</div>
         <section class="tmodal-sec">
           <h4>≡ Descrição</h4>
           <textarea id="tf-obs" class="input" rows="3" placeholder="Detalhes, contatos, o que falta…">${esc(t.observacao || "")}</textarea>
@@ -305,6 +319,18 @@
     else if (el.dataset.tfCk) mudar(t.id, { checklist: passos(t).map((x) => (x.id === el.dataset.tfCk ? { ...x, feito: el.checked } : x)) });
   });
   document.addEventListener("submit", (e) => {
+    if (e.target.id !== "tf-etq-form") return;
+    e.preventDefault();
+    const t = tarefaAberta();
+    const nome = $("tf-etq-nome").value.trim().slice(0, 30);
+    if (!t || !nome || !novaEtq) return $("tf-etq-nome")?.focus();
+    const existente = minhasEtiquetas().find((y) => y.nome.toLowerCase() === nome.toLowerCase());
+    const nova = existente || { nome, cor: novaEtq.cor };
+    novaEtq = null;
+    if (!etqs(t).some((y) => y.nome.toLowerCase() === nome.toLowerCase())) mudar(t.id, { etiquetas: [...etqs(t), nova] });
+    else desenharTarefa();
+  });
+  document.addEventListener("submit", (e) => {
     if (e.target.id !== "tf-ck-form") return;
     e.preventDefault();
     const t = tarefaAberta();
@@ -322,10 +348,14 @@
     if (mv) return mudar(mv.dataset.tarefaMover, { coluna: mv.dataset.col });
     const etq = t.closest?.("[data-tf-etq]");
     if (etq && tarefaAberta()) {
-      const x = tarefaAberta(), atuais = Array.isArray(x.etiquetas) ? x.etiquetas : [];
-      const id = etq.dataset.tfEtq;
-      return mudar(x.id, { etiquetas: atuais.includes(id) ? atuais.filter((y) => y !== id) : [...atuais, id] });
+      const x = tarefaAberta(), atuais = etqs(x), nome = etq.dataset.tfEtq.toLowerCase();
+      const e = minhasEtiquetas().find((y) => y.nome.toLowerCase() === nome);
+      return mudar(x.id, { etiquetas: atuais.some((y) => y.nome.toLowerCase() === nome) ? atuais.filter((y) => y.nome.toLowerCase() !== nome) : [...atuais, e] });
     }
+    if (t.closest?.("[data-tf-etq-nova]")) { novaEtq = { nome: "", cor: "azul" }; desenharTarefa(); return $("tf-etq-nome")?.focus(); }
+    if (t.closest?.("[data-tf-etq-cancelar]")) { novaEtq = null; return desenharTarefa(); }
+    const cor = t.closest?.("[data-tf-etq-cor]");
+    if (cor && novaEtq) { novaEtq.nome = $("tf-etq-nome")?.value || ""; novaEtq.cor = cor.dataset.tfEtqCor; desenharTarefa(); return $("tf-etq-nome")?.focus(); }
     const ckDel = t.closest?.("[data-tf-ck-del]");
     if (ckDel && tarefaAberta()) return mudar(aberta, { checklist: passos(tarefaAberta()).filter((x) => x.id !== ckDel.dataset.tfCkDel) });
     const abre = t.closest?.("[data-tarefa-abrir]");
