@@ -104,7 +104,13 @@
   function renderActivity() {
     const rascunho = Object.fromEntries(CAMPOS_DIGITANDO.map((id) => [id, $(id)?.value]));
     const foco = document.activeElement?.id;
+    // Nome de um passo sendo editado: guarda o texto e o foco para depois do redesenho.
+    const passoEditando = document.activeElement?.dataset?.ckTexto ? { id: document.activeElement.dataset.ckTexto, valor: document.activeElement.value } : null;
     desenharAtividade();
+    if (passoEditando) {
+      const el = $("act-body").querySelector(`[data-ck-texto="${CSS.escape(passoEditando.id)}"]`);
+      if (el) { el.value = passoEditando.valor; el.focus(); el.setSelectionRange(el.value.length, el.value.length); }
+    }
     if (rascunho["ck-new"]) $("ck-new").value = rascunho["ck-new"];
     if (rascunho["ck-new-data"]) $("ck-new-data").value = rascunho["ck-new-data"];
     // Observação e prazo: mantém o texto digitado só se ainda estiver sendo editado.
@@ -182,7 +188,8 @@
             const vencido = d && !x.feito && d < new Date(new Date().setHours(0, 0, 0, 0));
             return `
             <li class="${x.feito ? "done" : ""} ${vencido ? "vencido" : ""}">
-              <label><input type="checkbox" data-ck-toggle="${esc(x.id)}" ${x.feito ? "checked" : ""}> <span>${esc(x.texto)}</span></label>
+              <label class="ck-box" title="Marcar como feito"><input type="checkbox" data-ck-toggle="${esc(x.id)}" ${x.feito ? "checked" : ""}></label>
+              <input type="text" class="ck-texto" data-ck-texto="${esc(x.id)}" value="${esc(x.texto)}" maxlength="300" aria-label="Nome do passo" title="Clique para editar o nome do passo" autocomplete="off">
               <input type="date" class="ck-data" data-ck-data="${esc(x.id)}" value="${isoDeBr(x.data)}" title="Prazo do passo (opcional)" aria-label="Prazo do passo">
               <button type="button" class="raci-x" data-ck-del="${esc(x.id)}" aria-label="Remover passo">✕</button>
             </li>`;
@@ -311,7 +318,13 @@
       else if (el.dataset.ckData) {
         saveAct({ checklist: cur().checklist.map((x) => (x.id === el.dataset.ckData ? { ...x, data: brDeIso(el.value) } : x)) });
       } else if (el.id === "ax-input" && el.files?.[0]) anexarArquivo(el.files[0]).finally(() => { el.value = ""; });
-      else if (el.dataset.ckToggle) {
+      else if (el.dataset.ckTexto) {
+        // Renomear o passo: vazio não vale (volta o nome anterior).
+        const texto = el.value.trim();
+        const atualPasso = cur().checklist.find((x) => x.id === el.dataset.ckTexto);
+        if (!texto) { el.value = atualPasso?.texto || ""; return toast("O passo precisa de um nome.", "warn"); }
+        if (atualPasso && texto !== atualPasso.texto) saveAct({ checklist: cur().checklist.map((x) => (x.id === el.dataset.ckTexto ? { ...x, texto } : x)) });
+      } else if (el.dataset.ckToggle) {
         saveAct({ checklist: cur().checklist.map((x) => (x.id === el.dataset.ckToggle ? { ...x, feito: el.checked } : x)) });
       }
     });
@@ -326,6 +339,17 @@
           .then((r) => { if (r?.ok !== false) toast(dentro ? "Atividade tirada do Kanban." : "Atividade colocada no Kanban."); });
       }
       if (e.target.closest("[data-close-act]")) closeModal("modal-activity");
+    });
+    // Nome do passo: Enter grava, Esc desfaz.
+    body.addEventListener("keydown", (e) => {
+      const el = e.target;
+      if (!el.dataset?.ckTexto || !atual) return;
+      if (e.key === "Enter") { e.preventDefault(); el.blur(); }
+      if (e.key === "Escape") {
+        e.stopPropagation();
+        el.value = cur().checklist.find((x) => x.id === el.dataset.ckTexto)?.texto || el.value;
+        el.blur();
+      }
     });
     body.addEventListener("submit", (e) => {
       if (e.target.id !== "ck-form") return;

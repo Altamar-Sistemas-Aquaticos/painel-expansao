@@ -40,6 +40,25 @@
     if (!$("tri-urgencia").options.length) $("tri-urgencia").innerHTML = A.meta.urgenciaOptions("", "Urgência?");
   }
 
+  // Projetos adicionados recentemente (para abrir a reunião com a diretoria): últimos 7, 15 e 30 dias.
+  const PERIODOS = [7, 15, 30];
+  const diasDesde = (it) => {
+    const d = it.criadoEm ? new Date(it.criadoEm) : null;
+    if (!d || isNaN(d)) return Infinity;
+    const hoje = new Date(); hoje.setHours(0, 0, 0, 0);
+    const dia = new Date(d); dia.setHours(0, 0, 0, 0);
+    return Math.round((hoje - dia) / 86400000);
+  };
+  const dentroDe = (it, n) => diasDesde(it) < n; // 7 dias = hoje e os 6 dias anteriores
+
+  function resumoAdicionados(S, list, n) {
+    const linhas = list.map((it) => {
+      const d = new Date(it.criadoEm).toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit" });
+      return `• ${it.id} · ${it.nome} (${it.area}${it.autor ? `, por ${it.autor}` : ""}, ${d}) · ${it.situacao}`;
+    });
+    return `Projetos adicionados nos últimos ${n} dias (${list.length}):\n${linhas.join("\n")}`;
+  }
+
   function row(S, it) {
     const { ve, isAboveCut } = S.calc;
     const scored = !semNota(it);
@@ -53,6 +72,7 @@
         <td><strong class="tri-id" style="--ac:${A.area(it.area).cor}">${esc(it.id)}</strong></td>
         <td class="tri-name">
           <a href="${A.drill.projectHref(it.id)}" data-nav>${esc(it.nome)}</a>
+          ${dentroDe(it, 7) ? `<span class="badge tri-novo" title="Adicionado nos últimos 7 dias">novo</span>` : ""}
           ${ativo(it) ? "" : `<span class="badge">${esc(it.status)}</span>`}
           ${it.faseDe ? `<span class="badge accent" title="Fase do projeto ${esc(it.faseDe)}">fase de ${esc(it.faseDe)}</span>` : ""}
           ${fases ? `<span class="badge" title="Este projeto foi dividido em fases">${fases} fase(s)</span>` : ""}
@@ -95,15 +115,32 @@
       </label>
       <input type="search" class="input input-sm tri-busca" data-tri-busca placeholder="🔍 Buscar projeto" value="${esc(S.state.ui.search || "")}">`;
 
+    // Adicionados recentemente: contagem por período (respeita setor e busca, vale para qualquer situação).
+    const periodo = PERIODOS.includes(Number(S.state.ui.triagemNovos)) ? Number(S.state.ui.triagemNovos) : 0;
+    const visiveis = all.filter((it) => S.matchesFilters(it));
+    $("triagem-filters").insertAdjacentHTML("beforeend", `
+      <div class="tri-novos" role="group" aria-label="Projetos adicionados recentemente">
+        <span class="muted small">Adicionados:</span>
+        ${PERIODOS.map((n) => `<button class="seg-btn tri-novos-btn ${periodo === n ? "active" : ""}" data-tri-novos="${n}" aria-pressed="${periodo === n}" title="Projetos cadastrados nos últimos ${n} dias">${n === 7 ? "Semana" : n === 15 ? "Quinzena" : "Mês"} <span class="muted">${visiveis.filter((it) => dentroDe(it, n)).length}</span></button>`).join("")}
+        ${periodo ? `<button class="link-btn small" data-tri-novos-copiar title="Copia a lista para colar na pauta, no WhatsApp ou no e-mail">📋 Copiar resumo</button>
+          <button class="link-btn small" data-tri-novos="0">✕ limpar</button>` : ""}
+      </div>`);
+    // Com um período escolhido, os filtros de situação ficam em segundo plano.
+    if (periodo) $("triagem-filters").querySelectorAll("[data-tri-filter]").forEach((b) => b.classList.remove("active"));
+
     // Ordem fixa (setor e número): dar nota não muda a linha de lugar; o projeto só sai de "A triar" ao ser validado.
-    const list = all.filter((it) => filtros[f](it) && S.matchesFilters(it)).sort((a, b) =>
-      ativo(b) - ativo(a) || a.id.localeCompare(b.id, "pt-BR", { numeric: true }));
+    // Com um período escolhido, mostra tudo o que entrou nele (qualquer situação), do mais novo para o mais antigo.
+    const list = periodo
+      ? visiveis.filter((it) => dentroDe(it, periodo)).sort((a, b) => String(b.criadoEm).localeCompare(String(a.criadoEm)))
+      : all.filter((it) => filtros[f](it) && S.matchesFilters(it)).sort((a, b) =>
+        ativo(b) - ativo(a) || a.id.localeCompare(b.id, "pt-BR", { numeric: true }));
+    A.triagem._periodo = periodo ? { n: periodo, list } : null;
 
     const cut = S.calc.cutoff();
     $("triagem-cut").innerHTML = `Linha de corte: <strong>${fmtNum(cut.value)}</strong> <span class="muted">(Σ Valor ${cut.sumValor} ÷ Σ Esforço ${cut.sumEsforco})</span>`;
 
     $("triagem-tbody").innerHTML = list.length ? list.map((it) => row(S, it)).join("")
-      : `<tr><td colspan="7">${ui.empty(f === "triar" ? "Nada para triar. Use a linha acima para lançar uma nova ideia." : "Nenhum projeto neste filtro.")}</td></tr>`;
+      : `<tr><td colspan="7">${ui.empty(periodo ? `Nenhum projeto adicionado nos últimos ${periodo} dias.` : f === "triar" ? "Nada para triar. Use a linha acima para lançar uma nova ideia." : "Nenhum projeto neste filtro.")}</td></tr>`;
   };
   function submitQuick(e) {
     e.preventDefault();
@@ -143,9 +180,23 @@
         if (r.ok) toast(`Esforço de ${ok.dataset.triConfirm} confirmado.`);
         return;
       }
+      const nv = e.target.closest("[data-tri-novos]");
+      if (nv) {
+        const n = Number(nv.dataset.triNovos);
+        A.store.state.ui.triagemNovos = A.store.state.ui.triagemNovos == n ? 0 : n;
+        return A.store.emit();
+      }
+      if (e.target.closest("[data-tri-novos-copiar]")) {
+        const p = A.triagem._periodo;
+        if (!p || !p.list.length) return toast("Nada para copiar neste período.", "warn");
+        const texto = resumoAdicionados(A.store, p.list, p.n);
+        navigator.clipboard?.writeText(texto).then(() => toast(`Resumo copiado: ${p.list.length} projeto(s).`), () => toast("Não foi possível copiar. Selecione a lista e copie manualmente.", "warn"));
+        return;
+      }
       const b = e.target.closest("[data-tri-filter]");
       if (!b) return;
       A.store.state.ui.triagemFiltro = b.dataset.triFilter;
+      A.store.state.ui.triagemNovos = 0;
       A.store.emit();
     });
     let tBusca;
