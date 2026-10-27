@@ -90,7 +90,9 @@
             : `<span class="badge ${SIT_CLASS[it.situacao] || ""}">${esc(it.situacao)}</span>`}
           ${podeFase ? `<button class="btn btn-xs btn-ghost" data-action="criar-fase" data-id="${esc(it.id)}" title="Projeto longo: criar a Fase ${fases + 1} como rascunho, com entrega menor">✂</button>` : ""}
           <button class="btn btn-xs btn-ghost" data-action="edit-initiative" data-id="${esc(it.id)}" title="Editar todos os dados">✏️</button>
-          ${S.canDelete(it) ? `<button class="btn btn-xs btn-danger-ghost" data-action="delete-initiative" data-id="${esc(it.id)}" title="Excluir rascunho">✕</button>` : ""}
+          ${S.canDelete(it) ? `<button class="btn btn-xs btn-danger-ghost" data-action="delete-initiative" data-id="${esc(it.id)}" title="Excluir rascunho">✕</button>`
+            : ativo(it) ? `<button class="btn btn-xs btn-danger-ghost" data-tri-cancelar="${esc(it.id)}" title="Não queremos mais este projeto: cancelar (sai do fluxo e fica no histórico)">🚫</button>`
+            : it.status === "Cancelado" ? `<button class="btn btn-xs btn-ghost" data-tri-reativar="${esc(it.id)}" title="Reativar o projeto (volta para A fazer)">↺</button>` : ""}
         </td>
       </tr>`;
   }
@@ -179,6 +181,28 @@
         const r = A.store.confirmarEsforco(ok.dataset.triConfirm);
         if (r.ok) toast(`Esforço de ${ok.dataset.triConfirm} confirmado.`);
         return;
+      }
+      // Cancelar um projeto validado (não é excluído: sai do fluxo e fica no histórico) ou reativar.
+      const canc = e.target.closest("[data-tri-cancelar]");
+      if (canc) {
+        const S = A.store, it = S.findInitiative(canc.dataset.triCancelar);
+        if (!it) return;
+        A.util.pedirTexto(`Cancelar “${it.id} · ${it.nome}”? Ele sai da Triagem, da Priorização e do Kanban, mas fica no histórico e pode ser reativado. Qual o motivo?`,
+          { title: "🚫 Cancelar projeto", okLabel: "Cancelar projeto", placeholder: "ex.: não faz mais sentido para a estratégia", obrigatorio: true })
+          .then((motivo) => {
+            if (motivo == null || !motivo.trim()) return;
+            const nota = `🚫 Cancelado em ${new Date().toLocaleDateString("pt-BR")}: ${motivo.trim()}`;
+            const r = S.saveInitiative({ status: "Cancelado", observacoes: `${nota}${it.observacoes ? `\n${it.observacoes}` : ""}` }, it.id, { source: "Triagem" });
+            if (!r.ok) return toast(r.error, "error");
+            toast(`${it.id} cancelado. Para ver ou reativar, use o filtro "Todos".`, "ok", 5000);
+          });
+        return;
+      }
+      const reat = e.target.closest("[data-tri-reativar]");
+      if (reat) {
+        const r = A.store.saveInitiative({ status: "A fazer" }, reat.dataset.triReativar, { source: "Triagem" });
+        if (!r.ok) return toast(r.error, "error");
+        return toast(`${reat.dataset.triReativar} reativado.`);
       }
       const nv = e.target.closest("[data-tri-novos]");
       if (nv) {
