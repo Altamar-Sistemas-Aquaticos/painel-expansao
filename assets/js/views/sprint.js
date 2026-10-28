@@ -100,7 +100,7 @@
   let ultimoSalvo = ""; // hora da última gravação feita nesta janela
 
   // Campos que a pessoa pode estar digitando: o redesenho da janela não pode apagar o que ainda não foi salvo.
-  const CAMPOS_DIGITANDO = ["ck-new", "ck-new-data", "act-obs", "act-prazo"];
+  const CAMPOS_DIGITANDO = ["ck-new", "ck-new-data", "ck-new-dias", "act-obs", "act-prazo"];
   function renderActivity() {
     const rascunho = Object.fromEntries(CAMPOS_DIGITANDO.map((id) => [id, $(id)?.value]));
     const foco = document.activeElement?.id;
@@ -113,6 +113,7 @@
     }
     if (rascunho["ck-new"]) $("ck-new").value = rascunho["ck-new"];
     if (rascunho["ck-new-data"]) $("ck-new-data").value = rascunho["ck-new-data"];
+    if (rascunho["ck-new-dias"]) $("ck-new-dias").value = rascunho["ck-new-dias"];
     // Observação e prazo: mantém o texto digitado só se ainda estiver sendo editado.
     ["act-obs", "act-prazo"].forEach((id) => { if (foco === id && rascunho[id] != null && $(id)) $(id).value = rascunho[id]; });
     if (foco && $(foco)) $(foco).focus();
@@ -198,6 +199,8 @@
         <form id="ck-form" class="act-check-add" autocomplete="off">
           <input id="ck-new" class="input input-sm" placeholder="Novo passo (ex.: enviar minuta para a Maíra)">
           <input id="ck-new-data" type="date" class="input input-sm" title="Prazo do passo (opcional)" aria-label="Prazo do passo">
+          <label class="pl-dias" title="Ou digite em quantos dias, a partir de hoje: a data é preenchida sozinha">ou em
+            <input id="ck-new-dias" type="number" class="input input-sm" min="0" max="999" placeholder="—" aria-label="Prazo do passo em dias a partir de hoje"> dias</label>
           <button class="btn btn-sm btn-outline" type="submit">+ Adicionar passo</button>
         </form>
         <div class="muted small act-check-dica">Passos são as pequenas tarefas da atividade. O prazo de cada passo é opcional. Ao adicionar, o passo já fica salvo.</div>
@@ -340,6 +343,11 @@
       }
       if (e.target.closest("[data-close-act]")) closeModal("modal-activity");
     });
+    // Prazo do novo passo em dias: preenche a data (hoje + N); escolher a data atualiza os dias.
+    body.addEventListener("input", (e) => {
+      if (e.target.id === "ck-new-dias") $("ck-new-data").value = A.util.isoEmDias(e.target.value);
+      else if (e.target.id === "ck-new-data") $("ck-new-dias").value = A.util.diasAte(e.target.value);
+    });
     // Nome do passo: Enter grava, Esc desfaz.
     body.addEventListener("keydown", (e) => {
       const el = e.target;
@@ -359,6 +367,7 @@
       $("ck-new").value = ""; // limpa já, para o redesenho não trazer o texto de volta
       const data = brDeIso($("ck-new-data").value);
       $("ck-new-data").value = "";
+      $("ck-new-dias").value = "";
       saveAct({ checklist: [...cur().checklist, { texto, feito: false, data }] })
         .then((r) => { if (r?.ok === false) $("ck-new").value = texto; setTimeout(() => $("ck-new")?.focus(), 0); });
     });

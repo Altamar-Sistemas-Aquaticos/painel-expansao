@@ -193,6 +193,7 @@
       nome: mesmo ? $("pl-nome").value : "",
       r: mesmo ? $("pl-r").value : it.responsavel || "",
       prazo: mesmo ? $("pl-prazo").value : "",
+      dias: mesmo ? $("pl-dias").value : "",
       marco: mesmo ? $("pl-marco").checked : false,
     };
     const rascunho = lider && lerRascunho(it.id);
@@ -234,6 +235,8 @@
           <input class="input" id="pl-nome" placeholder="O que precisa ser feito (ex.: aprovar o orçamento)" value="${esc(keep.nome)}" aria-label="Nova atividade">
           <select class="input" id="pl-r" aria-label="Responsável">${A.ui.peopleOptions(keep.r, { blank: "Responsável" })}</select>
           <input type="date" class="input" id="pl-prazo" value="${esc(keep.prazo)}" aria-label="Prazo">
+          <label class="pl-dias" title="Ou digite em quantos dias, a partir de hoje: a data é preenchida sozinha">ou em
+            <input type="number" class="input" id="pl-dias" min="0" max="999" placeholder="—" value="${esc(keep.dias)}" aria-label="Prazo em dias a partir de hoje"> dias</label>
           <button class="btn btn-primary" type="submit">Adicionar</button>
         </form>
         <div class="muted small pl-dica no-print">Enter adiciona e já deixa pronto para a próxima. Colar uma lista (do Excel, WhatsApp ou de uma ata) cria uma atividade por linha. Marque ◆ nas entregas importantes.</div>
@@ -283,6 +286,7 @@
     if (!novas.length) { $("pl-nome").focus(); return; }
     $("pl-nome").value = "";
     $("pl-marco").checked = false;
+    // O prazo fica para a próxima atividade (costuma ser parecido); os dias também.
     mudar(
       (it) => S().adicionarAtividades(it.id, novas),
       (lista) => novas.forEach((x) => lista.push({ id: novoId(), status: "A fazer", pct: 0, checklist: [], entregavel: "", inicio: "", dependeDe: "", observacoes: "", sprint: "", ...x })),
@@ -292,6 +296,11 @@
   }
 
   function init() {
+    // Prazo em dias: "em 15 dias" preenche a data (hoje + 15); escolher a data atualiza os dias.
+    document.addEventListener("input", (e) => {
+      if (e.target.id === "pl-dias") $("pl-prazo").value = A.util.isoEmDias(e.target.value);
+      else if (e.target.id === "pl-prazo") $("pl-dias").value = A.util.diasAte(e.target.value);
+    });
     document.addEventListener("submit", (e) => {
       if (e.target.id !== "pl-add") return;
       e.preventDefault();

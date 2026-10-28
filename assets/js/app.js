@@ -14,21 +14,36 @@
   let route = { view: "executivo", param: null };
 
   /* ---------- Renderização ---------- */
+  // Cada tela é desenhada separadamente: um erro numa delas não pode deixar as outras em branco.
+  const errosTela = new Map();
+  function desenhar(nome, fn) {
+    try {
+      fn();
+      errosTela.delete(nome);
+    } catch (err) {
+      console.error(`[Painel] Erro ao desenhar ${nome}:`, err);
+      const msg = `${err?.message || err}`;
+      if (errosTela.get(nome) !== msg) {
+        errosTela.set(nome, msg);
+        toast(`Erro ao montar a tela “${nome}”: ${msg}. Os dados estão salvos; mande um print para o suporte.`, "error", 12000);
+      }
+    }
+  }
   function renderAll() {
-    A.views.executive(S);
-    A.views.programa(S);
-    A.views.guia(S);
-    A.views.triagem(S);
-    A.views.priorizacao(S);
-    A.views.overview(S);
-    A.views.cadastros(S);
-    A.views.kanban(S);
-    A.views.tarefas?.(S);
-    A.views.waves(S);
-    A.views.decisions(S);
-    A.views.history(S);
-    if (route.view === "setor") A.views.sector(S, route.param);
-    if (route.view === "projeto") A.views.project(S, route.param);
+    desenhar("Painel executivo", () => A.views.executive(S));
+    desenhar("Programa", () => A.views.programa(S));
+    desenhar("Guia", () => A.views.guia(S));
+    desenhar("Triagem", () => A.views.triagem(S));
+    desenhar("Priorização", () => A.views.priorizacao(S));
+    desenhar("Cronograma", () => A.views.overview(S));
+    desenhar("Cadastros", () => A.views.cadastros(S));
+    desenhar("Kanban", () => A.views.kanban(S));
+    desenhar("Minhas tarefas", () => A.views.tarefas?.(S));
+    desenhar("Ondas", () => A.views.waves(S));
+    desenhar("Decisões", () => A.views.decisions(S));
+    desenhar("Histórico", () => A.views.history(S));
+    if (route.view === "setor") desenhar("Setor", () => A.views.sector(S, route.param));
+    if (route.view === "projeto") desenhar("Projeto", () => A.views.project(S, route.param));
     renderChrome();
     // Depois do login (ou ao trocar o "Ver como…"), a aba aberta pode não fazer parte da visão.
     if (!A.visao.podeVerAba(route.view)) switchTab(A.visao.abaInicial());

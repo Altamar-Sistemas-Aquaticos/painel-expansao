@@ -175,9 +175,25 @@
     return loadedScripts[src];
   }
 
+  // Prazo em dias: "15" vira a data de hoje + 15 (aaaa-mm-dd, para campos de data); e o caminho de volta.
+  function isoEmDias(dias) {
+    const n = parseInt(dias, 10);
+    if (!Number.isFinite(n) || n < 0) return "";
+    const d = new Date(); d.setHours(0, 0, 0, 0); d.setDate(d.getDate() + n);
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+  }
+  function diasAte(iso) {
+    const m = String(iso || "").match(/^(\d{4})-(\d{2})-(\d{2})$/);
+    if (!m) return "";
+    const hoje = new Date(); hoje.setHours(0, 0, 0, 0);
+    const d = new Date(Number(m[1]), Number(m[2]) - 1, Number(m[3]));
+    const n = Math.round((d - hoje) / 86400000);
+    return n >= 0 ? String(n) : "";
+  }
+
   A.util = {
     esc, norm, fmtNum, todayStr, fmtTime, fmtDay, fmtDateTime, excelSerialToStr,
     clone, uid, initials, toast, openModal, closeModal, closeTopModal, confirmDialog, pedirTexto,
-    downloadBlob, loadScript,
+    downloadBlob, loadScript, isoEmDias, diasAte,
   };
 })();
