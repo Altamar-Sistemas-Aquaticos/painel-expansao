@@ -1322,7 +1322,7 @@ body.presentation .filter-bar { display: none; }
 .pl-mes.sem .pl-mes-head strong { color: var(--warn-text); }
 .pl-mes-conta { margin-left: auto; font-size: 0.78rem; color: var(--text-muted); }
 .pl-lista { list-style: none; margin: 0; padding: 0; }
-.pl-linha { display: grid; grid-template-columns: 26px 24px minmax(0, 1fr) 150px 140px minmax(120px, auto) auto; gap: 0.45rem; align-items: center; padding: 0.3rem 0.2rem; border-bottom: 1px solid var(--border); }
+.pl-linha { display: grid; grid-template-columns: 26px 24px minmax(0, 1fr) 150px 250px minmax(120px, auto) auto; gap: 0.45rem; align-items: center; padding: 0.3rem 0.2rem; border-bottom: 1px solid var(--border); }
 .pl-linha:hover { background: var(--surface-2); }
 .pl-linha.marco { background: color-mix(in srgb, #6741d9 6%, transparent); }
 .pl-linha.marco .pl-nome { font-weight: 700; }
@@ -1384,7 +1384,7 @@ span.pl-check { cursor: default; }
   .pl-add { grid-template-columns: auto minmax(0, 1fr); }
   .pl-add #pl-r, .pl-add #pl-prazo { grid-column: span 1; }
   .pl-linha { grid-template-columns: 26px 24px minmax(0, 1fr) auto; }
-  .pl-linha .pl-r, .pl-linha .pl-prazo { grid-column: 3 / 4; }
+  .pl-linha .pl-r, .pl-linha .pl-prazo, .pl-linha .pl-periodo { grid-column: 3 / 4; }
   .pl-linha .pl-sit { grid-column: 3 / 5; }
 }
 
@@ -2056,3 +2056,10 @@ details.ex-setores[open] > summary { margin-bottom: 0.7rem; }
 /* Prazo em dias ("ou em 15 dias") ao lado da data */
 .pl-dias { display: inline-flex; align-items: center; gap: 0.35rem; white-space: nowrap; font-size: 0.85rem; color: var(--text-muted); }
 .pl-dias input { width: 4.2rem; text-align: center; }
+/* Plano: período da atividade (início → prazo); o início é automático (sequência do plano) ou informado */
+.pl-periodo { display: flex; align-items: center; gap: 0.25rem; min-width: 0; }
+.pl-periodo .pl-prazo { flex: 1; }
+.pl-seta { color: var(--text-muted); font-size: 0.8rem; }
+.pl-ini-auto { flex: none; border: 1px dashed var(--border); background: transparent; color: var(--text-muted); border-radius: 6px; padding: 0.2rem 0.4rem; font: inherit; font-size: 0.78rem; cursor: pointer; white-space: nowrap; }
+.pl-ini-auto:hover { border-color: var(--accent); color: var(--accent); }
+.pl-inicio { flex: none; width: 128px; font: inherit; font-size: 0.8rem; border: 1px solid var(--border); background: transparent; border-radius: 6px; padding: 0.2rem 0.3rem; color: var(--text); }

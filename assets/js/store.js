@@ -222,6 +222,8 @@
       marco: !!raw.marco, // ◆ entrega importante do projeto (destaque na lista e na linha do tempo)
       // Passou de um ciclo para o seguinte sem terminar: de qual ciclo veio e quantas vezes isso aconteceu.
       levadaDe: String(raw.levadaDe ?? ""),
+      // Quando foi concluída (define em qual ciclo ela conta como feita).
+      concluidoEm: status === "Concluído" ? String(raw.concluidoEm ?? "") : "",
       vezesLevada: Number(raw.vezesLevada) || 0,
     };
   }
@@ -899,16 +901,44 @@
   const sprintAtual = () => [...store.data.sprints].reverse().find((s) => !s.encerrada) || null;
   const findSprint = (id) => store.data.sprints.find((s) => s.id === id) || null;
   // Atividades (com o projeto) de uma sprint.
-  // Está no Kanban do ciclo? Colocada à mão (sprint = id do ciclo) ou automática: projeto no ciclo e
-  // prazo dentro do mês (ou vencido e não terminado). "-S3" = tirada à mão do Kanban do ciclo S3.
+  // Início de uma atividade: o informado no plano; senão, deduzido da sequência do plano —
+  // começa no dia seguinte ao prazo da atividade anterior; a primeira começa com o projeto (ou com o ciclo).
+  function inicioAtividade(it, a, sp = sprintAtual()) {
+    const proprio = parseDate(a.inicio);
+    if (proprio) return { data: proprio, deduzido: false };
+    const prazo = parseDate(a.prazo);
+    const anteriores = it.atividades
+      .filter((x) => x.id !== a.id && x.status !== "Cancelado")
+      .map((x) => parseDate(x.prazo))
+      .filter((d) => d && (!prazo || d < prazo));
+    if (anteriores.length) {
+      const ultima = new Date(Math.max(...anteriores.map((d) => d.getTime())));
+      return { data: addDays(ultima, 1), deduzido: true };
+    }
+    const doProjeto = parseDate(it.inicio);
+    const doCiclo = sp ? sprintDates(sp).inicio : null;
+    return { data: doProjeto || doCiclo || prazo || null, deduzido: true };
+  }
+
+  // Está no Kanban do ciclo? Colocada à mão (sprint = id do ciclo) ou automática, com o projeto no ciclo:
+  // - em execução (Fazendo, Esperando ou Travada);
+  // - o período da atividade (início → prazo) cruza o mês do ciclo, ou o prazo já venceu;
+  // - feita: entra no ciclo em que foi concluída.
+  // "-S3" = tirada à mão do Kanban do ciclo S3.
   function noKanban(it, a, sp = sprintAtual()) {
     if (!sp || a.status === "Cancelado" || it.status === "Cancelado") return false;
     if (a.sprint === sp.id) return true;
     if (a.sprint === `-${sp.id}` || it.ciclo !== sp.id) return false;
+    const { inicio, fim } = sprintDates(sp);
+    if (a.status === "Concluído") {
+      const c = a.concluidoEm ? new Date(a.concluidoEm) : null;
+      if (c && !isNaN(c)) { c.setHours(0, 0, 0, 0); return c >= inicio && c <= fim; }
+    } else if (a.status === "Em andamento") return true;
     const d = parseDate(a.prazo);
     if (!d) return false;
-    const { inicio, fim } = sprintDates(sp);
-    return d <= fim && (d >= inicio || a.status !== "Concluído");
+    const ini = inicioAtividade(it, a, sp).data || d;
+    if (a.status === "Concluído") return ini <= fim && d >= inicio; // feita sem data de conclusão registrada
+    return ini <= fim; // período cruza o mês ou o prazo já venceu
   }
   function sprintItems(sp = sprintAtual()) {
     if (!sp) return [];
@@ -987,6 +1017,8 @@
     const nova = makeSprint(numero, inicio);
     let levadas = 0, feitas = 0, projetosLevados = 0;
     if (atual) {
+      // O que estava no Kanban do ciclo que termina (antes de mudar os projetos de ciclo).
+      const doCiclo = sprintItems(atual);
       // O próximo ciclo recebe o que foi planejado para ele; projetos não terminados continuam, salvo se tirados no planejamento.
       store.data.initiatives.forEach((it) => {
         const vai = noProximoCiclo(it);
@@ -996,7 +1028,7 @@
         if (!vai) it.estrategico = it.ciclo ? it.estrategico : false;
         it.proximoCiclo = "";
       });
-      sprintItems(atual).forEach(({ a }) => {
+      doCiclo.forEach(({ a }) => {
         if (a.status === "Concluído") feitas++;
         else { a.sprint = nova.id; a.levadaDe = atual.id; a.vezesLevada = (a.vezesLevada || 0) + 1; levadas++; }
       });
@@ -1344,6 +1376,7 @@
     const patch = { ...input };
     // Marcar como concluída sem informar o % leva a atividade a 100%.
     if (patch.status === "Concluído" && !("pct" in patch)) patch.pct = 100;
+    if (patch.status === "Concluído" && before?.status !== "Concluído") patch.concluidoEm = new Date().toISOString();
     const base = { ...(before || {}), ...patch };
     // Edições antigas por "responsavel"/"envolvidos" (importação) sem RACI explícita: recalcula a partir deles.
     if (!("raci" in patch) && ("responsavel" in patch || "envolvidos" in patch)) {
@@ -1708,7 +1741,7 @@
     calc: { ve, cutoff, isAboveCut, wipCount, snapFib, snapEsforco, progress, parseDate, weekKey, sprintLimites, projetosPorOnda },
     eixos, findEixo, saveEixo, deleteEixo, eixoUso, criarFase, fasesDe,
     sprints, sprintAtual, findSprint, nomeCiclo, rotuloCiclo, proximoCicloInfo, noProximoCiclo, projetosNoProximo, setNoProximo,
-    semaforoMotivos, semaforoAuto, destrava, custoAtraso, wsjf, sprintItems, noKanban, setNoKanban, virarMes, activityCol,
+    semaforoMotivos, semaforoAuto, destrava, custoAtraso, wsjf, sprintItems, noKanban, inicioAtividade, setNoKanban, virarMes, activityCol,
     revisorPlano, adicionarAtividades, removerDoPlano, enviarProposta, diferencasDaProposta, aprovarPlano, pedirAjustePlano, sprintDates, planSprint, moveActivity, novaSprint, saveSprint, saveChecklist,
     findInitiative, nextId, saveInitiative, createProject, quickIdea, saveConfig, deleteInitiative, canDelete, advanceSituacao,
     moveToColumn, setOnda, setStatus, warnings, confirmarEsforco, setNoCiclo, projetosNoCiclo, setEstrategico, cicloJaAndando,

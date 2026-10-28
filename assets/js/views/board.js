@@ -166,7 +166,7 @@
     const abertas = p.atividades.filter((a) => a.status !== "Concluído" && a.status !== "Cancelado");
     if (!abertas.length) return "Ainda sem plano: nenhuma atividade cadastrada";
     if (!abertas.some((a) => S.calc.parseDate(a.prazo))) return `${abertas.length} atividade(s) sem prazo`;
-    return "Nenhuma atividade com prazo neste ciclo";
+    return "Nenhuma atividade em execução neste ciclo (todas começam depois)";
   }
   function chipsSemAtividade(projs) {
     if (!projs.length) return "";

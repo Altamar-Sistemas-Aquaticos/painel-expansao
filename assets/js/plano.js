@@ -46,6 +46,19 @@
     return { todo: ["A fazer", "todo"], doing: ["Fazendo", "doing"], waiting: ["Esperando", "waiting"], blocked: ["Travada", "blocked"], done: ["Feito", "done"] }[col];
   }
 
+  // Início da atividade: informado (campo de data) ou deduzido da sequência do plano (botão que abre o campo).
+  const inicioEditando = new Set();
+  const ddmm = (d) => d.toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit" });
+  function inicioHtml(S, it, a, k) {
+    if (a.status === "Cancelado") return "";
+    const ini = S.inicioAtividade(it, a);
+    if (a.inicio || inicioEditando.has(a.id)) {
+      const iso = ini.data ? `${ini.data.getFullYear()}-${String(ini.data.getMonth() + 1).padStart(2, "0")}-${String(ini.data.getDate()).padStart(2, "0")}` : "";
+      return `<input type="date" class="pl-inicio" ${k("inicio")} value="${iso}" aria-label="Início" title="Começa em (apague para voltar ao início automático)">`;
+    }
+    return `<button class="pl-ini-auto" data-pl-ini="${esc(a.id)}" title="Início automático: quando a atividade anterior termina. Clique para definir outro início (ex.: atividades em paralelo).">${ini.data ? `de ${ddmm(ini.data)}` : "início?"}</button>`;
+  }
+
   function linha(S, it, a, lider) {
     const d = S.calc.parseDate(a.prazo);
     const feito = a.status === "Concluído";
@@ -63,7 +76,7 @@
         <button class="pl-marco ${a.marco ? "on" : ""}" data-pl-marco="${esc(a.id)}" title="${a.marco ? "É um marco (entrega importante): clique para tirar" : "Marcar como marco (entrega importante)"}" aria-label="Marco">◆</button>
         <input class="pl-nome" ${k("nome")} value="${esc(a.nome)}" aria-label="Atividade">
         <select class="pl-r ${resp(a) ? "" : "vazio"}" ${k("r")} aria-label="Responsável">${A.ui.peopleOptions(resp(a), { blank: "Responsável?" })}</select>
-        <input type="date" class="pl-prazo ${d ? "" : "vazio"}" ${k("prazo")} value="${isoDeBr(a.prazo)}" aria-label="Prazo">
+        <span class="pl-periodo">${inicioHtml(S, it, a, k)}<span class="pl-seta" aria-hidden="true">→</span><input type="date" class="pl-prazo ${d ? "" : "vazio"}" ${k("prazo")} value="${isoDeBr(a.prazo)}" aria-label="Prazo" title="Prazo (fim da atividade)"></span>
         <span class="pl-sit">
           ${(a.checklist || []).length ? `<button class="pl-passos-btn ${passosAbertos.has(a.id) ? "aberto" : ""}" data-pl-passos="${esc(a.id)}" title="Ver os passos (checklist) desta atividade">☑ ${a.checklist.filter((x) => x.feito).length}/${a.checklist.length} passos</button>` : ""}
           <span class="minha-col ${cls}">${rot}</span>
@@ -111,7 +124,7 @@
         <div class="pl-mes ${k === mesAtual ? "atual" : ""} ${k === "sem" ? "sem" : ""}">
           <div class="pl-mes-head"><strong>${esc(g.titulo)}</strong><span class="muted small">${esc(tag)}</span>
             <span class="pl-mes-conta">${feitas} de ${g.itens.length} feita${g.itens.length === 1 ? "" : "s"}</span></div>
-          <ul class="pl-lista">${g.itens.map((a) => linha(S, it, a, lider)).join("")}</ul>
+          <ul class="pl-lista">${g.itens.map((a) => linha(S, lider ? { ...it, atividades: lista } : it, a, lider)).join("")}</ul>
         </div>`;
     }).join("") + (canceladas ? `<div class="muted small pl-canceladas">${canceladas} atividade(s) cancelada(s) não aparecem aqui (continuam no histórico).</div>` : "");
   }
@@ -337,6 +350,11 @@
       } else if (campo === "prazo") {
         const prazo = brDeIso(el.value);
         mudar((it) => S().saveActivity(it.id, id, { prazo }, { source: "Plano do projeto" }), (l) => { l.find((a) => a.id === id).prazo = prazo; });
+      } else if (campo === "inicio") {
+        // Vazio = volta ao início automático (deduzido da sequência do plano).
+        const inicio = brDeIso(el.value);
+        if (!inicio) inicioEditando.delete(id);
+        mudar((it) => S().saveActivity(it.id, id, { inicio }, { source: "Plano do projeto" }), (l) => { l.find((a) => a.id === id).inicio = inicio; });
       } else if (campo === "r") {
         const nome = el.value;
         mudar((it) => {
@@ -360,6 +378,12 @@
         vista = vistaBtn.dataset.plVista;
         try { sessionStorage.setItem(CHAVE_VISTA, vista); } catch {}
         return S().emit();
+      }
+      const ini = t.closest("[data-pl-ini]");
+      if (ini) {
+        inicioEditando.add(ini.dataset.plIni);
+        S().emit();
+        return setTimeout(() => document.querySelector(`.pl-inicio[data-pl-id="${CSS.escape(ini.dataset.plIni)}"]`)?.focus(), 0);
       }
       const pb = t.closest("[data-pl-passos]");
       if (pb) {
